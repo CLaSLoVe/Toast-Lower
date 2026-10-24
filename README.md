@@ -1,65 +1,67 @@
-# 敬酒模拟器 · Toast Lower
+# Toast Lower
 
-**[点这里开席！](https://claslove.github.io/Toast-Lower/)**
+English | [简体中文](README.zh-CN.md)
 
-## 高难通关视频
+**[Play now!](https://claslove.github.io/Toast-Lower/)**
 
-[![播放高难通关视频](docs/media/hard-clear.jpg)](https://claslove.github.io/Toast-Lower/replay.html)
+## Hard-mode walkthrough
 
-高难 · 惯性手感 · 十二关完整通关。自动操作，无跳关，保留音乐与音效。1 分 57 秒，约 9.4 MB。
+[![Watch the hard-mode walkthrough](docs/media/hard-clear.jpg)](https://claslove.github.io/Toast-Lower/replay.html)
 
-## 怎么玩
+Hard difficulty, inertial controls, all 12 stages. Automated input, no stage skips, with music and sound effects. 1:57 · 9.4 MB.
 
-| 动作 | 电脑 | 手机（横屏） |
+## How to play
+
+| Action | Desktop | Mobile (landscape) |
 | --- | --- | --- |
-| 扶杯 | Q / W 或 ← / → | 左手摇杆左右推 |
-| 调整高度 | O / P 或 ↓ / ↑ | 左手摇杆上下推 |
-| 敬酒 | 空格 | 右手点「敬酒」 |
-| 砸穿地板 | 砸楼回合按住 O / ↓ | 摇杆持续向下推 |
-| 暂停 | Esc / 暂停按钮 | 右上角暂停按钮 |
-| 返回主页 | 右上角「主页」 | 右上角「主页」 |
+| Steady the glass | Q / W or ← / → | Move the left stick sideways |
+| Adjust height | O / P or ↓ / ↑ | Move the left stick up or down |
+| Toast | Space | Tap the right-hand toast button |
+| Smash through the floor | Hold O / ↓ during the floor-break phase | Hold the stick down |
+| Pause | Esc / pause button | Top-right pause button |
+| Return home | Top-right home button | Top-right home button |
 
-电脑还支持 R 重开、M 静音。首页可选择难度或进入教程。手机摇杆支持斜推，松手保留惯性；旋转回竖屏会暂停。
+On desktop, R restarts and M mutes. Choose a difficulty or open the tutorial from the home screen. On mobile, diagonal stick input controls both axes; releasing it preserves momentum. Rotating to portrait pauses the game.
 
-倒计时红色 **0s** 对齐最佳敬酒时机。酒洒光就结束；敬酒失败扣酒，回合结束少量补酒。完美碰杯同时要求拍子准、杯子稳。后期杯子变小，容量也会减少。
+The red **0s** marks the ideal toast timing. Run out of wine and the game ends. Missed toasts cost wine; completed rounds restore a little. Perfect toasts require both precise timing and a steady glass. Later glasses are smaller and hold less wine.
 
-## 四章十二关
+## Four chapters, twelve stages
 
-| 章节 | 挑战 |
+| Chapter | Challenge |
 | --- | --- |
-| 职场 | 调整高度，学会单次敬酒 |
-| 地下交通 | 在晃动中扶稳杯子 |
-| 古墓 | 固定高度，连续踩 2 / 3 / 4 拍 |
-| 外星人 | 三杯同时倒计时，最后两拍辨认并追到真目标 |
+| Workplace | Adjust your height and learn single toasts |
+| Underground transit | Keep the glass steady while everything sways |
+| Ancient tomb | Hold a fixed height and hit 2, 3, then 4 consecutive beats |
+| Aliens | Three glasses count down together; identify and reach the real target in the final two beats |
 
-十二关后可继续无尽模式。
+Endless mode follows the twelve stages.
 
-## 本地运行
+## Run locally
 
-在项目目录运行：
+From the project directory:
 
 ```sh
 python3 -m http.server 8783 --bind 127.0.0.1
 ```
 
-浏览器打开 <http://127.0.0.1:8783/>。
+Open <http://127.0.0.1:8783/> in your browser.
 
-## 修改与检查
+## Editing and checks
 
-- `game.js`：画面、物理、关卡和操作。
-- `config.js`：带中文说明的参数默认值、范围和单位。
-- `settings.js` / `settings.css`：隐藏调试设置。首页或暂停时点击「···」，也可按 Shift+D。
-- `music.js` / `assets/audio/`：音乐播放与节拍时钟；`tools/make_music.py` 保留音乐合成源。
-- `assets/home/`：当前主页背景、Logo 和网页图标。
-- `tests/`：不使用浏览器或 GPU 的逻辑测试，覆盖范围见 [测试说明](tests/README.md)。
+- `game.js`: rendering, physics, stages and controls.
+- `config.js`: parameter defaults, ranges and units, with Chinese descriptions.
+- `settings.js` / `settings.css`: hidden debug settings. Click “···” on the home or pause screen, or press Shift+D.
+- `music.js` / `assets/audio/`: music playback and beat clock; `tools/make_music.py` contains the music synthesis source.
+- `assets/home/`: current home background, logo and favicon.
+- `tests/`: logic tests that run without a browser or GPU. See the [test notes](tests/README.md).
 
-游戏内设置仅保存在当前浏览器；修改 `config.js` 可调整发布版本的默认参数。无需安装 npm 依赖，使用 Node.js 22 或更新版本：
+In-game settings are saved only in the current browser. Edit `config.js` to change the published defaults. No npm dependencies are required; use Node.js 22 or later:
 
 ```sh
 npm test
 npm run build
 ```
 
-## 开发
+## Development
 
-本游戏由 Codex 和 Grok 协助开发。
+Developed with assistance from Codex and Grok.
