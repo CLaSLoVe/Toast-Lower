@@ -6,9 +6,9 @@
 
 ## 高难通关视频
 
-[![播放高难通关视频](docs/media/hard-clear.jpg)](https://claslove.github.io/Toast-Lower/replay.html)
+https://github.com/user-attachments/assets/f2ff0433-9575-4edf-9ddb-2efe6dd09d32
 
-高难 · 惯性手感 · 十二关完整通关。自动操作，无跳关，保留音乐与音效。1 分 57 秒，约 9.4 MB。
+自动操作 · 全流程
 
 ## 怎么玩
 

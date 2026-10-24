@@ -6,9 +6,9 @@ English | [简体中文](README.zh-CN.md)
 
 ## Hard-mode walkthrough
 
-[![Watch the hard-mode walkthrough](docs/media/hard-clear.jpg)](https://claslove.github.io/Toast-Lower/replay.html)
+https://github.com/user-attachments/assets/f2ff0433-9575-4edf-9ddb-2efe6dd09d32
 
-Hard difficulty, inertial controls, all 12 stages. Automated input, no stage skips, with music and sound effects. 1:57 · 9.4 MB.
+Automated playthrough.
 
 ## How to play
 
