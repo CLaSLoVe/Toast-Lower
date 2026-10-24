@@ -36,6 +36,25 @@ The red **0s** marks the ideal toast timing. Run out of wine and the game ends. 
 
 Endless mode follows the twelve stages.
 
+## Ranks
+
+Your final score determines your title. Scores below are entry thresholds; the first title is exclusive to zero points. Titles match the Chinese names in the game, with captions translated here.
+
+| Score | Title | Caption |
+| --- | --- | --- |
+| 0 | 成年香蕉 | You grew hands. Almost. |
+| 1 | 卧龙凤雏 | Two legendary strategists. One on each wrist. |
+| 4,500 | 小孩那桌 | Back to the kids' table. |
+| 12,000 | 夹菜我转桌 | Table manners were never the plan. |
+| 30,000 | 乌鸦哥 | Can't toast the table? Flip it. |
+| 65,000 | 端水大师 | Keep the glass level and everyone happy. |
+| 130,000 | 懂事长 | Toasted your way into management. |
+| 230,000 | 敬酒悍匪 | Taking the offensive. |
+| 360,000 | 国家一级陪酒员 | Practically licensed for this. |
+| 550,000 | 先天敬酒圣体 | Born for this banquet. |
+| 850,000 | 铁血山东 👍 | Social etiquette: maxed out. |
+| 1,200,000 | DeepDrink | A large toasting model. |
+
 ## Run locally
 
 From the project directory:

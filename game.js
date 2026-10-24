@@ -468,23 +468,23 @@ let bigText = null;
 
 // Score-based banquet titles. The banana is reserved for a zero-score run.
 const RANKS = [
-  [0, '成年香蕉'],
-  [1, '卧龙凤雏'],
-  [4500, '小孩那桌'],
-  [12000, '夹菜我转桌'],
-  [30000, '乌鸦哥'],
-  [65000, '端水大师'],
-  [130000, '懂事长'],
-  [230000, '敬酒悍匪'],
-  [360000, '国家一级陪酒员'],
-  [550000, '先天敬酒圣体'],
-  [850000, '铁血山东 👍'],
-  [1200000, 'DeepDrink'],
+  [0, '成年香蕉', '手是长了，但没完全长'],
+  [1, '卧龙凤雏', '左手卧龙，右手凤雏'],
+  [4500, '小孩那桌', '这桌暂时还坐不了'],
+  [12000, '夹菜我转桌', '主打一个不懂事'],
+  [30000, '乌鸦哥', '敬不好就掀桌'],
+  [65000, '端水大师', '杯子端稳，谁也不得罪'],
+  [130000, '懂事长', '敬酒敬出了管理岗'],
+  [230000, '敬酒悍匪', '开始主动进攻'],
+  [360000, '国家一级陪酒员', '仿佛持证上岗'],
+  [550000, '先天敬酒圣体', '天生就是吃这桌饭的'],
+  [850000, '铁血山东 👍', '人情世故拉满'],
+  [1200000, 'DeepDrink', '敬酒大模型'],
 ];
 function rankFor(score) {
   let rank = RANKS[0];
   for (const entry of RANKS) if (score >= entry[0]) rank = entry;
-  return rank[1];
+  return rank.slice(1);
 }
 function breakPts(L) { return 150 + 120 * L + 15 * L * L; }
 // difficulty grows with depth, without limit (endless mode keeps going)
@@ -3184,7 +3184,7 @@ function render() {
       ctx.globalAlpha = a;
       ctx.fillStyle = 'rgba(8,8,12,0.86)'; ctx.fillRect(0, 0, W, H);
       ctx.save(); overlayBox();
-      const rz = rankFor(o.score);
+      const [rz, remark] = rankFor(o.score);
       const [tz, te] = OVER_TEXT[o.reason];
       text('敬酒模拟器', 540, 110, 30, '#ffd34d', 'center', 900);
       text(tz, 540, 215, 100, '#ff5a4d', 'center', 900, '#2a0505');
@@ -3193,6 +3193,7 @@ function render() {
       const rankWidth = Math.max(460, ctx.measureText(rz).width + 72);
       ctx.fillStyle = '#ffd34d'; rr(540 - rankWidth / 2, 500, rankWidth, 110, 24); ctx.fill();
       text(rz, 540, 555, 58, '#7a1019', 'center', 900);
+      text(remark, 540, 640, 27, '#e5d2c4', 'center', 700);
       text(`最深 ${o.depth < 0.05 ? '0 米' : '−' + fmtDepth(o.depth)} · ${layerDef(o.layer).endless ? `无尽模式 第 ${o.layer + 1} 层` : `第 ${o.layer + 1} 层`}`, 540, 692, 31, '#fff', 'center', 800);
       text(`最高 ${st.bestCombo} 连敬 · 完美 ${st.perfects} 次 · 全桌服气 ${st.bursts} 次`, 540, 740, 25, '#e5d2c4', 'center', 800);
       text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}`, 540, 790, 32, '#7fd0ff', 'center', 900);
