@@ -466,26 +466,25 @@ let player, boss, followers = [], pending = [];
 const parts = [], debris = [], puddles = [], bubbles = [], popups = [];
 let bigText = null;
 
-// Banquet personas, calibrated to the current scoring (a story clear is roughly 700k).
-// The last two are familiar faces with more pull than their job title suggests.
+// Score-based banquet titles. The banana is reserved for a zero-score run.
 const RANKS = [
-  [0, '实习生', 'INTERN', '这桌还没认全人'],
-  [1200, '饭局搭子', 'DINNER REGULAR', '下次还叫上你'],
-  [4500, '部门气氛组', 'TEAM HYPE CREW', '菜没上，话先满了'],
-  [12000, '聚餐联络员', 'DINNER ORGANIZER', '谁坐哪儿都得问您'],
-  [30000, '销售老张', 'SALES VETERAN', '半桌都是老客户'],
-  [65000, '人事老熟人', 'HR INSIDER', '离职了也来坐坐'],
-  [130000, '部门经理', 'DEPARTMENT MANAGER', '今天先不聊进度'],
-  [230000, '总经理助理', 'EXECUTIVE ASSISTANT', '老板那杯您门儿清'],
-  [360000, '副总', 'VICE PRESIDENT', '您说随意，没人随意'],
-  [550000, 'CEO', 'CEO', '先干杯，预算下次说'],
-  [850000, '食堂阿姨', 'CANTEEN AUNTIE', '老板来了也得排队'],
-  [1200000, '保安大爷', 'UNCLE AT THE GATE', '全公司都得跟您打招呼'],
+  [0, '成年香蕉'],
+  [1, '卧龙凤雏'],
+  [4500, '小孩那桌'],
+  [12000, '夹菜我转桌'],
+  [30000, '乌鸦哥'],
+  [65000, '端水大师'],
+  [130000, '懂事长'],
+  [230000, '敬酒悍匪'],
+  [360000, '国家一级陪酒员'],
+  [550000, '先天敬酒圣体'],
+  [850000, '铁血山东 👍'],
+  [1200000, 'DeepDrink'],
 ];
 function rankFor(score) {
   let rank = RANKS[0];
   for (const entry of RANKS) if (score >= entry[0]) rank = entry;
-  return rank.slice(1);
+  return rank[1];
 }
 function breakPts(L) { return 150 + 120 * L + 15 * L * L; }
 // difficulty grows with depth, without limit (endless mode keeps going)
@@ -3185,15 +3184,15 @@ function render() {
       ctx.globalAlpha = a;
       ctx.fillStyle = 'rgba(8,8,12,0.86)'; ctx.fillRect(0, 0, W, H);
       ctx.save(); overlayBox();
-      const [rz, , remark] = rankFor(o.score);
+      const rz = rankFor(o.score);
       const [tz, te] = OVER_TEXT[o.reason];
       text('敬酒模拟器', 540, 110, 30, '#ffd34d', 'center', 900);
       text(tz, 540, 215, 100, '#ff5a4d', 'center', 900, '#2a0505');
       text(Math.round(o.score).toLocaleString('en-US'), 540, 400, 150, '#ffd34d', 'center', 900, '#3a2a00');
-      ctx.fillStyle = '#ffd34d'; rr(540 - 230, 500, 460, 110, 24); ctx.fill();
-      text('本局饭局身份', 540, 520, 20, '#8a5425', 'center', 800);
-      text(rz, 540, 568, 58, '#7a1019', 'center', 900);
-      text(remark, 540, 640, 27, '#e5d2c4', 'center', 700);
+      ctx.font = `900 58px ${FONT}`;
+      const rankWidth = Math.max(460, ctx.measureText(rz).width + 72);
+      ctx.fillStyle = '#ffd34d'; rr(540 - rankWidth / 2, 500, rankWidth, 110, 24); ctx.fill();
+      text(rz, 540, 555, 58, '#7a1019', 'center', 900);
       text(`最深 ${o.depth < 0.05 ? '0 米' : '−' + fmtDepth(o.depth)} · ${layerDef(o.layer).endless ? `无尽模式 第 ${o.layer + 1} 层` : `第 ${o.layer + 1} 层`}`, 540, 692, 31, '#fff', 'center', 800);
       text(`最高 ${st.bestCombo} 连敬 · 完美 ${st.perfects} 次 · 全桌服气 ${st.bursts} 次`, 540, 740, 25, '#e5d2c4', 'center', 800);
       text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}`, 540, 790, 32, '#7fd0ff', 'center', 900);
