@@ -1,6 +1,13 @@
 'use strict';
 (() => {
   const config = window.ToastConfig;
+  const touchTips = {
+    bodyAccel: '越大，上下推摇杆时身体加速越快。',
+    cupAccel: '越大，左右推摇杆时杯子转动越快。',
+    releaseCup: '越小，松开摇杆时杯子刹得越快。',
+    releaseBody: '越小，松开摇杆时身体刹得越快。',
+    reachTime: '点「敬酒」到杯子接触所需的时间。'
+  };
   const groups = {
     common: ['roundWait', 'missPenalty', 'roundRefill', 'spillMultiplier', 'spillMax', 'minCapacity'],
     difficulty: ['Time', 'Taper', 'Setup', 'Hand'],
@@ -76,7 +83,7 @@
     const reset = el('button', { type: 'button', class: 'reset-one', text: '恢复', 'aria-label': `恢复${label}默认值`, onclick: () => { draft[key] = defaultValue; input.value = defaultValue; updateStatus(); } });
     input.addEventListener('input', () => { draft[key] = input.value === '' ? '' : Number(input.value); updateStatus(); });
     return el('div', { class: 'setting-row' }, [
-      el('div', { class: 'setting-copy' }, [el('label', { for: `setting-${key}`, text: label }), el('p', { id: `help-${key}`, text: tips[key] || tips[suffix] || '' })]),
+      el('div', { class: 'setting-copy' }, [el('label', { for: `setting-${key}`, text: label }), el('p', { id: `help-${key}`, text: (options.touch && touchTips[key]) || tips[key] || tips[suffix] || '' })]),
       el('div', { class: 'setting-value' }, [input, el('span', { class: 'unit', text: unit }), reset])
     ]);
   }

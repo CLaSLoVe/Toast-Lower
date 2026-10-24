@@ -441,7 +441,7 @@ function applySettings(selection) {
 function openDebugMenu() {
   debugMenuOpen = true; clearInputs();
   window.ToastSettings.open({ values: CFG, difficulty: difficultyId, difficulties: DIFFICULTIES,
-    ctl: CTL, layer: START_LAYER, muted, paused: st.paused,
+    ctl: CTL, layer: START_LAYER, muted, paused: st.paused, touch: TOUCH,
     layers: Array.from({ length: Math.max(STORY_N + 1, START_LAYER + 1) }, (_, i) => layerLabel(i)),
     onSave: applySettings, onClose: () => { debugMenuOpen = false; }
   });
@@ -634,15 +634,17 @@ function updateStick(p) {
   stick.x = axis(stick.rawX); stick.y = axis(stick.rawY);
 }
 function mobileWords(value) {
-  if (!TOUCH) return value;
+  if (!TOUCH || typeof value !== 'string') return value;
   return value.replace('Q 往后仰，W 往前倾，扶平它', '摇杆左右推，把杯子扶平')
     .replace('点按 Q / W，把杯子扶平', '左右轻推摇杆，把杯子扶平')
     .replace('酒往前涌按 Q，往后涌按 W', '酒往前涌向左扶，往后涌向右扶')
     .replace('好！P 是起身', '好！摇杆向上推，起身')
     .replace('慢慢按 O 往下，边走边扶杯', '摇杆斜着轻推，边弯腰边扶杯')
     .replace('Q/W 继续扶杯', '左手继续扶杯')
-    .replaceAll('按住 O', '摇杆持续向下推').replaceAll('按住 P', '摇杆向上推')
-    .replaceAll('按空格', '点右边敬酒键');
+    .replace('那就按住 O 趴到底，继续按住，砸穿地板！', '摇杆向下推住，趴到底后继续推，砸穿地板！')
+    .replace('按住 O：趴下，再继续砸', '摇杆向下推住：趴下，再继续砸')
+    .replaceAll('按住 O', '摇杆向下推住').replaceAll('按住 P', '摇杆向上推')
+    .replaceAll('按空格', '点「敬酒」');
 }
 function canvasPt(e) {
   const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
@@ -1709,6 +1711,7 @@ function line(a, b) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y
 function poly(pts) { ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke(); }
 function circ(x, y, r, fill, stroke, lw) { ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * PI); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 4; ctx.stroke(); } }
 function text(s, x, y, size, col, align, weight, stroke) {
+  s = mobileWords(s); // Apply to every canvas message, including judgment feedback.
   ctx.font = `${weight || 800} ${size}px ${FONT}`; ctx.textAlign = align || 'left'; ctx.textBaseline = 'middle';
   if (stroke) { ctx.lineJoin = 'round'; ctx.strokeStyle = stroke; ctx.lineWidth = size * 0.22; ctx.strokeText(s, x, y); }
   ctx.fillStyle = col; ctx.fillText(s, x, y);
@@ -2793,18 +2796,27 @@ function drawArcadeUI() {
 
 function drawStick() {
   const r = stickRect(), active = stick.id !== null;
+  const smashHint = st.state === 'play' && !st.paused && st.round && st.round.smash && ['tie', 'aim'].includes(st.round.phase);
   ctx.save();
   circ(r.x, r.y, r.r + 12, 'rgba(16,20,30,.22)', 'rgba(235,245,255,.5)', 4);
   ctx.strokeStyle = 'rgba(235,245,255,.2)'; ctx.lineWidth = 2;
   line({ x: r.x - 90, y: r.y }, { x: r.x + 90, y: r.y });
   line({ x: r.x, y: r.y - 90 }, { x: r.x, y: r.y + 90 });
   for (const [dx, dy, key] of [[-1,0,'Q'],[1,0,'W'],[0,-1,'P'],[0,1,'O']]) {
-    const wanted = st.hintKeys.includes(key);
+    const wanted = smashHint ? key === 'O' : st.hintKeys.includes(key);
     ctx.save(); ctx.translate(r.x + dx * 118, r.y + dy * 118); ctx.rotate(Math.atan2(dy, dx));
-    ctx.strokeStyle = wanted ? '#ffd778' : 'rgba(240,246,255,.65)'; ctx.lineWidth = wanted ? 6 : 4;
+    if (smashHint && key === 'O') { ctx.shadowColor = '#ffb34d'; ctx.shadowBlur = 12 + 8 * Math.sin(st.t * 6); }
+    ctx.strokeStyle = wanted ? '#ffd778' : 'rgba(240,246,255,.65)'; ctx.lineWidth = wanted ? 8 : 4;
     ctx.beginPath(); ctx.moveTo(-8,-11); ctx.lineTo(3,0); ctx.lineTo(-8,11); ctx.stroke(); ctx.restore();
   }
   circ(r.x + stick.rawX * 92, r.y + stick.rawY * 92, 54, active ? 'rgba(127,208,255,.7)' : 'rgba(230,242,250,.4)', 'rgba(255,255,255,.65)', 3);
+  if (smashHint) {
+    const caption = st.pressure > 0.05 ? '↓ 继续向下推住' : '↓ 摇杆向下推住';
+    const y = r.y - r.r - 58;
+    ctx.font = `900 34px ${FONT}`; const width = ctx.measureText(caption).width + 36;
+    ctx.fillStyle = 'rgba(28,16,8,.8)'; rr(r.x - width / 2, y - 29, width, 58, 14); ctx.fill();
+    text(caption, r.x, y, 34, '#ffd778', 'center', 900);
+  }
   ctx.restore();
 }
 
@@ -3027,7 +3039,7 @@ function render() {
     const gR = gaugeRect(), pw = Math.min(560 * UI, W - 2 * (gR.x + gR.w + 14)), px = W / 2 - pw / 2, py = HB + 8 * UI, ph = 104 * UI;
     ctx.fillStyle = 'rgba(20,8,0,0.82)'; rr(px, py, pw, ph, 18 * UI); ctx.fill(); ctx.strokeStyle = '#ff9a3d'; ctx.lineWidth = 4; ctx.stroke();
     const live = rd.phase === 'aim', left = live ? clamp(roundLeft() / (rd.T + 0.5), 0, 1) : 1;
-    text(live ? '按住 O · 趴到底砸穿' : '到底了…准备砸', px + 20 * UI, py + 28 * UI, 23 * UI, '#ffd34d', 'left', 900);
+    text(TOUCH ? '摇杆向下推住 · 砸地板' : live ? '按住 O · 趴到底砸穿' : '到底了…准备砸', px + 20 * UI, py + 28 * UI, 23 * UI, '#ffd34d', 'left', 900);
     text(live ? `${Math.max(0, roundLeft()).toFixed(1)} 秒` : '', px + pw - 20 * UI, py + 28 * UI, 26 * UI, left < 0.3 && blink ? '#ff4d4d' : '#fff', 'right', 900);
     // timer bar (drains) and floor bar (cracks fill it)
     const bx = px + 20 * UI, bw = pw - 40 * UI;

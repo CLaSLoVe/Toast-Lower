@@ -70,4 +70,26 @@ test('orientation changes clear touches without pausing play or music',()=>{
  }
  g.tap('Escape');g.sandbox.innerWidth=390;g.sandbox.innerHeight=844;g.dispatch('resize');assert.equal(g.api.dbg().paused,true);
 });
+test('mobile smash, tutorial, feedback and navigation prompts never show keyboard controls',()=>{
+ for(const view of ['portrait','landscape','desktop']) {
+  const touch=view!=='desktop',g=createGame({search:`?tut=0&seed=7&view=${view}`}),drawn=[];
+  g.sandbox.document.getElementById('c').getContext('2d').fillText=s=>drawn.push(String(s));
+  const check=()=>{drawn.length=0;g.render();if(touch)assert.ok(drawn.every(s=>!(/\b[QWOP]\b|空格|Esc|按 R|S 跳过/.test(s))),drawn.join('\n'));};
+  g.tap('Enter');g.advance(24);
+  for(const phase of ['tie','aim']) for(const pressure of [0,.4]) {
+   Object.assign(g.inspect.st.round,{smash:true,phase});g.inspect.st.pressure=pressure;check();
+   assert.ok(drawn.some(s=>s.includes(touch?'摇杆向下推住':phase==='aim'?'按住 O':'到底了…准备砸')));
+  }
+  g.tap('Escape');check();g.tap('Escape');
+  g.inspect.st.state='title';g.tap('KeyT');
+  for(let step=0;step<=6;step++) {
+   Object.assign(g.inspect.st.tut,{step,enter:true,sub:0,t:0,acc:0});g.inspect.stepTutorial(1/60);check();
+   if(step===3||step===6){g.inspect.st.tut.t=6;g.inspect.stepTutorial(1/60);check();}
+  }
+  g.inspect.st.judge={word:'没敬上',col:'#fff',t:.3,px:0,py:0,bx:0,by:0,sub:'看红色 0s 那一拍按空格！'};check();
+  assert.ok(drawn.some(s=>s.includes(touch?'点「敬酒」':'按空格')));
+  g.inspect.st.state='over';g.inspect.st.stT=2;g.inspect.st.over={reason:'beer',score:0,depth:0,layer:0};check();
+  g.inspect.st.state='title';g.key('KeyD',true,{shiftKey:true});g.key('KeyD',false);assert.equal(g.inspect.settings.touch,touch);
+ }
+});
 console.log(`${n}/${n} mobile input checks passed`);

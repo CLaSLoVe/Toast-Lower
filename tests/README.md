@@ -43,7 +43,8 @@ and all three target heights reached with ordinary controls at 90/126/160 BPM.
 Run `node tests/mobile.test.cjs` for the mobile input checks: analog diagonal
 strength/deadzone, independent two-pointer ownership, no held-toast repeat, all
 release paths, coasting and reverse braking, control bounds, automatic landscape under portrait lock, physical touch mapping,
-and uninterrupted play across orientation changes.
+uninterrupted play across orientation changes, and device-specific prompts throughout
+the tutorial, floor breaks, judgment feedback and navigation.
 These simulate pointer events; real-device tactile comfort still needs playtesting.
 
 Run `node tests/navigation.test.cjs` for desktop/mobile return-to-home behavior
