@@ -1,0 +1,11 @@
+.DS_Store
+node_modules/
+dist/
+outputs/
+backups/
+tools/recording/
+assets/home/*-v45.png
+assets/home/prompts-*.txt
+*.log
+.env
+.env.*

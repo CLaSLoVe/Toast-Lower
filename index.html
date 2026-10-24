@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><link rel="icon" type="image/svg+xml" sizes="any" href="assets/home/favicon.svg?v=47">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#211520">
+<title>敬酒模拟器 · Toast Lower</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b0b0d;overflow:hidden;touch-action:none;overscroll-behavior:none;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;}
+  body{display:flex;align-items:center;justify-content:center;position:fixed;inset:0;}
+  canvas{display:block;image-rendering:auto;touch-action:none;}
+</style>
+<link rel="preload" as="image" href="assets/home/banquet-v46.png">
+<link rel="preload" as="image" href="assets/home/logo-v46.png">
+<link rel="stylesheet" href="settings.css?v=48-home-button">
+</head>
+<body>
+<canvas id="c" width="1080" height="1080" aria-label="敬酒模拟器。Q W 或左右方向键扶杯，O P 或上下方向键弯腰，看准红色0秒时按空格碰杯，出手时继续扶杯。Esc暂停，R重来，M静音。"></canvas>
+<script src="config.js?v=48-home-button"></script>
+<script src="settings.js?v=48-home-button"></script>
+<script src="music.js?v=48-home-button"></script>
+<script src="game.js?v=48-home-button"></script>
+</body>
+</html>
