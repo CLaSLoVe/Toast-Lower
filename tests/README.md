@@ -40,9 +40,10 @@ twelve rooms, fixed-height 2/3/4-note phrases on one music clock, per-note penal
 and once-per-phrase refill, concealed alien targets revealed two beats before zero,
 and all three target heights reached with ordinary controls at 90/126/160 BPM.
 
-Run `node tests/mobile.test.cjs` for the seven mobile input checks: analog diagonal
+Run `node tests/mobile.test.cjs` for the mobile input checks: analog diagonal
 strength/deadzone, independent two-pointer ownership, no held-toast repeat, all
-release paths, coasting and reverse braking, control bounds, and orientation pause.
+release paths, coasting and reverse braking, control bounds, automatic landscape under portrait lock, physical touch mapping,
+and uninterrupted play across orientation changes.
 These simulate pointer events; real-device tactile comfort still needs playtesting.
 
 Run `node tests/navigation.test.cjs` for desktop/mobile return-to-home behavior

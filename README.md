@@ -21,7 +21,7 @@ Automated playthrough.
 | Pause | Esc / pause button | Top-right pause button |
 | Return home | Top-right home button | Top-right home button |
 
-On desktop, R restarts and M mutes. Choose a difficulty or open the tutorial from the home screen. On mobile, diagonal stick input controls both axes; releasing it preserves momentum. Rotating to portrait pauses the game.
+On desktop, R restarts and M mutes. Choose a difficulty or open the tutorial from the home screen. On mobile, diagonal stick input controls both axes; releasing it preserves momentum. The game always uses landscape: with portrait rotation lock enabled, the display and touch controls rotate automatically inside the page.
 
 The red **0s** marks the ideal toast timing. Run out of wine and the game ends. Missed toasts cost wine; completed rounds restore a little. Perfect toasts require both precise timing and a steady glass. Later glasses are smaller and hold less wine.
 

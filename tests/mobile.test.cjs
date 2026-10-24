@@ -6,11 +6,11 @@ function test(name,fn){fn();console.log('PASS '+name);n++;}
 function mobile(view='landscape'){const g=createGame({search:`?tut=0&seed=7&view=${view}`});g.tap('Enter');return g;}
 function stick(g,x,y,id=1,type='pointerdown'){const r=g.inspect.stickGeometry;g.point(type,r.x+x*r.r,r.y+y*r.r,id);}
 test('analog diagonal controls are independent, bounded and have a center deadzone',()=>{
- for(const view of ['landscape']) {
+ for(const view of ['portrait','landscape']) {
   const g=mobile(view);stick(g,.05,.05);assert.equal(g.api.state().keys.W,0);assert.equal(g.api.state().keys.O,0);
-  stick(g,.5,.5,1,'pointermove');let k=g.api.state().keys;assert.ok(k.W>0&&k.W<.5);assert.equal(k.W,k.O);assert.equal(k.Q+k.P,0);
+  stick(g,.5,.5,1,'pointermove');let k=g.api.state().keys;assert.ok(k.W>0&&k.W<.5);assert.ok(Math.abs(k.W-k.O)<1e-10);assert.equal(k.Q+k.P,0);
   stick(g,-4,0,1,'pointermove');k=g.api.state().keys;assert.equal(k.Q,1);assert.equal(k.W+k.O+k.P,0);
-  stick(g,0,-1,1,'pointermove');assert.equal(g.api.state().keys.P,1);
+  stick(g,0,-1,1,'pointermove');assert.ok(Math.abs(g.api.state().keys.P-1)<1e-10);
  }
 });
 test('two thumbs remain independent; holding or sliding the toast finger never repeats a toast',()=>{
@@ -41,14 +41,33 @@ test('a second left finger cannot take over; sliding into toast never fires it',
  g.point('pointerup',a.x,a.y,3);assert.equal(g.inspect.stick.id,1);g.render();
 });
 test('phone controls fit the landscape canvas',()=>{
- for(const view of ['landscape']) {const g=mobile(view),r=g.inspect.stickGeometry,b=g.inspect.activeButton,{W,H}=g.inspect.canvasSize;
+ for(const view of ['portrait','landscape']) {const g=mobile(view),r=g.inspect.stickGeometry,b=g.inspect.activeButton,{W,H}=g.inspect.canvasSize;
  assert.ok(r.x-r.hit>=0&&r.y+r.hit<=H);assert.ok(b.x>r.x+r.hit&&b.x+b.w<=W&&b.y+b.h<=H);g.render();}
 });
-test('portrait cannot start or advance; rotating during play pauses and clears both thumbs',()=>{
- const g=createGame({touch:true,width:390,height:844,search:'?tut=0&seed=7'});g.tap('Enter');assert.equal(g.api.state().state,'title');g.render();
- g.sandbox.innerWidth=844;g.sandbox.innerHeight=390;g.dispatch('resize');g.tap('Enter');g.advance(24);stick(g,.5,.5);g.actionPointer('pointerdown',2);
- g.sandbox.innerWidth=390;g.sandbox.innerHeight=844;g.dispatch('resize');assert.equal(g.api.dbg().paused,true);assert.ok(Object.values(g.api.state().keys).every(v=>!v));
- const time=g.inspect.st.t;g.advance(300);assert.equal(g.inspect.st.t,time);g.render();
- g.sandbox.innerWidth=844;g.sandbox.innerHeight=390;g.dispatch('resize');assert.equal(g.api.dbg().paused,true);g.tap('Enter');g.advance(1);assert.ok(g.inspect.st.t>time);
+test('portrait lock rotates the game and maps physical two-thumb touches correctly',()=>{
+ const g=createGame({touch:true,width:390,height:844,search:'?tut=0&seed=7'}),cv=g.sandbox.document.getElementById('c');
+ assert.equal(cv.style.transform,'rotate(90deg)');assert.equal(g.api.state().lay,'land');
+ const rect=cv.getBoundingClientRect();assert.ok(rect.width<=390&&rect.height<=844);
+ // The visible center of the start button is on the physical left after a clockwise rotation.
+ const start=g.inspect.titleStartButton;
+ g.canvasDispatch('pointerdown',{pointerId:9,clientX:390*(1-(start.y+start.h/2)/1080),clientY:844/2});
+ assert.equal(g.api.state().state,'play');g.advance(24);
+ const r=g.inspect.stickGeometry,{W,H}=g.inspect.canvasSize;
+ g.canvasDispatch('pointerdown',{pointerId:1,clientX:rect.left+(1-(r.y+.5*r.r)/H)*rect.width,clientY:rect.top+(r.x+.5*r.r)/W*rect.height});
+ let k=g.api.state().keys;assert.ok(k.O>0&&k.W>0);assert.ok(Math.abs(k.O-k.W)<1e-10);
+ const b=g.inspect.activeButton;
+ g.canvasDispatch('pointerdown',{pointerId:2,clientX:rect.left+(1-(b.y+b.h/2)/H)*rect.width,clientY:rect.top+(b.x+b.w/2)/W*rect.height});
+ assert.equal(g.inspect.st.round.attempts,1);assert.equal(g.inspect.stick.id,1);
+ g.canvasDispatch('pointerup',{pointerId:2});assert.ok(g.api.state().keys.O>0);
+ g.canvasDispatch('pointercancel',{pointerId:1});assert.ok(Object.values(g.api.state().keys).every(v=>!v));g.render();
+});
+test('orientation changes clear touches without pausing play or music',()=>{
+ const g=createGame({touch:true,width:390,height:844,search:'?tut=0&seed=7'});g.tap('Enter');g.advance(24);
+ for(const [width,height] of [[844,390],[390,844],[320,568],[1024,768]]) {
+  stick(g,.5,.5);g.sandbox.innerWidth=width;g.sandbox.innerHeight=height;g.dispatch('resize');
+  assert.equal(g.api.dbg().paused,false);assert.ok(Object.values(g.api.state().keys).every(v=>!v));
+  const time=g.inspect.st.t;g.advance(1);assert.ok(g.inspect.st.t>time);assert.equal(g.sandbox.__music.playing,true);g.render();
+ }
+ g.tap('Escape');g.sandbox.innerWidth=390;g.sandbox.innerHeight=844;g.dispatch('resize');assert.equal(g.api.dbg().paused,true);
 });
 console.log(`${n}/${n} mobile input checks passed`);

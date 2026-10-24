@@ -29,31 +29,35 @@ const PI = Math.PI;
 
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
-let scale = 1;
+let scale = 1, rotated = false;
 const TOUCH = params.get('view') === 'portrait' || params.get('view') === 'landscape' || (window.matchMedia && matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-// layouts: 'desk' = 1080x1080 square (keyboard), 'port' = phone upright (1080 wide, taller), 'land' = phone sideways (1080 tall, wider)
+// Touch always uses landscape; a portrait viewport rotates the canvas in-page.
+// Desktop keeps its existing square/tall layouts.
 function resize() {
   const view = params.get('view');
   let iw = innerWidth, ih = innerHeight;
   if (CAPTURE || view === 'portrait' || view === 'landscape') { if (view === 'portrait') { iw = 390; ih = 844; } else if (view === 'landscape') { iw = 844; ih = 390; } else { iw = ih = 1080; } }
+  rotated = TOUCH && iw < ih && !CAPTURE;
+  if (TOUCH && iw < ih) [iw, ih] = [ih, iw];
   const aspect = ih / iw;
-  if (aspect > 1.15) { LAY = 'port'; W = 1080; H = Math.round(1080 * Math.min(aspect, 2.4)); }
-  else if (TOUCH && aspect < 0.87) { LAY = 'land'; H = 1080; W = Math.round(1080 * Math.min(1 / aspect, 2.4)); }
+  if (TOUCH) { LAY = 'land'; H = 1080; W = Math.round(1080 * Math.max(1.35, Math.min(1 / aspect, 2.4))); }
+  else if (aspect > 1.15) { LAY = 'port'; W = 1080; H = Math.round(1080 * Math.min(aspect, 2.4)); }
   else { LAY = 'desk'; W = H = 1080; }
   let cw, ch;
   if (LAY === 'desk') { cw = ch = Math.min(iw, ih); }
   else { const k = Math.min(iw / W, ih / H); cw = W * k; ch = H * k; }
   if (CAPTURE) { cw = W; ch = H; }
-  else { const fit = Math.min(1, innerWidth / cw, innerHeight / ch); cw *= fit; ch *= fit; }
+  else { const fit = Math.min(1, (rotated ? innerHeight : innerWidth) / cw, (rotated ? innerWidth : innerHeight) / ch); cw *= fit; ch *= fit; }
   const dpr = CAPTURE ? 1 : Math.min(2, window.devicePixelRatio || 1);
   cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  cv.style.transform = rotated ? 'rotate(90deg)' : 'none';
+  if (document.documentElement) document.documentElement.toggleAttribute('data-game-rotated', rotated);
   cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
   scale = cv.width / W;
 }
-function resizeControls() { clearInputs(); resize(); if (needsLandscape() && ['play', 'fall', 'standup'].includes(st.state)) setPaused(true); }
+function resizeControls() { clearInputs(); resize(); }
 addEventListener('resize', resizeControls); addEventListener('orientationchange', () => { clearInputs(); setTimeout(resizeControls, 120); }); resize();
-function needsLandscape() { return TOUCH && H > W; }
-if (TOUCH && cv.setAttribute) cv.setAttribute('aria-label', '敬酒模拟器手机版。请横屏。左手摇杆上下调整高度、左右扶杯，右手点击敬酒。保留惯性，红色0秒踩拍。');
+if (TOUCH && cv.setAttribute) cv.setAttribute('aria-label', '敬酒模拟器手机版。自动横屏。左手摇杆上下调整高度、左右扶杯，右手点击敬酒。保留惯性，红色0秒踩拍。');
 // where the floor sits on screen, and where the touch buttons start
 function btnTop() { return LAY === 'port' ? H - 30 - 300 : LAY === 'land' ? H - 24 - 200 : 950; }
 function floorSY() { return LAY === 'port' ? btnTop() - 200 : TOUCH && LAY === 'land' ? H - 65 : 860; }
@@ -62,7 +66,7 @@ function hudBottom() { return LAY === 'port' ? 170 : LAY === 'land' ? 140 : 120;
 // ---------------------------------------------------------------- sound (quiet)
 let AC = null, muted = false, gestured = false;
 try { muted = localStorage.getItem('toast_mute') === '1'; } catch (e) { /* private mode */ }
-function syncMusic() { window.ToastMusic.update(gestured && !CAPTURE && !BOT && !needsLandscape() && !document.hidden && !st.paused && ['play', 'fall', 'standup'].includes(st.state), muted ? 0 : CFG.musicVolume / 100, CFG.musicBpm); }
+function syncMusic() { window.ToastMusic.update(gestured && !CAPTURE && !BOT && !document.hidden && !st.paused && ['play', 'fall', 'standup'].includes(st.state), muted ? 0 : CFG.musicVolume / 100, CFG.musicBpm); }
 function setMute(v) { muted = v; syncMusic(); try { localStorage.setItem('toast_mute', v ? '1' : '0'); } catch (e) { /* ignore */ } }
 // a short buzz on phones (follows the sound switch); never in bot / capture runs
 function buzz(pat) { if (muted || CAPTURE || BOT || !gestured) return; try { if (navigator.vibrate) navigator.vibrate(pat); } catch (e) { /* ignore */ } }
@@ -567,7 +571,6 @@ function returnToTitle() {
 function startFromTitle(forceTut) { debugMenuOpen = false; if (forceTut || st.tut) { startTutorial(); return; } restart(); }
 addEventListener('keydown', e => {
   if (window.ToastSettings.isOpen()) return;
-  if (needsLandscape()) { e.preventDefault(); return; }
   gestured = true; window.ToastMusic.gesture(); syncMusic();
   if (KEYMAP[e.code] || e.code === 'Space') e.preventDefault();
   if (e.repeat && !KEYMAP[e.code]) return;
@@ -641,7 +644,10 @@ function mobileWords(value) {
     .replaceAll('按住 O', '摇杆持续向下推').replaceAll('按住 P', '摇杆向上推')
     .replaceAll('按空格', '点右边敬酒键');
 }
-function canvasPt(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; }
+function canvasPt(e) {
+  const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+  return rotated ? { x: y * W, y: (1 - x) * H } : { x: x * W, y: y * H };
+}
 // multi-touch: every finger is tracked by pointerId, so Q+W+O+P can all be held at once.
 // A finger that slides from one button onto another switches keys (like a real gamepad).
 function btnAt(p) { if (st.state === 'play' && (!st.tut || st.tut.step === 5) && hitR(p, toastButtonRect())) return 'Space'; for (let i = 0; i < 4; i++) { const r = btnRect(i), m = 8; if (p.x > r.x - m && p.x < r.x + r.w + m && p.y > r.y - m && p.y < r.y + r.h + m) return BTN[i][0]; } return null; }
@@ -652,7 +658,7 @@ function refreshKeys() { if (BOT) return; for (const k in keys) keys[k] = 0; if 
   }
 }
 cv.addEventListener('pointerdown', e => {
-  e.preventDefault(); if (needsLandscape()) return; gestured = true; window.ToastMusic.gesture(); syncMusic();
+  e.preventDefault(); gestured = true; window.ToastMusic.gesture(); syncMusic();
   { const q0 = canvasPt(e), pb = pauseBtnRect();
     if (st.state !== 'title' && hitR(q0, homeBtnRect())) { returnToTitle(); return; }
     if (st.state === 'play' && !st.paused && q0.x > pb.x && q0.x < pb.x + pb.w && q0.y > pb.y && q0.y < pb.y + pb.h) { setPaused(true); return; }
@@ -1646,7 +1652,6 @@ function stepParticles(dt) {
 }
 
 function step(dt0) {
-  if (needsLandscape()) return;
   if (st.paused) return;
   if (st.punch) { st.punch.t += dt0; if (st.punch.t > 1.2) st.punch = null; }
   if (st.judge) { st.judge.t += dt0; if (st.judge.t > 1.7) st.judge = null; }
@@ -2846,16 +2851,6 @@ function render() {
   const t = st.t;
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   ctx.fillStyle = '#0b0b0d'; ctx.fillRect(0, 0, W, H);
-  if (needsLandscape()) {
-    ctx.fillStyle = '#211722'; ctx.fillRect(0, 0, W, H);
-    const cx = W / 2, cy = H / 2;
-    ctx.strokeStyle = '#ffd778'; ctx.lineWidth = 9; rr(cx - 175, cy - 220, 350, 170, 30); ctx.stroke();
-    circ(cx - 140, cy - 135, 9, '#ffd778');
-    text('↻', cx, cy - 135, 100, '#ffd778', 'center', 800);
-    text('横过来，开席了', cx, cy + 45, 62, '#ffe4b1', 'center', 900);
-    text('左手摇杆 · 右手敬酒', cx, cy + 135, 37, '#cab6c5', 'center', 700);
-    return;
-  }
   const shx = (Math.random() - 0.5) * st.shake * 2, shy = (Math.random() - 0.5) * st.shake * 2; // screen shake must not touch the seeded rng
   ctx.save();
   ctx.translate(W / 2 + shx, H / 2 + shy);

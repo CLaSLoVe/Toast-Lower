@@ -66,7 +66,11 @@ function createGame(options = {}) {
   });
   const canvas = { ...canvasEvents, style: {}, width: 1080, height: 1080,
     getContext(kind) { if (kind !== '2d') throw new Error('Only the inert 2D stub is allowed'); return ctx; },
-    getBoundingClientRect() { return { left: 0, top: 0, width: parseFloat(this.style.width) || 1080, height: parseFloat(this.style.height) || 1080 }; },
+    getBoundingClientRect() {
+      let width = parseFloat(this.style.width) || 1080, height = parseFloat(this.style.height) || 1080;
+      if (this.style.transform === 'rotate(90deg)') [width, height] = [height, width];
+      return { left: (sandbox.innerWidth - width) / 2, top: (sandbox.innerHeight - height) / 2, width, height };
+    },
     setPointerCapture() {}, releasePointerCapture() {},
   };
   const storage = new Map(Object.entries(options.storage || { 'toastLower.tutDone': '1', toast_mute: '1' }));
@@ -126,23 +130,20 @@ function createGame(options = {}) {
     tap(code) { this.key(code); this.key(code, false); },
     point(type, x, y, pointerId = 1) {
       const { W, H } = this.inspect.canvasSize, rect = canvas.getBoundingClientRect();
-      return canvasEvents.dispatch(type, { pointerId, clientX: x / W * rect.width, clientY: y / H * rect.height });
+      const rotated = canvas.style.transform === 'rotate(90deg)';
+      return canvasEvents.dispatch(type, { pointerId,
+        clientX: rect.left + (rotated ? 1 - y / H : x / W) * rect.width,
+        clientY: rect.top + (rotated ? x / W : y / H) * rect.height });
     },
     pointer(type, key, pointerId = 1) {
       const button = this.inspect.buttons.find(b => b.key === key);
       if (!button) throw new Error(`Unknown button ${key}`);
-      const { W, H } = this.inspect.canvasSize, rect = canvas.getBoundingClientRect();
-      return canvasEvents.dispatch(type, { pointerId,
-        clientX: (button.x + button.w / 2) / W * rect.width,
-        clientY: (button.y + button.h / 2) / H * rect.height });
+      return this.point(type, button.x + button.w / 2, button.y + button.h / 2, pointerId);
     },
     actionPointer(type, pointerId = 9) {
       const button = this.inspect.activeButton;
       if (!button) throw new Error('Active-toast button not available');
-      const { W, H } = this.inspect.canvasSize, rect = canvas.getBoundingClientRect();
-      const values = { pointerId, clientX: (button.x + button.w / 2) / W * rect.width,
-        clientY: (button.y + button.h / 2) / H * rect.height };
-      canvasEvents.dispatch(type, values);
+      return this.point(type, button.x + button.w / 2, button.y + button.h / 2, pointerId);
     },
     pressAction(pointerId = 9) { this.actionPointer('pointerdown', pointerId); this.actionPointer('pointerup', pointerId); },
     overrideControls(values) { sandbox.__overrideControls = values; },

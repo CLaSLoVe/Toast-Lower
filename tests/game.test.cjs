@@ -494,7 +494,7 @@ if (!matrixOnly) {
     for (const view of ['desktop', 'portrait', 'landscape']) for (let layer = 0; layer <= 12; layer++) {
       const g = game(`?capture=1&tut=0&bot=expert&seed=20261022&layer=${layer}&view=${view}`);
       g.advance(180, true); finiteState(g); assert.ok(g.drawCalls > 0);
-      assert.equal(g.api.state().lay, view === 'desktop' ? 'desk' : view === 'portrait' ? 'port' : 'land');
+      assert.equal(g.api.state().lay, view === 'desktop' ? 'desk' : 'land');
     }
   });
   test('real floor-break and standup transitions traverse 12 rooms into endless', () => {
