@@ -97,11 +97,11 @@ if (!matrixOnly) {
     assert.equal(settings.paused, true);
     settings.onSave({ ...settings, values: { ...settings.values, roundWait: 2.1 } }); settings.onClose();
     assert.equal(g.api.state().state, 'play'); assert.equal(g.api.dbg().paused, false);
-    assert.ok(Math.abs(g.inspect.st.round.T + 0.5 - 2.1) < 1e-9);
+    assert.ok(Math.abs(g.inspect.st.round.T + 0.5 - (2.1 + g.inspect.config.normalSetup)) < 1e-9);
     const changedDefaults = game('?tut=0', { storage: { 'toastLower.parameters.v1': JSON.stringify({ signature: 'old defaults', values: { roundWait: 5 } }) } });
     assert.equal(changedDefaults.inspect.config.roundWait, 2);
     const valid = c.validate({ spillMultiplier: NaN, missPenalty: 999, normalTime: 0.1, normalTaper: 0.3 });
-    assert.equal(valid.spillMultiplier, 1); assert.equal(valid.missPenalty, 100);
+    assert.equal(valid.spillMultiplier, c.defaults.spillMultiplier); assert.equal(valid.missPenalty, 100);
     assert.ok(valid.normalTime - valid.normalTaper >= 0.05);
   });
   test('spill multiplier and per-second cap change actual wine loss', () => {
@@ -160,7 +160,7 @@ if (!matrixOnly) {
     }
     assert.ok(windows[0] > windows[1] && windows[1] > windows[2]);
     assert.ok(durations[0] > durations[1] && durations[1] > durations[2]);
-    assert.ok(Math.abs(durations[1] + 0.5 - 2) < 1e-9, 'normal opening countdown is 2 seconds');
+    assert.ok(Math.abs(durations[1] + 0.5 - (2 + game().inspect.config.normalSetup)) < 1e-9, 'normal countdown includes its preparation allowance');
     assert.equal(game('?tut=0&difficulty=invalid').api.dbg().difficulty, 'normal');
   });
   test('title starts, QWOP respond, keyup and blur release input', () => {
@@ -326,6 +326,24 @@ if (!matrixOnly) {
     const unattended = exercise(false), coordinated = exercise(true);
     assert.ok(unattended > 2, 'body movement visibly disturbs the drink');
     assert.ok(coordinated < unattended * 0.8, `counter-steering reduces deviation: ${coordinated} vs ${unattended}`);
+  });
+  test('each difficulty uses its own editable body coupling and remains ordered', () => {
+    const turns = [];
+    for (const id of ['easy', 'normal', 'hard']) {
+      const g = game(`?tut=0&difficulty=${id}`); g.tap('Enter');
+      function trial() {
+        const p = { ...g.inspect.player, tilt: 0, vtilt: 0, vet: 0, tdr: 0, swv: 0,
+          vh: 0.4, veh: 0, cupBodySpeed: 0.4, w: 0, wv: 0 };
+        g.inspect.moveCup(p, {}, 1 / 60, g.inspect.diff()); return p.tilt;
+      }
+      const original = trial(); turns.push(original);
+      const other = id === 'easy' ? 'hard' : 'easy';
+      g.inspect.config[other + 'BodyCupCoupling'] = 0;
+      assert.equal(trial(), original, 'another difficulty does not change this one');
+      g.inspect.config[id + 'BodyCupCoupling'] = 0;
+      assert.equal(trial(), 0, 'selected difficulty setting controls actual physics');
+    }
+    assert.ok(turns[0] > 0 && turns[0] < turns[1] && turns[1] < turns[2]);
   });
   test('cup angle stops at 45 degrees in either direction and can reverse', () => {
     for (const ctl of ['accel', 'vel']) for (const [forward, reverse, sign] of [['KeyW', 'KeyQ', 1], ['KeyQ', 'KeyW', -1]]) {

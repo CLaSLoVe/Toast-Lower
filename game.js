@@ -964,7 +964,7 @@ function moveCup(p, K, dt, d) {
   const bodySpeed = p.vh + p.veh, bodyAccel = clamp((bodySpeed - (p.cupBodySpeed || 0)) / dt, -4, 4);
   p.cupBodySpeed = bodySpeed;
   const coupled = st.tut && st.tut.step < 4 ? 0 : (CTL === 'vel' ? 0.76 : 1) *
-    (CFG.bodyCupCoupling * bodySpeed + CFG.bodyBrakeCoupling * bodyAccel);
+    (CFG[difficulty().id + 'BodyCupCoupling'] * bodySpeed + CFG.bodyBrakeCoupling * bodyAccel);
   const rate = p.vtilt + p.vet + coupled * difficulty().hand;
   const previousTilt = p.tilt, tiltLimit = CFG.cupTiltLimit * PI / 180;
   p.tilt = clamp(p.tilt + rate * dt, -tiltLimit, tiltLimit);

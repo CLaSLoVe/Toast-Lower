@@ -10,8 +10,8 @@
   };
   const groups = {
     common: ['roundWait', 'missPenalty', 'roundRefill', 'spillMultiplier', 'spillMax', 'minCapacity'],
-    difficulty: ['Time', 'Taper', 'Setup', 'Hand'],
-    feel: ['stickDeadzone', 'stickCurve', 'cupTiltLimit', 'bodyCupCoupling', 'bodyBrakeCoupling', 'bodyAccel', 'bodyBrake', 'cupAccel', 'cupBrake', 'releaseCup', 'releaseBody'],
+    difficulty: ['Time', 'Taper', 'Setup', 'BodyCupCoupling', 'Hand'],
+    feel: ['stickDeadzone', 'stickCurve', 'cupTiltLimit', 'bodyBrakeCoupling', 'bodyAccel', 'bodyBrake', 'cupAccel', 'cupBrake', 'releaseCup', 'releaseBody'],
     advanced: ['chainReach', 'chainWindow', 'alienRounds', 'alienStep1', 'alienStep2', 'alienStep3', 'musicVolume', 'musicBpm', 'spillSoundVolume', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'floorRefill', 'clinkSpill', 'spillGrace', 'spillRamp']
   };
   const tips = {
@@ -22,14 +22,14 @@
     alienRounds: '每关成功敬酒约几轮后进入砸楼，失败不会推进高度。',
     alienStep1: '三个候选杯的相邻高度差，揭晓后只有两拍调整。',
     alienStep2: '第二关候选杯高度差；越大，需要调整得越快。',
-    alienStep3: '第三关候选杯高度差；默认 64，过大会难以赶到。',
+    alienStep3: '第三关候选杯高度差；过大会难以赶到。',
     spillSoundVolume: '只调漏酒声；设为 0 可关闭。敬酒三声期间自动静音漏酒声。',
     spillSoundInterval: '连续漏酒时的声音间隔；越大越安静，不影响实际漏酒速度。',
     musicBpm: '音乐和敬酒三拍共用速度；数值越大越快，第三声始终对齐红色 0s。',
     musicVolume: '酒局循环小曲的音量；设为 0 只关闭音乐，静音开关会关闭所有声音。',
     minCapacity: '后期最小杯子的酒量上限，以初始大杯为 100%。扣酒和补酒仍按初始大杯计算。',
     cupTiltLimit: '限制前后倾斜，最多 45°；到边缘后仍能反向扶正。',
-    bodyCupCoupling: '身体向下或向上运动，会带动杯子同向转动；越大越明显。',
+    BodyCupCoupling: '这一档上下移动时带动杯子的强度；也受扶杯干扰倍率影响，越小越容易稳住。',
     bodyBrakeCoupling: '加速和刹车时的短促晃动，方向随身体速度变化。',
     perfectTime: '必须同时合拍并扶稳，才算完美。不会收紧普通碰杯范围。',
     perfectScore: '完美额外得分，随当前层数增加；默认不额外补酒。',
@@ -104,7 +104,7 @@
       const select = el('select', { id: 'setting-control', 'aria-label': '操作手感' }, [el('option', { value: 'accel', text: '醉拳 · 有惯性' }), el('option', { value: 'vel', text: '练习 · 易刹车' })]);
       select.value = selectedCtl; select.addEventListener('change', () => { selectedCtl = select.value; render(); });
       panel.append(el('div', { class: 'setting-row' }, [el('label', { for: 'setting-control', text: '操作手感' }), select]));
-      panel.append(el('p', { class: 'section-note', text: '倾角与联动对两种手感都生效；加速度和阻尼用于醉拳。想更好刹车，先调高阻尼。' }));
+      panel.append(el('p', { class: 'section-note', text: '身体带动杯子在「难度」中分档调整；加速度和阻尼用于醉拳。想更好刹车，先调高阻尼。' }));
     }
     const keys = tab === 'difficulty' ? groups.difficulty.map(s => difficulty + s) : groups[tab];
     for (const key of keys) panel.append(field(key));
