@@ -163,6 +163,22 @@ if (!matrixOnly) {
     assert.ok(Math.abs(durations[1] + 0.5 - (2 + game().inspect.config.normalSetup)) < 1e-9, 'normal countdown includes its preparation allowance');
     assert.equal(game('?tut=0&difficulty=invalid').api.dbg().difficulty, 'normal');
   });
+  test('results retain difficulty and only mark a full story clear after twelve floors', () => {
+    for (const id of ['easy', 'normal', 'hard']) for (const view of ['desktop', 'landscape']) {
+      const g = game(`?tut=0&difficulty=${id}&view=${view}`); g.tap('Enter');
+      g.inspect.player.wine = 0.1; g.inspect.strike(null, null, 'late');
+      assert.equal(g.inspect.st.over.difficulty, id); assert.equal(g.inspect.st.over.cleared, false);
+      const drawn = []; g.sandbox.document.getElementById('c').getContext('2d').fillText = s => drawn.push(String(s));
+      g.inspect.st.stT = 2; g.render();
+      assert.ok(drawn.some(s => s.includes({easy:'简单 · 我爸是局长',normal:'中等 · 00后整顿酒桌',hard:'高难 · 35岁，杯杯是房贷'}[id])));
+      g.tap('KeyR'); g.inspect.st.L = 12; g.inspect.st.breaks = 12;
+      g.inspect.player.wine = 0.1; g.inspect.strike(null, null, 'late');
+      assert.equal(g.inspect.st.over.cleared, true);
+      const jumped = game(`?tut=0&layer=12&difficulty=${id}`); jumped.tap('Enter');
+      jumped.inspect.st.breaks = 12; jumped.inspect.player.wine = 0.1; jumped.inspect.strike(null, null, 'late');
+      assert.equal(jumped.inspect.st.over.cleared, false, 'starting in endless does not count as clearing the story');
+    }
+  });
   test('title starts, QWOP respond, keyup and blur release input', () => {
     const g = game();
     assert.equal(g.api.state().state, 'title'); g.render();

@@ -839,7 +839,7 @@ const OVER_TEXT = {
 function gameOver(reason) {
   if (st.state !== 'play') return;
   st.state = 'over'; st.stT = 0; syncMusic();
-  st.over = { reason, score: st.score, layer: st.L, depth: st.depth, people: allChars().length, t: st.gameT };
+  st.over = { reason, difficulty: difficultyId, cleared: START_LAYER === 0 && st.breaks >= STORY_N && st.L >= STORY_N, score: st.score, layer: st.L, depth: st.depth, people: allChars().length, t: st.gameT };
   st.newRecord = st.score > st.hiscore;
   if (st.newRecord) { st.hiscore = st.score; try { localStorage.setItem('toastLower.best', String(st.score)); } catch (e) { /* ignore */ } }
   clearInputs();
@@ -3195,13 +3195,15 @@ function render() {
       const [tz, te] = OVER_TEXT[o.reason];
       text('敬酒模拟器', 540, 110, 30, '#ffd34d', 'center', 900);
       text(tz, 540, 215, 100, '#ff5a4d', 'center', 900, '#2a0505');
+      const mode = DIFFICULTIES.find(d => d.id === o.difficulty) || difficulty();
+      text(`${mode.level} · ${mode.name}`, 540, 295, 32, '#e5d2c4', 'center', 800);
       text(Math.round(o.score).toLocaleString('en-US'), 540, 400, 150, '#ffd34d', 'center', 900, '#3a2a00');
       ctx.font = `900 58px ${FONT}`;
       const rankWidth = Math.max(460, ctx.measureText(rz).width + 72);
       ctx.fillStyle = '#ffd34d'; rr(540 - rankWidth / 2, 500, rankWidth, 110, 24); ctx.fill();
       text(rz, 540, 555, 58, '#7a1019', 'center', 900);
       text(remark, 540, 640, 27, '#e5d2c4', 'center', 700);
-      text(`最深 ${o.depth < 0.05 ? '0 米' : '−' + fmtDepth(o.depth)} · ${layerDef(o.layer).endless ? `无尽模式 第 ${o.layer + 1} 层` : `第 ${o.layer + 1} 层`}`, 540, 692, 31, '#fff', 'center', 800);
+      text(`${o.cleared ? '十二关已通关 · ' : ''}最深 ${o.depth < 0.05 ? '0 米' : '−' + fmtDepth(o.depth)} · ${layerDef(o.layer).endless ? `无尽模式 第 ${o.layer + 1} 层` : `第 ${o.layer + 1} 层`}`, 540, 692, 31, '#fff', 'center', 800);
       text(`最高 ${st.bestCombo} 连敬 · 完美 ${st.perfects} 次 · 全桌服气 ${st.bursts} 次`, 540, 740, 25, '#e5d2c4', 'center', 800);
       text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}`, 540, 790, 32, '#7fd0ff', 'center', 900);
       if (st.newRecord && Math.floor(t * 3) % 2 === 0) text('新纪录！', 540, 840, 32, '#7dff8a', 'center', 900);
