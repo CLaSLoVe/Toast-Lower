@@ -4,6 +4,12 @@
 
 **[点这里开席！](https://claslove.github.io/Toast-Lower/)**
 
+## 外星人章节
+
+https://github.com/user-attachments/assets/1be85dbf-1237-42f0-a50e-abac49ac4972
+
+自动操作 · 全流程
+
 ## 高难通关视频
 
 https://github.com/user-attachments/assets/f2ff0433-9575-4edf-9ddb-2efe6dd09d32

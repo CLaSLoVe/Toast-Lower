@@ -4,6 +4,12 @@ English | [简体中文](README.zh-CN.md)
 
 **[Play now!](https://claslove.github.io/Toast-Lower/)**
 
+## Alien chapter
+
+https://github.com/user-attachments/assets/1be85dbf-1237-42f0-a50e-abac49ac4972
+
+Automated playthrough.
+
 ## Hard-mode walkthrough
 
 https://github.com/user-attachments/assets/f2ff0433-9575-4edf-9ddb-2efe6dd09d32
