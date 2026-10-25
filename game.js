@@ -152,7 +152,11 @@ const SC = 1.45; // character scale
 const P_SPEC = { kind: 'player', shirt: '#f3f3f0', pants: '#24272e', skin: '#f4c9a1', hair: '#1a1a1a', tie: '#d42a35', scale: SC };
 const B_SPEC = { kind: 'boss', shirt: '#2c2f38', pants: '#2c2f38', skin: '#f1b28a', tie: '#d9a82e', belly: true, scale: SC * 1.07 };
 const TOMB_BOSS = { ...B_SPEC, skin: '#a4b98a', jiangshi: true, shirt: '#263556', tie: '#c59b40' };
-const ALIEN_BOSS = { kind: 'boss', shirt: '#3a4a3a', pants: '#2a3a2a', skin: '#7dd87a', tie: '#9d7dff', belly: true, alien: true, arms: 3, scale: SC * 1.12 };
+const ALIEN_HOST = { ...B_SPEC, scale: SC * 1.12 };
+const ALIEN_DELEGATES = [
+  { ...ALIEN_HOST, shirt: '#344e48', skin: '#7dd87a', tie: '#ffc65d', alien: true, planet: 'sprout' },
+  { ...ALIEN_HOST, shirt: '#473855', skin: '#ba93ee', tie: '#80e4de', alien: true, planet: 'ring' },
+];
 const GUEST = (shirt, extra) => Object.assign({ kind: 'guest', shirt, pants: '#2a2a30', skin: '#f1c39a', hair: '#222', scale: SC }, extra || {});
 
 // Four chapters, one distinct skill each; twelve story rooms, then endless.
@@ -177,7 +181,7 @@ const BASE_LAYERS = [
   { name: '考古现场', en: 'Dig Site', depth: 200, ch: 2, room: 0, mech: 'chain', chain: 2, cupName: '高脚杯', join: [GUEST('#5a4a2a', { lamp: true, helmet: '#c9a227' }), GUEST('#efe6cf', { skeleton: true })] },
   { name: '古墓主墓室', en: 'Main Tomb Chamber', depth: 450, ch: 2, room: 1, mech: 'chain', chain: 3, cupName: '白酒杯', join: [GUEST('#5a4a2a', { lamp: true, helmet: '#c9a227' }), GUEST('#2a3a6a', { jiangshi: true, skin: '#a9c79a' })] },
   { name: '兵马俑坑', en: 'Terracotta Pit', depth: 800, ch: 2, room: 2, mech: 'chain', chain: 4, cupName: '袖珍杯', join: [GUEST('#a85a3a', { terracotta: true }), GUEST('#a85a3a', { terracotta: true })] },
-  // Ch4 地心外交 — three-armed alien
+  // Ch4 地心外交 — human boss and two alien delegates
   { name: '51区外星基地', en: 'Area 51 Alien Base', depth: 9000, ch: 3, room: 0, mech: 'alien', join: [GUEST('#9aa5b5', { alien: true, skin: '#7dd87a' }), GUEST('#9aa5b5', { alien: true, skin: '#7dd87a' })] },
   { name: '岩浆外星观测站', en: 'Magma Alien Observatory', depth: 35000, ch: 3, room: 1, mech: 'alien', join: [GUEST('#2a1410', { lava: true }), GUEST('#9aa5b5', { alien: true, skin: '#7dd87a' })] },
   { name: '地心外星总部', en: "Core Alien HQ", depth: 6371000, ch: 3, room: 2, mech: 'alien', join: [GUEST('#ffb13b', { lava: true }), GUEST('#9aa5b5', { alien: true, skin: '#9d7dff' })] },
@@ -304,10 +308,9 @@ function spillLim() { return cupGeom(player).lim; }
 function toastChar() { return (st.round && st.round.partner) || boss; }
 function toastRimY() {
   const c = toastChar();
-  // rhythm alien: authoritative ladder height (base + cup*step) + live sway.
-  // Body pose holds BASE; do not use body.rim + offset (pose lag made cup3 unhittable).
+  // Every delegate holds a fixed height; pose animation must not shift the hit window.
   if (st.round && st.round.chain && !st.round.smash) return st.round.target;
-  if (st.alien && st.alien.on && c === boss && !st.tut) {
+  if (st.alien && st.alien.on && !st.tut && st.round && !st.round.smash) {
     const r = st.round;
     if (r && !r.smash && r.target != null) return r.target;
     return alienRimY(st.alien.cup);
@@ -366,31 +369,53 @@ function groundAcc() {
   return -sp.A * sp.w * sp.w * Math.sin(st.t * sp.w);
 }
 function playFloor() { return floorY(st.L) + groundOff(); }
-// Three possible cups share a clock; only the real target remains for the last two beats.
+// Three possible cups share a clock; only the selected leader keeps a clock for the last second.
 function alienRhythm(L) {
   const d = layerDef(L), room = d.room != null ? d.room : (d.endless || 1) % 3;
   return { step: [CFG.alienStep1, CFG.alienStep2, CFG.alienStep3][room], gap: 0, aimBonus: 0, n: 3 };
 }
+function prepareAlienLeaders() {
+  if (st.tut || activeMech() !== 'alien') return;
+  for (const spec of ALIEN_DELEGATES) if (!followers.some(c => c.spec === spec)) {
+    const c = mkChar(spec, -1); c.x = boss.x + 220; poseFromS(c, 0); settle(c, floorY(st.L));
+    followers.push(c);
+  }
+}
 function ensureAlien() {
   if (st.tut || activeMech() !== 'alien') { st.alien = null; return; }
-  if (!st.alien || st.alien.L !== st.L) st.alien = { on: true, L: st.L, cup: 1, revealed: false, ...alienRhythm(st.L), flash: 0 };
+  if (!st.alien || st.alien.L !== st.L) st.alien = { on: true, L: st.L, cup: 1, revealed: false, ...alienRhythm(st.L), flash: 0, leaders: [boss, ...ALIEN_DELEGATES.map(spec => followers.find(c => c.spec === spec))] };
 }
-function alienCupOff(i) { return st.alien ? { x: (i - 1) * 82, y: i * st.alien.step } : { x: 0, y: 0 }; }
 function stepAlienRhythm(dt) { if (st.alien) st.alien.flash = Math.max(0, st.alien.flash - dt); }
 function revealAlienTarget() {
   const a = st.alien, r = st.round;
   if (!a || !r || r.smash || a.revealed || r.phase !== 'aim') return;
-  if (toastInputLeft() <= 2 * 60 / CFG.musicBpm + 1e-9) {
+  if (toastInputLeft() <= 1 + 1e-9) {
     a.revealed = true; a.cup = r.alienChoice; a.flash = 0.45;
+    r.partner = a.leaders[a.cup];
     r.target = r.base + a.cup * a.step;
     r.move = (a.cup - 1) * a.step;
   }
 }
 function alienRimY(cup) {
-  const r = st.round, a = cup == null ? st.alien.cup : cup;
-  return (r && !r.smash ? r.base : boss.P ? boss.P.rim.y : 0) + alienCupOff(a).y;
+  const i = cup == null ? st.alien.cup : cup;
+  return st.alien.leaders[i].P.rim.y;
 }
-function alienRimX(cup) { return (boss.P ? boss.P.rim.x : 0) + alienCupOff(cup == null ? st.alien.cup : cup).x; }
+function alienRimX(cup) { return st.alien.leaders[cup == null ? st.alien.cup : cup].P.rim.x; }
+function stepAlienLeaders(dt) {
+  const a = st.alien, r = st.round, fl = playFloor();
+  st.bossJ = st.bossOff = st.bossOffV = 0;
+  a.leaders.forEach((c, i) => {
+    const y = r.base + i * a.step;
+    c.s = r.smash ? 1 : sForRim(c.spec, y - floorY(st.L));
+    c.tilt = c.vtilt = 0; poseFromS(c, c.s);
+    const selected = !r.smash && a.revealed && i === a.cup;
+    const cupX = selected ? Math.max(player.P.cupB.x, player.P.rim.x) + 24 * SC : player.x + 340 + i * 235;
+    c.x += (cupX - tableAt(c.spec, c.s).cupDX - c.x) * Math.min(1, (selected ? 12 : 7) * dt);
+    settle(c, fl);
+    if (!r.smash) { c.y += y - c.P.rim.y; c.P = fk(c); }
+    updateCup(c, dt, true);
+  });
+}
 function com(c, P) {
   const w = [[P.hip, 3], [P.knee, 1.5], [P.ankle, 1], [P.shoulder, 3], [P.head, 2], [P.hand, 0.6], [P.belly, c.spec.belly ? 2 : 0.5]];
   let x = 0, y = 0, s = 0; for (const [p, k] of w) { x += p.x * k; y += p.y * k; s += k; } return { x: x / s, y: y / s };
@@ -547,12 +572,14 @@ function banner(zh, en, dur, col) { bigText = { zh, en, t: 0, dur: dur || 2.2, c
 function addScore(n) { n = Math.round(n); if (n <= 0) return; st.score += n; if (!st.gain || st.gain.t > 0.9) st.gain = { n: 0, t: 0 }; st.gain.n += n; st.gain.t = 0; }
 
 function formation(L) {
+  prepareAlienLeaders();
   const fl = floorY(L); // formation snaps to rest floor; shake applies live in step
   player.mode = 'play'; player.reach = 0; player.reachV = 0; player.h = 0; player.sw = 0; player.swv = 0; player.vh = 0; player.veh = 0; player.vet = 0; player.tdr = 0; player.w = 0; player.wv = 0; player.lastVh = 0; player.cupBodySpeed = 0; player.tilt = 0; player.vtilt = 0; poseFromS(player, 0); player.vy = 0; player.x = 340; settle(player, fl);
   boss.mode = 'play'; boss.s = 0; poseFromS(boss, 0); boss.x = 640; settle(boss, fl);
   let x = boss.x;
   for (const f of followers) { f.mode = 'play'; f.s = 0; poseFromS(f, 0); x += 150; f.x = x; settle(f, fl); }
   st.stand = player.P.rim.y; st.bump = null; st.bossOff = 0; st.bossJ = 0; st.alien = null; st.multiI = 0; ensureAlien();
+  if (st.alien) st.alien.leaders.forEach((c, i) => { c.x = 640 + i * 235; settle(c, fl); });
   if (layerDef(L).cupName && !st.tut) banner(layerDef(L).cupName + '！', '', 1.4, '#ffd34d');
 }
 function spawnPending(L) {
@@ -562,7 +589,7 @@ function spawnPending(L) {
   if (pending.length === 1) { pending[0].face = -1; pending[0].x = 840; settle(pending[0], fl); }
 }
 function reset() {
-  player = mkChar(P_SPEC, 1); boss = mkChar(st.tut ? MOM_SPEC : (activeMech(st.L) === 'alien' || (activeMech(st.L) === 'mix' && layerDef(st.L).mech === 'alien') ? ALIEN_BOSS : activeMech(st.L) === 'chain' ? TOMB_BOSS : B_SPEC), -1); followers = []; pending = [];
+  player = mkChar(P_SPEC, 1); boss = mkChar(st.tut ? MOM_SPEC : (activeMech(st.L) === 'alien' || (activeMech(st.L) === 'mix' && layerDef(st.L).mech === 'alien') ? ALIEN_HOST : activeMech(st.L) === 'chain' ? TOMB_BOSS : B_SPEC), -1); followers = []; pending = [];
   for (let l = st.L; l >= 1; l--) for (const s of layerDef(l).join) followers.push(mkChar(s, -1)); // newest joiners stand closest to the boss
   formation(st.L); player.wine = wineCapacity(); if (!st.tut) spawnPending(st.L);
   cam.y = floorY(st.L) - 320; st.depth = layerDef(st.L).depth;
@@ -1299,7 +1326,7 @@ function judgeClink() {
   if (r.tut) { r.result = ok ? 'ok' : 'strike'; r.phase = 'react'; r.t = 0; judgeSay(ok ? pick([['真乖！'], ['对喽！'], ['这才像样']]) : offBeat ? ['看红色 0s 那一拍按空格！'] : far ? ['太低啦，妈够不着！'] : ['杯子比妈还高？']);
     for (let i = 0; i < 14; i++) parts.push({ x: (player.P.rim.x + boss.P.rim.x) / 2 + R(-12, 12), y: (player.P.rim.y + boss.P.rim.y) / 2, vx: R(-220, 220), vy: R(-460, -120), life: 2, r: R(4, 8), col: drinkCol(), type: 'drop' });
     return; }
-  const cx = (player.P.rim.x + boss.P.rim.x) / 2, cy = (player.P.rim.y + boss.P.rim.y) / 2;
+  const cx = (player.P.rim.x + tc.P.rim.x) / 2, cy = (player.P.rim.y + tc.P.rim.y) / 2;
   if (offBeat) { judgeSay(r.timing > 0 ? ['急什么？我还没伸手呢！'] : ['这杯我举了一个世纪！']); strike(null, null, r.timing > 0 ? 'early' : 'late'); finishToastAttempt(); return; }
   if (far) { judgeSay(['你人呢？够不着！']); strike(null, null, 'far'); finishToastAttempt(); return; }
   if (!ok) { strike(null); finishToastAttempt(); return; }
@@ -1506,6 +1533,7 @@ function stepNPCs(dt) {
   const fl = playFloor(), d = diff();
   const pc = player.P.cupB;
   const r = st.round;
+  if (st.alien && r) { stepAlienLeaders(dt); return; }
   const swayOn = r && !r.chain && !st.alien && !r.smash && !st.tut && (r.phase === 'aim' || r.phase === 'react');
   st.bossJT -= dt; if (st.bossJT <= 0) { st.bossJT = R(2.2, 4.2); st.bossJ = (rnd() < 0.5 ? -1 : 1) * R(0.5, 1) * 20 * d.wob * SC / 1.45; }
   // ground shake rides on bossOff so relative height becomes a tracking skill (boss kinematic, rumble telegraphed)
@@ -1520,7 +1548,6 @@ function stepNPCs(dt) {
   const partners = multiOn ? multiPartners() : null;
   const partner = (r && r.partner) || boss;
   // boss bows to the ACTIVE toast height; when waiting in a multi queue he holds HIS own ladder step.
-  // alien rhythm: body stays on BASE (cup 1 height); cups 2/3 are drawn + judged via alienCupOff ladder.
   const alienOn = !!(st.alien && st.alien.on && !st.tut);
   const bossAimY = !r ? null : r.smash ? null : (multiOn && partner !== boss)
     ? (r.base + partnerBiasFor(0) + st.bossOff * 0.35)
@@ -1630,11 +1657,13 @@ function beginStandup() {
   const ld0 = layerDef(st.L);
   const wantAlien = activeMech(st.L) === 'alien' || (activeMech(st.L) === 'mix' && ld0.mech === 'alien');
   const wantTomb = activeMech(st.L) === 'chain';
-  if (!!boss.spec.arms !== !!wantAlien || !!boss.spec.jiangshi !== wantTomb) {
+  const wantedSpec = wantAlien ? ALIEN_HOST : wantTomb ? TOMB_BOSS : B_SPEC;
+  if (boss.spec !== wantedSpec) {
     const bx = boss.x, bs = boss.s, bw = boss.wine;
-    boss = mkChar(wantAlien ? ALIEN_BOSS : wantTomb ? TOMB_BOSS : B_SPEC, -1);
+    boss = mkChar(wantedSpec, -1);
     boss.x = bx; boss.s = bs; boss.wine = bw; poseFromS(boss, boss.s);
   }
+  prepareAlienLeaders();
   const from = allChars().map(c => ({ c, k: c.k, b: c.b, phi: ((c.phi % (2 * PI)) + 3 * PI) % (2 * PI) - PI, arm: c.arm, x: c.x, y: c.y }));
   const saved = from.map(f => ({ ...f }));
   formation(st.L);
@@ -1721,11 +1750,12 @@ function step(dt0) {
   let tx, ty, tz;
   if (st.state === 'fall') { tx = player.x + 150; ty = player.y - 60; tz = 0.85; }
   else {
-    let x1 = 1e9, x2 = -1e9; for (const c of [player, boss]) { if (!c.P) continue; for (const q of [c.P.head, c.P.toe, c.P.hip]) { x1 = Math.min(x1, q.x - 130); x2 = Math.max(x2, q.x + 130); } }
-    if (followers.length && !(TOUCH && LAY === 'land')) x2 += 200;
-    tz = LAY === 'port' ? clamp(1250 / (x2 - x1), 1, 1.3) : clamp(1040 / (x2 - x1), 0.8, 1); tx = (x1 + x2) / 2; if (LAY !== 'land') tx = Math.max(tx, W / 2 / tz - 40 / tz);
+    const framed = st.alien ? [player, ...st.alien.leaders] : [player, boss];
+    let x1 = 1e9, x2 = -1e9; for (const c of framed) { if (!c.P) continue; for (const q of [c.P.head, c.P.toe, c.P.hip]) { x1 = Math.min(x1, q.x - 130); x2 = Math.max(x2, q.x + 130); } }
+    if (followers.length && !st.alien && !(TOUCH && LAY === 'land')) x2 += 200;
+    tz = LAY === 'port' ? clamp(1250 / (x2 - x1), 1, 1.3) : clamp(1040 / (x2 - x1), st.alien ? 0.6 : 0.8, 1); tx = (x1 + x2) / 2; if (LAY !== 'land') tx = Math.max(tx, W / 2 / tz - 40 / tz);
     if (TOUCH && LAY === 'land') {
-      const top = Math.min(...[player, boss].filter(c => c.P).map(c => c.P.head.y - c.P.hr));
+      const top = Math.min(...framed.filter(c => c.P).map(c => c.P.head.y - c.P.hr));
       tz = Math.min(1.75, (H - 230) / Math.max(1, floorY(st.L) - top), (W - 500) / Math.max(1, x2 - x1));
     }
     ty = floorY(st.L) - (floorSY() - H / 2) / tz;
@@ -2212,6 +2242,27 @@ function drawFace(c) {
       }
       ctx.globalAlpha = 1;
     }
+  } else if (sp.planet) {
+    // Two planetary silhouettes, both dressed for an excessively formal toast.
+    ctx.strokeStyle = OL; ctx.lineWidth = 4;
+    if (sp.planet === 'sprout') {
+      for (const ex of [-0.25, 0.63]) {
+        line({ x: r * ex, y: -r * 0.6 }, { x: r * ex, y: -r * 1.15 });
+        circ(r * ex, -r * 1.2, r * 0.3, skin, OL, 4);
+        circ(r * (ex + 0.06), -r * 1.2, r * 0.2, '#fff9dc', OL, 2);
+        circ(r * (ex + 0.12), -r * 1.18, r * 0.09, OL);
+      }
+      ctx.beginPath(); ctx.moveTo(-r * 0.3, r * 0.26); ctx.quadraticCurveTo(r * 0.3, r * (0.8 + mood.good * 0.2), r * 0.9, r * 0.16); ctx.stroke();
+      ctx.fillStyle = '#fff9dc'; ctx.fillRect(r * 0.1, r * 0.41, r * 0.19, r * 0.16);
+    } else {
+      ctx.save(); ctx.rotate(-0.22); ctx.strokeStyle = '#eac77f'; ctx.lineWidth = 9;
+      ctx.beginPath(); ctx.ellipse(0, -r * 0.65, r * 1.35, r * 0.25, 0, 0, 2 * PI); ctx.stroke(); ctx.restore();
+      circ(r * 0.35, -r * 0.05, r * 0.46, '#fff9dc', OL, 4);
+      circ(r * 0.47, -r * 0.01, r * 0.23, '#50b5aa', OL, 3);
+      circ(r * 0.52, -r * 0.01, r * 0.11, OL);
+      ctx.strokeStyle = OL; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(r * 0.04, r * 0.57); ctx.quadraticCurveTo(r * 0.5, r * (0.78 + mood.good * 0.15), r * 0.83, r * 0.47); ctx.stroke();
+    }
   } else if (sp.kind === 'boss') {
     const anger = Math.max(mood.bad, st.state === 'play' && st.round && st.round.result === 'strike' ? 0.2 : 0), grin = mood.good;
     ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.ellipse(-r * 0.2, -r * 0.61, r * 0.34, r * 0.13, -0.3, 0, 2 * PI); ctx.fill();
@@ -2428,28 +2479,6 @@ function drawChar(c) {
   const P0 = c.P; if (!P0) return; const P = visPose(c); c.P = P;
   try { drawCharAt(c); drawReachStrain(c); } finally { c.P = P0; }
 }
-function drawAlienArms() {
-  const a = st.alien, r = st.round;
-  if (!a || !r || r.smash || !boss.P) return;
-  const P = boss.P, g = cupGeom(boss), sc = P.sc;
-  for (let i = 0; i < 3; i++) {
-    if (a.revealed && i !== a.cup) continue;
-    const x = alienRimX(i), y = alienRimY(i), active = a.revealed;
-    ctx.save();
-    ctx.strokeStyle = active ? '#d9baff' : '#78b8a3'; ctx.lineWidth = 8;
-    ctx.beginPath(); ctx.moveTo(P.shoulder.x, P.shoulder.y);
-    ctx.quadraticCurveTo(P.shoulder.x + 35, y + 70, x, y + g.bowlH * sc); ctx.stroke();
-    const wt = g.wt * sc, wb = g.wb * sc, bottom = y + g.bowlH * sc;
-    if (active) { ctx.shadowColor = '#c394ff'; ctx.shadowBlur = 18; }
-    ctx.fillStyle = active ? '#d7ffb5' : '#84c7ae'; ctx.strokeStyle = '#252339'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(x - wt, y); ctx.lineTo(x + wt, y); ctx.lineTo(x + wb, bottom); ctx.lineTo(x - wb, bottom); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.shadowBlur = 0;
-    circ(x, bottom + 24, 15, '#252339');
-    text(String(i + 1), x, bottom + 24, 20, '#f4e8ff', 'center', 900);
-    ctx.restore();
-  }
-}
-
 // Comic reactions stay behind the head, on the side away from the cups.
 function drawCharReaction(c, mood) {
   if (mood.good < 0.04 && mood.bad < 0.04) return;
@@ -2530,7 +2559,7 @@ function drawCharAt(c) {
   // front arm with cup
   seg(P.shoulder, P.elbow, lw * 0.85, shirt); seg(P.elbow, P.hand, lw * 0.8, shirt);
   ctx.shadowBlur = 0;
-  if (!(c === boss && st.alien && st.round && !st.round.smash)) drawCup(c);
+  drawCup(c);
   circ(P.hand.x, P.hand.y, 10 * s, skin, OL, 4);
 }
 
@@ -2913,10 +2942,12 @@ function render() {
   const partnersDraw = multiDraw ? multiPartners() : null;
   for (let i = followers.length - 1; i >= 0; i--) {
     const f = followers[i];
+    if (st.alien && (!st.alien.leaders.includes(f) || (st.alien.revealed && f === toastChar()))) continue;
     if (multiDraw && multiExtra(f)) continue; // only N queue people on screen
     drawChar(f);
   }
-  drawChar(boss); drawAlienArms();
+  drawChar(boss);
+  if (st.alien && st.alien.revealed && toastChar() !== boss) drawChar(toastChar());
   // gold/green outline + arrow on the active multi toaster
   if (multiDraw && st.state === 'play' && st.round && st.round.partner && st.round.partner.P && !st.round.smash) {
     const tc = st.round.partner, P = tc.P;
@@ -2983,10 +3014,11 @@ function render() {
   // Each clock follows its own cup in world space; decoys vanish on reveal.
   if (playing && rd && !rd.smash && st.alien && rd.phase === 'aim') {
     const left = toastInputLeft(), total = Math.max(0.1, rd.T + 0.5 - reachTime());
-    const cup = cupGeom(boss), z = cam.z;
+    const z = cam.z;
     for (let i = 0; i < 3; i++) {
       if (st.alien.revealed && i !== st.alien.cup) continue;
-      const { x, y } = S(alienRimX(i), alienRimY(i) + cup.bowlH * boss.P.sc / 2);
+      const leader = st.alien.leaders[i], cup = cupGeom(leader);
+      const { x, y } = S(alienRimX(i), alienRimY(i) + cup.bowlH * leader.P.sc / 2);
       const onBeat = Math.abs(left) < 0.05, col = onBeat ? '#ff6666' : st.alien.revealed ? '#ffd34d' : '#c2adff';
       const rad = (20 + 20 * clamp(left / total, 0, 1)) * z;
       ctx.strokeStyle = '#ff6666'; ctx.lineWidth = 2 * z; ctx.beginPath(); ctx.arc(x, y, 20 * z, 0, 2 * PI); ctx.stroke();

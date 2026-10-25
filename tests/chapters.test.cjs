@@ -37,15 +37,36 @@ test('missing a middle note costs wine once, does not reset the phrase or refill
  assert.equal(r.phase,'react');assert.equal(r.chainHits,3);assert.equal(p.wine,wine-.2);
  g.inspect.newRound(false);assert.ok(Math.abs(p.wine-(wine-.2+.03))<1e-8);
 });
-test('alien targets are concealed, revealed two beats before zero, then remain fixed',()=>{
+test('alien targets are concealed, revealed one second before zero, then remain fixed',()=>{
  for(const layer of [9,10,11]) for(const bpm of [90,126,160]) for(const choice of [0,1,2]) {
   const g=game(layer),r=g.inspect.st.round,a=g.inspect.st.alien;g.inspect.config.musicBpm=bpm;r.alienChoice=choice;
   const target=r.T+.5-g.inspect.reachTime(),initial=r.target;
-  r.t=target-2*60/bpm-.001;g.inspect.revealAlienTarget();
+  r.t=target-1-.001;g.inspect.revealAlienTarget();
   assert.equal(a.revealed,false);assert.equal(a.cup,1);assert.equal(r.target,initial);assert.equal(g.inspect.canToast(),false);
   r.t+=.002;g.inspect.revealAlienTarget();assert.equal(a.revealed,true);assert.equal(a.cup,choice);
   assert.equal(r.target,r.base+choice*a.step); const picked=r.target;
   r.alienChoice=(choice+1)%3;r.t+=.1;g.inspect.revealAlienTarget();assert.equal(r.target,picked);
+ }
+});
+test('three independent leaders hold distinct heights and only the chosen leader approaches',()=>{
+ for(const layer of [9,10,11]) for(const choice of [0,1,2]) {
+  const labels=[];
+  const g=createGame({search:`?capture=1&tut=0&seed=7&layer=${layer}`,onDraw(key,args){if(key==='fillText')labels.push(args[0]);}}),r=g.inspect.st.round,a=g.inspect.st.alien;
+  assert.equal(new Set(a.leaders).size,3);
+  assert.equal(a.leaders[0],g.inspect.boss);assert.ok(!a.leaders[0].spec.alien);
+  assert.notEqual(a.leaders[1].spec.planet,a.leaders[2].spec.planet);
+  for(let f=0;f<120;f++)g.inspect.stepNPCs(1/60);
+  const before=a.leaders.map(c=>c.P.rim.x);
+  a.leaders.forEach((c,i)=>{
+   assert.ok(Math.abs(c.P.rim.y-r.base-i*a.step)<1e-7);
+   assert.equal(g.inspect.alienRimX(i),c.P.rim.x);assert.equal(g.inspect.alienRimY(i),c.P.rim.y);
+  });
+  labels.length=0;g.render();assert.equal(labels.filter(s=>/^\d+\.\d+s$/.test(s)).length,3);
+  r.alienChoice=choice;r.t=r.T+.5-g.inspect.reachTime()-.8;g.inspect.revealAlienTarget();
+  assert.equal(r.partner,a.leaders[choice]);
+  for(let f=0;f<45;f++)g.inspect.stepNPCs(1/60);
+  a.leaders.forEach((c,i)=>{if(i===choice)assert.ok(c.P.rim.x<before[i]-30);else assert.ok(Math.abs(c.P.rim.x-before[i])<.1);});
+  labels.length=0;g.render();assert.equal(labels.filter(s=>/^\d+\.\d+s$/.test(s)).length,1);
  }
 });
 test('all revealed heights are reachable using ordinary controls at all supported tempos',()=>{

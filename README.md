@@ -32,7 +32,7 @@ The red **0s** marks the ideal toast timing. Run out of wine and the game ends. 
 | Workplace | Adjust your height and learn single toasts |
 | Underground transit | Keep the glass steady while everything sways |
 | Ancient tomb | Hold a fixed height and hit 2, 3, then 4 consecutive beats |
-| Aliens | Three glasses count down together; identify and reach the real target in the final two beats |
+| Aliens | Your boss and two alien leaders raise their glasses; in the final second, identify and meet the one stepping forward |
 
 Endless mode follows the twelve stages, and the same score keeps accumulating.
 

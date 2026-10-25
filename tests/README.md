@@ -37,7 +37,7 @@ isolate timing/stability boundaries; natural campaigns still use only bot inputs
 
 The v39 chapter checks run with `node tests/chapters.test.cjs`: four chapters and
 twelve rooms, fixed-height 2/3/4-note phrases on one music clock, per-note penalties
-and once-per-phrase refill, concealed alien targets revealed two beats before zero,
+and once-per-phrase refill, concealed alien targets revealed one second before zero,
 and all three target heights reached with ordinary controls at 90/126/160 BPM.
 
 Run `node tests/mobile.test.cjs` for the mobile input checks: analog diagonal

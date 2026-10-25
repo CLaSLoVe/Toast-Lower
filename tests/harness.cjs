@@ -51,6 +51,7 @@ function createGame(options = {}) {
       if (key === 'createLinearGradient' || key === 'createRadialGradient') return () => gradient;
       if (key === 'getLineDash') return () => [];
       return (...args) => {
+        if (options.onDraw) options.onDraw(key, args);
         for (const value of args) {
           if (typeof value === 'number' && !Number.isFinite(value)) {
             throw new Error(`Canvas ${String(key)} received ${value}`);
@@ -113,7 +114,7 @@ function createGame(options = {}) {
   window.__test = {
     get st() { return st; }, get player() { return player; }, get boss() { return boss; },
     get pointers() { return pointers; }, get stick() { return { ...stick, ...stickRect() }; }, get stickGeometry() { return stickRect(); }, get buttons() { return BTN.map((b, i) => ({ key: b[0], ...btnRect(i) })); },
-    get canvasSize() { return { W, H }; }, render, breakFloor, gameOver, toastRimY, winSpan, strike, judgeClink, perfBand, moveCup, diff, wineCapacity, refillWine, stepRound, finishToastAttempt, newRound, reachTime, revealAlienTarget, spillSoundSuppressed, stepToastCue, stepTutorial, pressCheck, get config() { return CFG; }, applySettings, get settings() { return window.__settings; },
+    get canvasSize() { return { W, H }; }, render, breakFloor, gameOver, toastRimY, alienRimX, alienRimY, stepNPCs, winSpan, strike, judgeClink, perfBand, moveCup, diff, wineCapacity, refillWine, stepRound, finishToastAttempt, newRound, reachTime, revealAlienTarget, spillSoundSuppressed, stepToastCue, stepTutorial, pressCheck, get config() { return CFG; }, applySettings, get settings() { return window.__settings; },
     get canToast() { return typeof canToast === 'function' ? canToast : null; },
     get requestToast() { return typeof requestToast === 'function' ? requestToast : null; },
     get contacts() { return window.__contacts; },
