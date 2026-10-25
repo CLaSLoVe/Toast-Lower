@@ -51,3 +51,10 @@ Run `node tests/navigation.test.cjs` for desktop/mobile return-to-home behavior
 from play, pause, tutorial, falling, standup and game over, including a fresh start.
 Run `node tests/music.test.cjs` for the music clock and playback lifecycle.
 `npm test` runs all focused checks; `npm run test:full` includes the full campaigns.
+
+Run `node tests/scoring.test.cjs` for fixed opportunity accounting across all story
+stages and three endless mechanics, all difficulties, and multiple seeds. Controlled
+contact poses isolate the score comparison: failed first attempts, successful retries,
+partial chains, duplicate judgments, floor rewards, full-story completion, restart
+and shared high-score persistence. Retried slots cannot add points, combos or hype.
+Legacy scores remain stored but are not compared with the new scoring formula.

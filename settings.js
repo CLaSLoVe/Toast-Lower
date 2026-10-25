@@ -12,14 +12,23 @@
     common: ['roundWait', 'missPenalty', 'roundRefill', 'spillMultiplier', 'spillMax', 'minCapacity'],
     difficulty: ['Time', 'Taper', 'Setup', 'BodyCupCoupling', 'Hand'],
     feel: ['stickDeadzone', 'stickCurve', 'cupTiltLimit', 'bodyBrakeCoupling', 'bodyAccel', 'bodyBrake', 'cupAccel', 'cupBrake', 'releaseCup', 'releaseBody'],
-    advanced: ['chainReach', 'chainWindow', 'alienRounds', 'alienStep1', 'alienStep2', 'alienStep3', 'musicVolume', 'musicBpm', 'spillSoundVolume', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'floorRefill', 'clinkSpill', 'spillGrace', 'spillRamp']
+    advanced: ['openingRounds', 'regularRounds', 'chainRounds', 'toastScore', 'comboScore', 'comboCap', 'hypeScore', 'floorScore', 'clearScore', 'chainReach', 'chainWindow', 'alienRounds', 'alienStep1', 'alienStep2', 'alienStep3', 'musicVolume', 'musicBpm', 'spillSoundVolume', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'floorRefill', 'clinkSpill', 'spillGrace', 'spillRamp']
   };
   const tips = {
+    openingRounds: '职场前两关各有几次固定敬酒机会；失败补敬不会增加计分机会。',
+    regularRounds: '其余普通与晃动关卡的固定敬酒轮数。',
+    chainRounds: '每关连续踩拍的组数；每拍只在第一次尝试时计分。',
+    toastScore: '成功碰杯基础分，乘以当前关数；补敬不计分。',
+    comboScore: '每次连敬增加的分数，乘以当前关数；不再使用连击倍增。',
+    comboCap: '超过此连敬次数后，连敬加分不再增加。',
+    hypeScore: '气势满格的奖励，乘以当前关数；补敬不积累气势。',
+    floorScore: '每关完成时的基础分，乘以当前关数。',
+    clearScore: '从第一关完整打完十二关时，一次性追加的奖励。',
     stickDeadzone: '手机摇杆靠近中心时不输入，避免手指微晃。电脑键盘不受影响。',
     stickCurve: '越大，小幅推杆越细腻；推到底仍保持原来的最大力度。',
     chainReach: '古墓连敬使用的短伸手动作；最多占一拍的 38%，给下一拍留出回收时间。',
     chainWindow: '连敬每拍的前后误差，以音乐拍长计算；普通单杯不受影响。',
-    alienRounds: '每关成功敬酒约几轮后进入砸楼，失败不会推进高度。',
+    alienRounds: '每关固定几轮敬酒后进入砸楼；失败补敬不增加计分机会。',
     alienStep1: '三个候选杯的相邻高度差，揭晓后只有两拍调整。',
     alienStep2: '第二关候选杯高度差；越大，需要调整得越快。',
     alienStep3: '第三关候选杯高度差；过大会难以赶到。',

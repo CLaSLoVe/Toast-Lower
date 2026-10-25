@@ -463,8 +463,15 @@ const AUTO_RESTART = AUTO && !CAPTURE && !params.has('once');
 const st = { state: (AUTO || CAPTURE) ? 'play' : 'title', L: START_LAYER, t: 0, stT: 0, playT: 0, layerT: 0, flipped: false, cycle: 0, pressure: 0, shake: 0,
   cracks: [], crackX: 540, holes: {}, best: 0, depth: 0, breaks: 0, lastCrackStep: 0, bossSay: 2, sawLow: false,
   score: 0, strikes: 0, toasts: 0, perfects: 0, combo: 0, bestCombo: 0, hype: 0, bursts: 0, manualToasts: 0, round: null, tut: null, judge: null, freeze: 0, gain: null, stand: 0, perfect: false, perfT: 0, notPerfT: 1, hist: [], trick: 0, trickT: 0, over: null, gameT: 0,
-  hiscore: 0, newRecord: false, botT: 0, coreBonus: false, warnT: 0, paused: false, bump: null, bossOff: 0, bossJ: 0, bossJT: 0, tdrT: 0 };
-try { st.hiscore = +(localStorage.getItem('toastLower.best') || 0); } catch (e) { /* no storage */ }
+  floorPlan: null, hiscore: 0, bestDifficulty: null, newRecord: false, botT: 0, coreBonus: false, warnT: 0, paused: false, bump: null, bossOff: 0, bossJ: 0, bossJT: 0, tdrT: 0 };
+// New scoring has its own versioned record; the old score remains in storage, untouched.
+const BEST_KEY = 'toastLower.best.v2';
+try {
+  const best = JSON.parse(localStorage.getItem(BEST_KEY));
+  if (best && Number.isFinite(best.score) && best.score >= 0 && DIFFICULTIES.some(d => d.id === best.difficulty)) {
+    st.hiscore = best.score; st.bestDifficulty = best.difficulty;
+  }
+} catch (e) { /* no storage */ }
 const cam = { x: 540, y: 500, z: 1 };
 let player, boss, followers = [], pending = [];
 const parts = [], debris = [], puddles = [], bubbles = [], popups = [];
@@ -490,7 +497,29 @@ function rankFor(score) {
   for (const entry of RANKS) if (score >= entry[0]) rank = entry;
   return rank.slice(1);
 }
-function breakPts(L) { return 150 + 120 * L + 15 * L * L; }
+function breakPts(L) { return CFG.floorScore * (L + 1); }
+function makeFloorPlan() {
+  const rounds = activeMech() === 'alien' ? CFG.alienRounds : chainCount() ? CFG.chainRounds : st.L < 2 ? CFG.openingRounds : CFG.regularRounds;
+  const notes = chainCount() || 1, start = st.stand + 40 * SC / 1.45;
+  const end = Math.max(start, Math.min(start + (rounds - 1) * diff().drop, floorLimit() - (st.alien ? 2 * st.alien.step : 0) - 12));
+  // A separate per-stage sequence: missed inputs and cosmetic particles cannot reroll targets.
+  let rng = (+params.get('seed') || 20261022) ^ Math.imul(st.L + 1, 0x9e3779b1);
+  const random = () => { rng = rng + 0x6D2B79F5 | 0; let t = Math.imul(rng ^ rng >>> 15, 1 | rng); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const targets = Array.from({ length: rounds }, (_, i) => {
+    const base = lerp(start, end, rounds > 1 ? i / (rounds - 1) : 0);
+    const variation = !i || st.alien ? 0 : (i % 2 ? 1 : -1) * (0.45 + 0.55 * random()) * (st.L < 3 ? [12, 22, 34][st.L] : 45 + 25 * Math.min(1, shapeK(st.L))) * SC / 1.45;
+    return { base, target: clamp(base + variation, st.stand + 15, floorLimit() - 4), alienChoice: Math.floor(random() * 3) };
+  });
+  return { layer: st.L, rounds, notes, targets, claimed: Array(rounds * notes).fill(null), floorAwarded: false };
+}
+function claimScoreOpportunity(result) {
+  const r = st.round, plan = st.floorPlan;
+  if (st.tut || !r || r.smash || !plan || plan.layer !== st.L) return false;
+  const slot = r.progress * plan.notes + (r.chainIndex || 0);
+  if (!Number.isInteger(slot) || slot < 0 || slot >= plan.claimed.length || plan.claimed[slot] !== null) return false;
+  plan.claimed[slot] = result;
+  return true;
+}
 // difficulty grows with depth, without limit (endless mode keeps going)
 const TUNE = new URLSearchParams(location.search);
 const WOB = +(TUNE.get('wob') || 0.15), SLX = +(TUNE.get('slx') || 0.1), DRF = +(TUNE.get('drf') || 0.12), BMP = +(TUNE.get('bmp') || 0.1), SPM = +(TUNE.get('spm') || 1.0);
@@ -541,7 +570,7 @@ function reset() {
 reset();
 function restart() {
   window.ToastMusic.reset();
-  Object.assign(st, { L: START_LAYER, flipped: false, cycle: 0, holes: {}, score: 0, breaks: 0, strikes: 0, toasts: 0, perfects: 0, round: null, over: null, newRecord: false, coreBonus: false,
+  Object.assign(st, { L: START_LAYER, flipped: false, cycle: 0, holes: {}, score: 0, floorPlan: null, breaks: 0, strikes: 0, toasts: 0, perfects: 0, round: null, over: null, newRecord: false, coreBonus: false,
     pressure: 0, cracks: [], lastCrackStep: 0, playT: 0, layerT: 0, gameT: 0, state: 'play', stT: 0, best: 0, sawLow: false, bossSay: 1.5, alien: null, multiI: 0,
     combo: 0, bestCombo: 0, hype: 0, bursts: 0, manualToasts: 0, judge: null, freeze: 0, gain: null, paused: false, clinkGrace: 0, spillT: 0, spillOn: false, loss: 0, lossT: 9, punch: null });
   parts.length = debris.length = puddles.length = bubbles.length = popups.length = 0;
@@ -798,12 +827,14 @@ function updateCup(c, dt, gentle) {
 // ---------------------------------------------------------------- floor break
 function breakFloor() {
   if (st.state !== 'play' || st.tut) return;
-  const L = st.L, fl = floorY(L), d = diff();
+  const L = st.L, fl = floorY(L);
   // score for this floor
-  addScore(breakPts(L), '地板 FLOOR', '#ffffff');
-  if (L === 14) addScore(5000, '穿过地心 CORE', '#ff9a3d');
-  addScore(player.wine * 120 * (d.L + 1), '剩酒 BEER', '#f2b51d');
-  addScore(Math.max(0, 14 - st.layerT) * 12 * (d.L + 1), '速度 SPEED', '#7fd0ff');
+  if (st.floorPlan && !st.floorPlan.floorAwarded) {
+    st.floorPlan.floorAwarded = true;
+    addScore(breakPts(L));
+    addScore(player.wine * 120 * (L + 1));
+    if (L === STORY_N - 1 && START_LAYER === 0 && st.breaks === STORY_N - 1) addScore(CFG.clearScore);
+  }
   let x1 = 1e9, x2 = -1e9;
   for (const c of allChars()) { const P = c.P || fk(c); for (const p of [P.hip, P.head, P.toe, P.hand]) { x1 = Math.min(x1, p.x); x2 = Math.max(x2, p.x); } }
   x1 -= 160; x2 += 160;
@@ -841,7 +872,7 @@ function gameOver(reason) {
   st.state = 'over'; st.stT = 0; syncMusic();
   st.over = { reason, difficulty: difficultyId, cleared: START_LAYER === 0 && st.breaks >= STORY_N && st.L >= STORY_N, score: st.score, layer: st.L, depth: st.depth, people: allChars().length, t: st.gameT };
   st.newRecord = st.score > st.hiscore;
-  if (st.newRecord) { st.hiscore = st.score; try { localStorage.setItem('toastLower.best', String(st.score)); } catch (e) { /* ignore */ } }
+  if (st.newRecord) { st.hiscore = st.score; st.bestDifficulty = difficultyId; try { localStorage.setItem(BEST_KEY, JSON.stringify({ score: st.score, difficulty: difficultyId })); } catch (e) { /* ignore */ } }
   clearInputs();
   bubbles.length = 0; st.shake = 16; sfx('thud');
   const p = player;
@@ -1111,6 +1142,9 @@ function newRound(fresh) {
     refillWine(CFG.roundRefill / 100); prev.refilled = true;
   }
   ensureAlien();
+  if (!st.tut && (fresh || !st.floorPlan || st.floorPlan.layer !== st.L)) st.floorPlan = makeFloorPlan();
+  const progress = fresh || !prev ? 0 : (prev.progress || 0) + (!prev.smash && (prev.result === 'ok' || prev.chainHits > 0) ? 1 : 0);
+  const planned = !st.tut && st.floorPlan.targets[Math.min(progress, st.floorPlan.rounds - 1)];
   // multi-person: advance partner index after a good clink
   const mN = multiCount();
   if (mN > 0 && !st.tut) {
@@ -1126,25 +1160,16 @@ function newRound(fresh) {
   // Drop applies only when the trio wraps back to cup 1.
   const midTrio = false;
   const holdBase = midQueue || midTrio;
-  const base = fresh || !prev ? st.stand + 40 * SC / 1.45
+  const base = planned ? planned.base : fresh || !prev ? st.stand + 40 * SC / 1.45
     : holdBase ? (prev.base != null ? prev.base : prev.target)
     : (prev.base != null ? prev.base : prev.target) + (prev.result === 'ok' || prev.chainHits > 0 ? (st.alien ? Math.max(10, (floorLimit() - st.stand - 40 - 2 * st.alien.step) / Math.max(1, CFG.alienRounds - 1) * 0.98) : d.drop * R(0.85, 1.15)) : 0);
   // per-partner height bias — readable steps; modest so 3–4 people fit before smash
   const partnerBias = (mN > 0 && !st.tut) ? partnerBiasFor(st.multiI % mN) : 0;
   const cupBias = (st.alien && st.alien.on && !st.tut) ? st.alien.cup * st.alien.step : 0;
   const heightBias = partnerBias + cupBias;
-  const smash = (prev && !fresh && prev.smash && prev.result !== 'ok') || (base + (st.alien ? 2 * st.alien.step : heightBias)) > floorLimit();
+  const smash = !st.tut ? progress >= st.floorPlan.rounds : (prev && !fresh && prev.smash && prev.result !== 'ok') || (base + (st.alien ? 2 * st.alien.step : heightBias)) > floorLimit();
   let target = base + heightBias;
-  if (!smash && !fresh && prev && !st.tut && !st.alien) {
-    if (holdBase) {
-      // ladder must read clearly: bias only, no random that can cancel the step
-      target = clamp(base + heightBias, st.stand + 15, floorLimit() - 4);
-    } else {
-      const V = (st.L < 3 ? [12, 22, 34][st.L] : 45 + 25 * Math.min(1, shapeK(st.L))) * SC / 1.45;
-      let sg = prev.off ? -Math.sign(prev.off) : (rnd() < 0.5 ? -1 : 1); if (rnd() < 0.3) sg = -sg;
-      target = clamp(base + heightBias + sg * R(0.45, 1) * V, st.stand + 15, floorLimit() - 4);
-    }
-  }
+  if (planned && !st.alien) target = planned.target;
   if (smash) target = fl + poseTable(boss.spec)[100].low;
   const retry = smash && prev && !fresh && prev.smash;
   if (st.alien && st.alien.on && !smash && !st.tut) st.alien.flash = midTrio ? 0.9 : 0.5;
@@ -1155,16 +1180,16 @@ function newRound(fresh) {
   const advanced = mN > 0 && !fresh && prev && prev.result === 'ok' && !smash;
   // mid-trio cups start in a fixed gap beat after a good clink (setup — never judged); retries go straight to aim
   const startGap = midTrio && !smash && prev && prev.result === 'ok';
-  st.round = { phase: smash && !retry ? 'tie' : (startGap ? 'gap' : 'aim'), t: 0, T, target, base, off: target - base, move: prev && !fresh && !smash ? target - prev.target : 0, smash, mh: [], result: null, n: (fresh || !prev ? 0 : prev.n) + 1, beep: 4, partner, multiI: st.multiI, alienCup: st.alien ? st.alien.cup : 0 };
+  st.round = { progress, phase: smash && !retry ? 'tie' : (startGap ? 'gap' : 'aim'), t: 0, T, target, base, off: target - base, move: prev && !fresh && !smash ? target - prev.target : 0, smash, mh: [], result: null, n: (fresh || !prev ? 0 : prev.n) + 1, beep: 4, partner, multiI: st.multiI, alienCup: st.alien ? st.alien.cup : 0 };
   if (!smash && chainCount()) {
     st.round.chain = chainCount(); st.round.chainIndex = 0; st.round.chainHits = 0;
     st.round.chainResults = []; st.round.chainBeat = 60 / CFG.musicBpm;
   }
-  if (st.alien && !smash) st.round.alienChoice = Math.floor(rnd() * 3);
+  if (st.alien && !smash) st.round.alienChoice = planned ? planned.alienChoice : Math.floor(rnd() * 3);
   st.judge = null;
   // A visible change of rules every few cups, with an opening beat to read it.
-  if (!smash && !st.tut && !st.round.chain && mN === 0 && !(st.alien && st.alien.on) && st.round.n > 1) {
-    st.round.event = ['feint', 'rush', 'steady'][(st.round.n - 2 + st.L) % 3];
+  if (!smash && !st.tut && !st.round.chain && mN === 0 && !(st.alien && st.alien.on) && progress > 0) {
+    st.round.event = ['feint', 'rush', 'steady'][(progress - 1 + st.L) % 3];
     if (st.round.event === 'rush') st.round.T = Math.max(CFG.minWait - 0.5, (st.round.T + 0.5) * CFG.rushScale - 0.5);
   }
   if (smash && !retry) { st.judge = null; banner('到底了！', '', 1.6, '#ff9a3d'); say(boss, ['…到底了？'], 1.8); }
@@ -1212,6 +1237,7 @@ function drawFx() {
 function strike(zh, en, why) {
   if (!st.round || st.round.result === 'strike' || st.state !== 'play') return;
   st.why = st.why || {}; st.why[why || 'high'] = (st.why[why || 'high'] || 0) + 1;
+  claimScoreOpportunity('miss');
   st.strikes++; st.combo = 0; st.hype = Math.max(0, st.hype - 30); sfx('thud'); st.shake = Math.max(st.shake, 14); juiceFlash('#ff3030', 0.22); buzz(60);
   if (zh) banner(zh, '', 1.1, '#ff4d4d');
   if (st.judge && st.judge.t < 0.2) { if (!st.judge.sub) judgeSay(pick(RUDE_LINES)); }
@@ -1245,6 +1271,7 @@ function finishToastAttempt() {
 }
 function judgeClink() {
   const r = st.round, d = diff(), L = d.L;
+  if (!r || (!r.tut && r.phase !== 'aim') || r.result) return;
   const by = toastRimY();
   const margin = player.P.rim.y - by;
   r.margin = margin;
@@ -1279,22 +1306,24 @@ function judgeClink() {
   for (let i = 0; i < 18; i++) parts.push({ x: cx + R(-12, 12), y: cy + R(-6, 6), vx: R(-260, 260), vy: R(-520, -120), life: 2, r: R(4, 9), col: rnd() < 0.3 ? '#fffbe8' : '#f2b51d', type: 'drop' });
   player.wine = Math.max(0.001, player.wine - CFG.clinkSpill / 100); slosh(R(0.35, 0.6) * (0.8 + 0.2 * d.slx) * (r.chain ? 0.25 : 1));
   if (ok) {
-    r.result = 'ok'; st.toasts++; st.combo++; st.bestCombo = Math.max(st.bestCombo, st.combo);
+    r.result = 'ok'; st.toasts++;
+    const scoring = claimScoreOpportunity('hit');
     st.clinkGrace = st.t + (r.chain ? 0.08 : 0.65);
+    if (!scoring) { st.judge.bonus = '补敬成功'; finishToastAttempt(); return; }
+    st.combo++; st.bestCombo = Math.max(st.bestCombo, st.combo);
     const close = clamp(1 - margin / 90, 0, 1);
-    addScore(60 * (L + 1), '碰杯 CLINK', '#ffffff');
+    addScore(CFG.toastScore * (L + 1), '碰杯 CLINK', '#ffffff');
     if (perfect) { addScore(CFG.perfectScore * (L + 1)); st.perfects++; }
     else addScore(close * close * 200 * (L + 1), '够低 LOW', '#7dff8a');
     addScore(player.wine * 40 * (L + 1), '剩酒 BEER', '#f2b51d');
-    const mult = 1 + Math.min(4, Math.floor(st.combo / 3));
     const quick = r.manual ? Math.round(120 * clamp(1 - Math.abs(r.timing) / timingWindow(), 0, 1)) : 0;
-    addScore((quick + 35 * Math.min(st.combo, 12)) * (L + 1) * mult);
+    addScore((quick + CFG.comboScore * Math.min(st.combo, CFG.comboCap)) * (L + 1));
     st.hype = Math.min(100, st.hype + (perfect ? 34 : 10) + (r.manual ? 4 : 0) + (perfect && r.event === 'steady' ? 14 : 0));
     if (perfect && !r.chain) refillWine(CFG.perfectRefill / 100);
     st.judge.bonus = `${st.combo} 连敬${quick ? '  ·  合拍 +' + quick : ''}${perfect ? `  ·  完美 +${CFG.perfectScore * (L + 1)}` : ''}${perfect && CFG.perfectRefill > 0 ? `  ·  回酒 +${CFG.perfectRefill}%` : ''}`;
     if (st.hype >= 100) {
-      st.bursts++; st.hype = 0; addScore(500 * (L + 1)); if (!r.chain) refillWine(CFG.hypeRefill / 100);
-      st.judge.word = '全桌服气！！'; st.judge.col = '#ffdf62'; st.judge.bonus = `气势满格 · 加分 +${500 * (L + 1)}${CFG.hypeRefill > 0 ? ` · 回酒 +${CFG.hypeRefill}%` : ''}`;
+      st.bursts++; st.hype = 0; addScore(CFG.hypeScore * (L + 1)); if (!r.chain) refillWine(CFG.hypeRefill / 100);
+      st.judge.word = '全桌服气！！'; st.judge.col = '#ffdf62'; st.judge.bonus = `气势满格 · 加分 +${CFG.hypeScore * (L + 1)}${CFG.hypeRefill > 0 ? ` · 回酒 +${CFG.hypeRefill}%` : ''}`;
       st.freeze = 0.17; st.shake = 19;
     }
     judgeSay(margin > 150 ? ['你这也太客气了…'] : pick(POLITE_LINES));
@@ -3205,7 +3234,7 @@ function render() {
       text(remark, 540, 640, 27, '#e5d2c4', 'center', 700);
       text(`${o.cleared ? '十二关已通关 · ' : ''}最深 ${o.depth < 0.05 ? '0 米' : '−' + fmtDepth(o.depth)} · ${layerDef(o.layer).endless ? `无尽模式 第 ${o.layer + 1} 层` : `第 ${o.layer + 1} 层`}`, 540, 692, 31, '#fff', 'center', 800);
       text(`最高 ${st.bestCombo} 连敬 · 完美 ${st.perfects} 次 · 全桌服气 ${st.bursts} 次`, 540, 740, 25, '#e5d2c4', 'center', 800);
-      text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}`, 540, 790, 32, '#7fd0ff', 'center', 900);
+      text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}${st.bestDifficulty ? ' · ' + DIFFICULTIES.find(d => d.id === st.bestDifficulty).level : ''}`, 540, 790, 32, '#7fd0ff', 'center', 900);
       if (st.newRecord && Math.floor(t * 3) % 2 === 0) text('新纪录！', 540, 840, 32, '#7dff8a', 'center', 900);
       text(TOUCH ? '点一下重来' : '按 R 重来', 540, 930, 34, '#fff', 'center', 900);
       ctx.restore(); ctx.globalAlpha = 1;

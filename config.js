@@ -4,6 +4,15 @@
 // 游戏内「···」使用同一张表。修改本文件后刷新，旧的本机覆盖自动失效。
 (() => {
   const fields = [
+    ['openingRounds', '职场前两关敬酒轮数', 3, 2, 5, 1, '轮'],
+    ['regularRounds', '普通每关敬酒轮数', 2, 2, 5, 1, '轮'],
+    ['chainRounds', '古墓每关连敬组数', 2, 1, 4, 1, '组'],
+    ['toastScore', '碰杯基础分', 400, 0, 1000, 20, '分'],
+    ['comboScore', '每次连敬加分', 20, 0, 100, 5, '分'],
+    ['comboCap', '连敬计分上限', 10, 1, 20, 1, '次'],
+    ['hypeScore', '气势满格加分', 300, 0, 1000, 20, '分'],
+    ['floorScore', '过关基础分', 5000, 0, 10000, 100, '分'],
+    ['clearScore', '十二关通关加分', 50000, 0, 100000, 1000, '分'],
     ['stickDeadzone', '手机摇杆中心死区', 0.12, 0.04, 0.3, 0.01, '比例'],
     ['stickCurve', '手机摇杆微调曲线', 1.4, 1, 2, 0.1, '指数'],
     ['chainReach', '连敬伸手耗时', 0.18, 0.10, 0.25, 0.01, '秒'],
@@ -72,6 +81,7 @@
       const value = input && input[name];
       if (typeof value === 'number' && Number.isFinite(value)) out[name] = Math.min(max, Math.max(min, value));
     }
+    for (const name of ['openingRounds', 'regularRounds', 'chainRounds', 'alienRounds', 'comboCap']) out[name] = Math.round(out[name]);
     // Preserve a meaningful positive timing window and enough time for a reach.
     out.minWait = Math.min(out.minWait, out.roundWait);
     for (const id of ['easy', 'normal', 'hard']) out[id + 'Taper'] = Math.min(out[id + 'Taper'], out[id + 'Time'] - 0.05);
