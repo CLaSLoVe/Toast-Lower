@@ -39,6 +39,9 @@ The v39 chapter checks run with `node tests/chapters.test.cjs`: four chapters an
 twelve rooms, fixed-height 2/3/4-note phrases on one music clock, per-note penalties
 and once-per-phrase refill, concealed alien targets revealed one second before zero,
 and all three target heights reached with ordinary controls at 90/126/160 BPM.
+They also play a complete hard campaign on both layouts to check sparse, non-repeating
+chapter chatter, quiet cue sequences, visible dialogue, and once-per-run smash jokes.
+Alien chatter is checked independently of the selected leader.
 
 Run `node tests/mobile.test.cjs` for the mobile input checks: analog diagonal
 strength/deadzone, independent two-pointer ownership, no held-toast repeat, all

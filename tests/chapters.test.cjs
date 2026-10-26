@@ -73,8 +73,7 @@ test('three independent leaders hold distinct heights and only the chosen leader
   labels.length=0;g.render();assert.equal(labels.filter(s=>/^\d+\.\d+s$/.test(s)).length,1);
  }
 });
-test('alien countdown keeps two full seconds and one bubble; clocks and guide reveal together',()=>{
- const quotes=['这两位都是上面的。','给文明以酒精。','我已脱水，急需补液。'];
+test('alien countdown keeps two full seconds; silent target and guide reveal together',()=>{
  for(const mode of ['easy','normal','hard']) for(const layer of [9,10,11]) for(const bpm of [90,126,160]) {
   const calls=[];
   const g=createGame({search:`?capture=1&tut=0&seed=7&layer=${layer}&difficulty=${mode}`,
@@ -82,8 +81,7 @@ test('alien countdown keeps two full seconds and one bubble; clocks and guide re
   g.inspect.config.musicBpm=bpm;
   const r=g.inspect.st.round,a=g.inspect.st.alien;
   assert.ok(Math.abs(g.api.dbg().inputLeft-2)<1e-8);
-  assert.equal(g.inspect.bubbles.length,1);assert.ok(quotes.includes(g.inspect.bubbles[0].zh));
-  assert.equal(g.inspect.bubbles[0].c,a.leaders[quotes.indexOf(g.inspect.bubbles[0].zh)]);
+  assert.ok(!g.inspect.bubbles.some(b=>b.chapterChat),'no chatter on a new countdown');
   g.sandbox.__musicClock=.173;g.advance(1);
   assert.ok(Math.abs(r.T+.5-g.inspect.reachTime()-2)<1e-8);
   const zero=r.musicAnchor+2,beat=60/bpm;
@@ -96,8 +94,7 @@ test('alien countdown keeps two full seconds and one bubble; clocks and guide re
   };
   if(r.clockWaiting){calls.length=0;g.render();assert.equal(calls.filter(([k,v])=>k==='fillText'&&/^\d+\.\d+s$/.test(v[0])).length,0,'no frozen clock before the countdown');}
   check(1.9,3,false);check(1.01,3,false);check(1,1,true);
-  assert.equal(g.inspect.bubbles.length,1);assert.equal(g.inspect.bubbles[0].c,r.partner);
-  assert.ok(['这两位都是上面的。','我是你的碰杯人。','主敬你一杯。','执杯人，举杯。'].includes(g.inspect.bubbles[0].zh));
+  assert.equal(g.inspect.bubbles.length,0,'target reveal never speaks');
   g.sandbox.__musicClock=zero+.001;g.inspect.stepRound(1/60);assert.equal(g.inspect.bubbles.length,0);
  }
 });
@@ -133,5 +130,48 @@ test('explicit seeds repeat, ordinary restarts vary, repeated leaders and retry 
   assert.equal(g.inspect.st.round.alienChoice,target);
  }
  assert.ok(repeat,'independent choices allow adjacent duplicates');
+});
+test('chapter chatter is sparse, distinct, visible on both devices, and silent during cues',()=>{
+ for(const touch of [false,true]) {
+  const spoken=[],drawn=[];
+  const g=createGame({touch,width:touch?844:1080,height:touch?390:1080,
+   search:'?capture=1&tut=0&seed=20261022&bot=expert&difficulty=hard',
+   onDraw(k,a){if(k==='fillText')drawn.push(a[0]);}});
+  const smashes=[];let previous=null;
+  for(let f=0;f<16000&&g.inspect.st.L<12;f++) {
+   g.advance(1);const st=g.inspect.st,r=st.round;
+   if(st.punch&&st.punch!==previous){smashes.push(st.punch.word);previous=st.punch;}
+   const b=g.inspect.bubbles.find(b=>b.chapterChat);
+   if(b&&!spoken.some(x=>x.b===b))spoken.push({b,layer:st.L,phase:r.phase,chainIndex:r.chainIndex});
+   if(r&&r.phase==='aim'&&!r.smash&&(st.alien||r.chain)) {
+    const left=g.api.dbg().inputLeft;
+    if(left<=(st.alien?1:2*r.chainBeat)-.001)assert.ok(!b,'no chatter during the cue sequence');
+   }
+   if(b)g.render();
+  }
+  assert.equal(g.inspect.st.L,12,'hard campaign still clears');
+  const texts=spoken.map(x=>x.b.zh);assert.equal(new Set(texts).size,texts.length,'no repeated chapter chatter');
+  assert.equal(texts.filter(x=>x==='再喝五百年！').length,1);
+  for(let layer=6;layer<12;layer++){const count=spoken.filter(x=>x.layer===layer).length;assert.ok(count>=1&&count<=2,'one or two lines in every chapter room');}
+  assert.ok(spoken.every(x=>x.phase==='react'),'chatter starts after completed attempts');
+  for(const x of spoken)assert.ok(drawn.includes(x.b.zh),`visible ${touch?'mobile':'desktop'}: ${x.b.zh}`);
+  assert.equal(smashes.filter(x=>x==='下面还有高手？！').length,1);
+  assert.equal(smashes.filter(x=>x==='面子碎了！！').length,1);
+ }
+});
+test('alien chatter does not depend on the selected leader and is cleared on reveal',()=>{
+ const original=Math.random;Math.random=()=>.42;
+ try {
+  const results=[];
+  for(const choice of [0,1,2]) {
+   const g=game(9),st=g.inspect.st,r=st.round;
+   st.chatSeen=['这两位都是上面的。'];r.alienChoice=choice;
+   r.phase='react';r.result='ok';r.t=.2;g.inspect.stepChapterChatter();
+   results.push([g.inspect.bubbles[0].zh,st.alien.leaders.indexOf(g.inspect.bubbles[0].c)]);
+   r.phase='aim';r.t=r.T+.5-g.inspect.reachTime()-1;g.inspect.revealAlienTarget();
+   assert.equal(g.inspect.bubbles.length,0);
+  }
+  assert.deepEqual(results[0],results[1]);assert.deepEqual(results[1],results[2]);
+ } finally { Math.random=original; }
 });
 console.log(`${checks}/${checks} chapter checks passed`);

@@ -397,9 +397,6 @@ function revealAlienTarget() {
     r.partner = a.leaders[a.cup];
     r.target = r.base + a.cup * a.step;
     r.move = (a.cup - 1) * a.step;
-    const lines = a.cup === 0 ? ['这两位都是上面的。'] : ['我是你的碰杯人。', '主敬你一杯。', '执杯人，举杯。'];
-    say(r.partner, [lines[Math.floor(Math.random() * lines.length)]], CFG.alienReveal + 0.2);
-    bubbles[0].alienIntro = true; bubbles[0].alienReveal = true;
   }
 }
 function alienRimY(cup) {
@@ -417,7 +414,7 @@ function stepAlienLeaders(dt) {
     const selected = !r.smash && a.revealed && i === a.cup && r.phase === 'aim' && toastInputLeft() <= 0;
     const homeX = player.x + 340 + i * 235 - tableAt(c.spec, c.s).cupDX;
     if (selected) {
-      // Announce at one second; move only on zero, arriving with the player's reach.
+      // Reveal at one second; move only on zero, arriving with the player's reach.
       if (r.alienApproachX == null) r.alienApproachX = c.x;
       const contactX = Math.max(player.P.cupB.x, player.P.rim.x) + 24 * SC - tableAt(c.spec, c.s).cupDX;
       const duration = Math.max(0.12, reachTime() - Math.min(0.06, timingWindow() * 0.25));
@@ -579,6 +576,43 @@ function diff() {
 
 function say(c, pair, dur) { bubbles.length = 0; // one speech bubble at a time
   bubbles.push({ c, t: 0, dur: dur || 1.8, zh: mobileWords(pair[0]), en: pair[1] }); }
+// Chatter is cosmetic: never consume the gameplay RNG or select the next target.
+const TOMB_CHAT = ['别拘束，跟自己家一样。', '这几位都是老前辈。', '老员工都在这儿了。', '再喝五百年！'];
+const ALIEN_CHAT = ['我是你的碰杯人。', '主敬你一杯。', '执杯人，举杯。', '给文明以酒精。', '我已脱水，急需补液。', '主不在乎。', '不要回答。', '你们这儿敬酒不报销？', '我有三个肝，你随意。'];
+function stepChapterChatter() {
+  const r = st.round;
+  if (st.tut || st.state !== 'play' || !r || (!r.chain && !st.alien)) return;
+  // Clear chatter before the first cue of a tomb phrase or the alien reveal.
+  if (r.phase === 'aim' && !r.smash && toastInputLeft() <= (st.alien ? CFG.alienReveal : 2 * r.chainBeat)) {
+    for (let i = bubbles.length - 1; i >= 0; i--) if (bubbles[i].chapterChat) bubbles.splice(i, 1);
+  }
+  if (r.phase !== 'react' || r.smash || r.result !== 'ok' || r.chatChecked || r.t < 0.12) return;
+  r.chatChecked = true;
+  // Two quiet gaps per room, never on retries or between consecutive notes.
+  const plan = st.floorPlan;
+  const slots = r.chain && layerDef(st.L).room !== 2 ? [0] : [0, 1];
+  if (!slots.includes(r.progress) || (plan.chatSlots || []).includes(r.progress)) return;
+  (plan.chatSlots ||= []).push(r.progress);
+  const seen = st.chatSeen ||= [];
+  let speaker = boss, line;
+  if (st.alien) {
+    if (!seen.includes('这两位都是上面的。')) line = '这两位都是上面的。';
+    else {
+      const pool = ALIEN_CHAT.filter(x => !seen.includes(x));
+      if (!pool.length) return;
+      line = pool[Math.floor(Math.random() * pool.length)];
+      speaker = st.alien.leaders[1 + Math.floor(Math.random() * 2)];
+    }
+  } else {
+    let pool = TOMB_CHAT.filter(x => !seen.includes(x));
+    // The boast is a rare punchline after the three conversational lines.
+    if (pool.length > 1) pool = pool.filter(x => x !== '再喝五百年！');
+    if (!pool.length) return;
+    line = pool[Math.floor(Math.random() * pool.length)];
+  }
+  seen.push(line);
+  say(speaker, [line], 1.8); bubbles[0].chapterChat = true;
+}
 function pick(a) { return a[Math.floor(rnd() * a.length)]; }
 function banner(zh, en, dur, col) { bigText = { zh, en, t: 0, dur: dur || 2.2, col: col || '#ffd34d' }; }
 function addScore(n) { n = Math.round(n); if (n <= 0) return; st.score += n; if (!st.gain || st.gain.t > 0.9) st.gain = { n: 0, t: 0 }; st.gain.n += n; st.gain.t = 0; }
@@ -611,7 +645,7 @@ function restart() {
   runSeed = explicitSeed ?? Math.floor(Math.random() * 4294967296); seed = runSeed;
   window.ToastMusic.reset();
   Object.assign(st, { L: START_LAYER, flipped: false, cycle: 0, holes: {}, score: 0, floorPlan: null, breaks: 0, strikes: 0, toasts: 0, perfects: 0, round: null, over: null, newRecord: false, coreBonus: false,
-    pressure: 0, cracks: [], lastCrackStep: 0, playT: 0, layerT: 0, gameT: 0, state: 'play', stT: 0, best: 0, sawLow: false, bossSay: 1.5, alien: null, multiI: 0,
+    chatSeen: [], pressure: 0, cracks: [], lastCrackStep: 0, playT: 0, layerT: 0, gameT: 0, state: 'play', stT: 0, best: 0, sawLow: false, bossSay: 1.5, alien: null, multiI: 0,
     combo: 0, bestCombo: 0, hype: 0, bursts: 0, manualToasts: 0, judge: null, freeze: 0, gain: null, paused: false, clinkGrace: 0, spillT: 0, spillOn: false, loss: 0, lossT: 9, punch: null });
   parts.length = debris.length = puddles.length = bubbles.length = popups.length = 0;
   reset(); bigText = null; player.wine = wineCapacity(); syncMusic();
@@ -885,7 +919,8 @@ function breakFloor() {
   dust(st.crackX, fl, 50);
   st.shake = 36; st.breaks++; sfx('break'); sfx('smash'); sfx('boing'); buzz([50, 40, 140]); juiceFlash('#fff3c4', 0.25);
   const burst = st.round && st.round.burst;
-  st.punch = { word: burst ? '面子碎了！！' : '下面还有高手？！', t: 0, col: burst ? '#ffdf62' : '#fff3c4' };
+  const smashLine = L === 0 ? '下面还有高手？！' : L === 4 ? '面子碎了！！' : L === 14 ? '地球：你礼貌吗？' : '';
+  st.punch = smashLine ? { word: smashLine, t: 0, col: L === 4 ? '#ffdf62' : '#fff3c4' } : null;
   bigText = null; st.judge = null;
   for (const c of allChars()) { c.mode = 'fall'; c.landed = false; c.vy = R(-380, -120); c.vx = R(-70, 70); c.vrot = R(-6, 6); c.bounced = 0; }
   bubbles.length = 0;
@@ -1233,7 +1268,7 @@ function newRound(fresh) {
     st.round.event = ['feint', 'rush', 'steady'][(progress - 1 + st.L) % 3];
     if (st.round.event === 'rush') st.round.T = Math.max(CFG.minWait - 0.5, (st.round.T + 0.5) * CFG.rushScale - 0.5);
   }
-  if (smash && !retry) { st.judge = null; banner('到底了！', '', 1.6, '#ff9a3d'); say(boss, ['…到底了？'], 1.8); }
+  if (smash && !retry) { st.judge = null; if (!bubbles.some(b => b.chapterChat)) { banner('到底了！', '', 1.6, '#ff9a3d'); say(boss, ['…到底了？'], 1.8); } }
   else if (smash) say(boss, ['再来！砸！'], 1.2);
   else if (startGap) {
     const k = st.alien.cup + 1;
@@ -1246,14 +1281,7 @@ function newRound(fresh) {
     else say(boss, pick([['接着来！'], ['下一杯！']]), 1.2);
   }
   else if (mN > 0 && partner !== boss) { say(partner, pick([['领导我也敬！'], ['轮到我了！'], ['来来来！']]), 1.3); }
-  else if (st.round.chain) say(boss, ['再喝五百年！'], 1.3);
-  else if (st.alien && !smash) {
-    // Cosmetic random choice never changes the gameplay seed or reveals the target.
-    const lines = ['这两位都是上面的。', '给文明以酒精。', '我已脱水，急需补液。'];
-    const speaker = Math.floor(Math.random() * lines.length);
-    say(st.alien.leaders[speaker], [lines[speaker]], CFG.alienCountdown + 1);
-    bubbles[0].alienIntro = true;
-  }
+  else if (st.round.chain || st.alien) { /* Chatter belongs to the gaps after successful rounds. */ }
   else if (rnd() < 0.5) { const ln = pick(BOSS_LINES); if (!st.judge) say(boss, ln, 1.4); }
 }
 // ---- feedback (sound / sparks / flashes): visual + audio only, never the seeded rng, never the rules
@@ -1377,7 +1405,8 @@ function judgeClink() {
       st.judge.word = '全桌服气！！'; st.judge.col = '#ffdf62'; st.judge.bonus = `气势满格 · 加分 +${CFG.hypeScore * (L + 1)}${CFG.hypeRefill > 0 ? ` · 回酒 +${CFG.hypeRefill}%` : ''}`;
       st.freeze = 0.17; st.shake = 19;
     }
-    judgeSay(margin > 150 ? ['你这也太客气了…'] : pick(POLITE_LINES));
+    const polite = margin > 150 ? ['你这也太客气了…'] : pick(POLITE_LINES);
+    if (!r.chain && !st.alien) judgeSay(polite);
   } else strike(null);
   finishToastAttempt();
 }
@@ -1427,9 +1456,6 @@ function stepToastCue() {
 function stepRound(dt) {
   const r = st.round; if (!r || st.state !== 'play') return;
   r.t += dt; syncToastClock(); revealAlienTarget();
-  if (st.alien && r.phase === 'aim' && !r.smash && toastInputLeft() <= 0) {
-    for (let i = bubbles.length - 1; i >= 0; i--) if (bubbles[i].alienReveal) bubbles.splice(i, 1);
-  }
   if (r.phase === 'tie') {
     if (r.t > (st.breaks > 0 && !st.tut ? CFG.repeatSmashPause : 1.8)) { r.phase = 'aim'; r.t = 0; r.beep = 4; banner('砸穿地板！', '', 1.1, '#ff9a3d'); st.pressure = Math.max(st.pressure, 0); }
   } else if (r.phase === 'gap') {
@@ -1771,6 +1797,7 @@ function step(dt0) {
   else if (st.state === 'fall') stepFall(dt);
   else if (st.state === 'standup') stepStandup(dt);
   else if (st.state === 'over') stepOver(dt);
+  stepChapterChatter();
   stepVis(dt);
   stepParticles(dt);
   for (let i = bubbles.length - 1; i >= 0; i--) { bubbles[i].t += dt; if (bubbles[i].t > bubbles[i].dur) bubbles.splice(i, 1); }
@@ -1906,6 +1933,34 @@ function warrior(x, y, s) {
   ctx.fillStyle = '#6f3a24'; for (let i = 0; i < 3; i++) ctx.fillRect(x - 26 * s, y - (118 - i * 22) * s, 52 * s, 5 * s);
 }
 
+function drawSubwayElder(x, y, t) {
+  ctx.save(); ctx.translate(x, y); ctx.globalAlpha = 0.85;
+  // A small wordless station poster keeps the cameo behind the playable cast.
+  ctx.fillStyle = '#d2d4bd'; ctx.strokeStyle = '#394b52'; ctx.lineWidth = 5;
+  rr(-83, -66, 184, 189, 6); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#587078'; rr(-68, 48, 156, 20, 6); ctx.fill();
+  ctx.strokeStyle = '#28343b'; ctx.lineWidth = 9;
+  line({ x: -48, y: 66 }, { x: -48, y: 112 }); line({ x: 68, y: 66 }, { x: 68, y: 112 });
+  // Seated, recoiling from the glass held at arm's length.
+  seg({ x: -8, y: 48 }, { x: 23, y: 72 }, 16, '#424d58');
+  seg({ x: 23, y: 72 }, { x: 12, y: 110 }, 14, '#424d58');
+  seg({ x: -20, y: 0 }, { x: -8, y: 46 }, 33, '#898d7d');
+  seg({ x: -13, y: 4 }, { x: 27, y: 18 }, 10, '#a3a48e');
+  seg({ x: 27, y: 18 }, { x: 68, y: -6 }, 9, '#e4ba92');
+  circ(-32, -30, 25, '#e4ba92', '#24272b', 4);
+  ctx.strokeStyle = '#dedbd0'; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.arc(-34, -34, 23, PI * 0.9, PI * 1.85); ctx.stroke();
+  ctx.strokeStyle = '#24272b'; ctx.lineWidth = 3;
+  line({ x: -34, y: -36 }, { x: -23, y: -32 }); line({ x: -16, y: -33 }, { x: -6, y: -38 });
+  circ(-25, -27, 2, '#24272b'); circ(-10, -28, 2, '#24272b');
+  line({ x: -25, y: -13 }, { x: -10, y: -17 });
+  ctx.translate(69, -7); ctx.rotate(Math.sin(t * 2) * 0.04);
+  ctx.fillStyle = 'rgba(225,240,255,0.8)'; ctx.strokeStyle = '#24272b'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-15, -34); ctx.lineTo(15, -34); ctx.lineTo(10, -7); ctx.lineTo(-10, -7); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#d99436'; ctx.fillRect(-8, -22, 16, 12);
+  line({ x: 0, y: -6 }, { x: 0, y: 5 }); line({ x: -10, y: 5 }, { x: 10, y: 5 });
+  ctx.restore();
+}
 const LAYER_ART = [
   { floorTop: '#9a6232', slab: '#4c3a2c', draw(top, fl, l, r, t) {
       const g = ctx.createLinearGradient(0, top, 0, fl); g.addColorStop(0, '#7a1019'); g.addColorStop(1, '#a8202a'); ctx.fillStyle = g; ctx.fillRect(l, top, r - l, fl - top);
@@ -1943,7 +1998,8 @@ const LAYER_ART = [
       ctx.fillStyle = '#c9ced8'; rr(tx, fl - 520, 2600, 300, 30); ctx.fill(); ctx.fillStyle = '#d7262f'; ctx.fillRect(tx, fl - 300, 2600, 26);
       for (let x = tx + 40; x < tx + 2560; x += 150) { ctx.fillStyle = '#ffe9a8'; rr(x, fl - 480, 100, 100, 10); ctx.fill(); }
       ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 4; for (let i = 0; i < 8; i++) { const y = fl - 500 + i * 36; line({ x: tx - 400 + (i * 97) % 300, y }, { x: tx - 60, y }); }
-      sign(200, top + 300, '2号线', 'LINE 2 · NEXT: 程序员机房', '#1f7a3a', '#fff');
+      drawSubwayElder(860, fl - 465, t);
+      sign(200, top + 300, '2号线', 'LINE 2', '#1f7a3a', '#fff');
       circ(940, top + 140, 22, '#e3262b'); circ(990, top + 140, 22, (Math.floor(t * 2) % 2) ? '#34e05a' : '#163');
     } },
   { floorTop: '#b08a55', slab: '#7a5a36', draw(top, fl, l, r, t) {
@@ -3182,8 +3238,8 @@ function render() {
     if (j.t < 0.08) { ctx.fillStyle = `rgba(255,255,255,${0.1 * (1 - j.t / 0.08)})`; ctx.fillRect(0, 0, W, H); }
   }
   // --- one speech bubble, short, never over the HUD or the side glass
-  for (const b of (TOUCH && !st.tut ? bubbles.filter(b => b.alienIntro) : bubbles)) {
-    const c = b.c; if (!c.P || bigText || st.punch) continue;
+  for (const b of (TOUCH && !st.tut ? bubbles.filter(b => b.alienIntro || b.chapterChat) : bubbles)) {
+    const c = b.c; if (!c.P || bigText || st.punch || (b.chapterChat && st.judge && !st.judge.compact && st.judge.t < 0.5)) continue;
     const p = S(c.P.head.x, c.P.head.y);
     const a = clamp(Math.min(1, (b.dur - b.t) * 4, b.t * 8), 0, 1);
     ctx.globalAlpha = a;

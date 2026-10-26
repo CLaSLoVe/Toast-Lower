@@ -6,7 +6,7 @@ English | [简体中文](README.zh-CN.md)
 
 ## Hard-mode walkthrough
 
-https://github.com/user-attachments/assets/c15435b4-0117-40ca-9d13-870b870e0441
+https://github.com/user-attachments/assets/1c54c4b7-6ba8-4871-b8ef-80394ccdea11
 
 Automated playthrough.
 
@@ -32,7 +32,7 @@ The red **0s** marks the ideal toast timing. Run out of wine and the game ends. 
 | Workplace | Adjust your height and learn single toasts |
 | Underground transit | Keep the glass steady while everything sways |
 | Ancient tomb | Hold a fixed height and hit 2, 3, then 4 consecutive beats |
-| Aliens | Three cups count down from 2 seconds. The target speaks and the height guide appears in the final second; the leader steps forward at 0s. The same leader can be picked again |
+| Aliens | Three cups count down from 2 seconds. Only the target’s circle and height guide remain in the final second; the leader steps forward at 0s. The same leader can be picked again |
 
 Endless mode follows the twelve stages, and the same score keeps accumulating.
 

@@ -114,7 +114,7 @@ function createGame(options = {}) {
   window.__test = {
     get bubbles() { return bubbles; }, get st() { return st; }, get player() { return player; }, get boss() { return boss; },
     get pointers() { return pointers; }, get stick() { return { ...stick, ...stickRect() }; }, get stickGeometry() { return stickRect(); }, get buttons() { return BTN.map((b, i) => ({ key: b[0], ...btnRect(i) })); },
-    get canvasSize() { return { W, H }; }, render, breakFloor, gameOver, toastRimY, alienRimX, alienRimY, stepNPCs, winSpan, strike, judgeClink, perfBand, moveCup, diff, wineCapacity, refillWine, stepRound, finishToastAttempt, newRound, reachTime, revealAlienTarget, spillSoundSuppressed, stepToastCue, stepTutorial, pressCheck, get config() { return CFG; }, applySettings, get settings() { return window.__settings; },
+    get canvasSize() { return { W, H }; }, render, breakFloor, gameOver, toastRimY, alienRimX, alienRimY, stepNPCs, winSpan, strike, judgeClink, perfBand, moveCup, diff, wineCapacity, refillWine, stepRound, stepChapterChatter, finishToastAttempt, newRound, reachTime, revealAlienTarget, spillSoundSuppressed, stepToastCue, stepTutorial, pressCheck, get config() { return CFG; }, applySettings, get settings() { return window.__settings; },
     get canToast() { return typeof canToast === 'function' ? canToast : null; },
     get requestToast() { return typeof requestToast === 'function' ? requestToast : null; },
     get contacts() { return window.__contacts; },
