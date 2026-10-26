@@ -899,6 +899,21 @@ function updateCup(c, dt, gentle) {
 }
 
 // ---------------------------------------------------------------- floor break
+// One impact line for each story floor, ordered by the room we fall into.
+const STORY_SMASH_LINES = [
+  '说好的上升空间呢？！',
+  '我说低调！不是地窖！！',
+  '地板也被优化了！',
+  '八！十！！',
+  '打通底层逻辑！！',
+  '下面还有高手？！',
+  '我这一杯，二十年功力！！',
+  '从天而降的杯法！！',
+  '向下兼容！！',
+  '面子碎了！！',
+  '降层打击！！',
+  '还有谁！！',
+];
 function breakFloor() {
   if (st.state !== 'play' || st.tut) return;
   const L = st.L, fl = floorY(L);
@@ -919,13 +934,12 @@ function breakFloor() {
   dust(st.crackX, fl, 50);
   st.shake = 36; st.breaks++; sfx('break'); sfx('smash'); sfx('boing'); buzz([50, 40, 140]); juiceFlash('#fff3c4', 0.25);
   const burst = st.round && st.round.burst;
-  const smashLine = L === 0 ? '下面还有高手？！' : L === 4 ? '面子碎了！！' : L === 14 ? '地球：你礼貌吗？' : '';
-  st.punch = smashLine ? { word: smashLine, t: 0, col: L === 4 ? '#ffdf62' : '#fff3c4' } : null;
+  const smashLine = STORY_SMASH_LINES[L] || (L === 14 ? '地球：你礼貌吗？' : '');
+  st.punch = smashLine ? { word: smashLine, t: 0, col: L === 9 ? '#ffdf62' : '#fff3c4' } : null;
   bigText = null; st.judge = null;
   for (const c of allChars()) { c.mode = 'fall'; c.landed = false; c.vy = R(-380, -120); c.vx = R(-70, 70); c.vrot = R(-6, 6); c.bounced = 0; }
   bubbles.length = 0;
   if (burst) say(boss, ['我没让你拆楼啊！！'], 1.4);
-  else if (L === 1) say(boss, ['我说低调！不是地窖！！'], 1.4); // entering the wine cellar only
   st.state = 'fall';
   if (L === 14) { st.punch.word = '地球：你礼貌吗？'; st.coreBonus = true; }
   st.stT = 0; st.pressure = 0; st.cracks = [];
@@ -3007,8 +3021,12 @@ function drawComicImpact() {
     ctx.lineWidth = i % 2 ? 3 : 8; line({ x: W / 2 + Math.cos(an) * r0, y: cy + Math.sin(an) * r0 }, { x: W / 2 + Math.cos(an) * r1, y: cy + Math.sin(an) * r1 });
   }
   ctx.globalAlpha = a; ctx.translate(W / 2, cy); ctx.rotate(-0.07); const s = 1 + Math.max(0, 0.2 - p.t) * 2; ctx.scale(s, s);
-  text(p.word, 5, 8, Math.min(82, W / 9), '#9b2839', 'center', 900, '#18121a');
-  text(p.word, 0, 0, Math.min(82, W / 9), p.col, 'center', 900, '#18121a'); ctx.restore();
+  const baseSize = Math.min(82, W / 9);
+  ctx.font = `900 ${baseSize}px ${FONT}`;
+  // Reserve room for the initial 1.4x pop, rotation and outline on both layouts.
+  const size = baseSize * Math.min(1, (W * 0.82 / 1.4 - 16) / Math.max(1, ctx.measureText(p.word).width));
+  text(p.word, 5, 8, size, '#9b2839', 'center', 900, '#18121a');
+  text(p.word, 0, 0, size, p.col, 'center', 900, '#18121a'); ctx.restore();
 }
 function render() {
   const t = st.t;

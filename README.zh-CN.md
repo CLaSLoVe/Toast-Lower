@@ -6,7 +6,7 @@
 
 ## 高难通关视频
 
-https://github.com/user-attachments/assets/1c54c4b7-6ba8-4871-b8ef-80394ccdea11
+https://github.com/user-attachments/assets/06131c59-655d-4b55-bbc4-941e1dd72dca
 
 自动操作 · 全流程
 

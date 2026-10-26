@@ -6,7 +6,7 @@ English | [简体中文](README.zh-CN.md)
 
 ## Hard-mode walkthrough
 
-https://github.com/user-attachments/assets/1c54c4b7-6ba8-4871-b8ef-80394ccdea11
+https://github.com/user-attachments/assets/06131c59-655d-4b55-bbc4-941e1dd72dca
 
 Automated playthrough.
 

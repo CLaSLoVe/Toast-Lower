@@ -140,7 +140,10 @@ test('chapter chatter is sparse, distinct, visible on both devices, and silent d
   const smashes=[];let previous=null;
   for(let f=0;f<16000&&g.inspect.st.L<12;f++) {
    g.advance(1);const st=g.inspect.st,r=st.round;
-   if(st.punch&&st.punch!==previous){smashes.push(st.punch.word);previous=st.punch;}
+   if(st.punch&&st.punch!==previous){
+    smashes.push(st.punch.word);previous=st.punch;g.render();
+    assert.ok(!g.inspect.bubbles.some(b=>b.zh===st.punch.word),'impact text is not duplicated in a speech bubble');
+   }
    const b=g.inspect.bubbles.find(b=>b.chapterChat);
    if(b&&!spoken.some(x=>x.b===b))spoken.push({b,layer:st.L,phase:r.phase,chainIndex:r.chainIndex});
    if(r&&r.phase==='aim'&&!r.smash&&(st.alien||r.chain)) {
@@ -157,6 +160,11 @@ test('chapter chatter is sparse, distinct, visible on both devices, and silent d
   for(const x of spoken)assert.ok(drawn.includes(x.b.zh),`visible ${touch?'mobile':'desktop'}: ${x.b.zh}`);
   assert.equal(smashes.filter(x=>x==='下面还有高手？！').length,1);
   assert.equal(smashes.filter(x=>x==='面子碎了！！').length,1);
+  assert.equal(smashes.length,12,'every story floor has an impact line');
+  assert.equal(new Set(smashes).size,12,'no repeated impact lines');
+  assert.equal(smashes[1],'我说低调！不是地窖！！','cellar joke belongs at the cellar entrance');
+  assert.equal(smashes[11],'还有谁！！','final smash is the closing challenge');
+  for(const line of smashes)assert.ok(drawn.includes(line),`impact rendered on ${touch?'mobile':'desktop'}: ${line}`);
  }
 });
 test('alien chatter does not depend on the selected leader and is cleared on reveal',()=>{
