@@ -85,6 +85,25 @@ test('story clear award occurs only at twelve completed floors from the first st
   assert.equal(jumped.inspect.st.score, cfg.floorScore * 12 + Math.round(jumped.inspect.player.wine * 120 * 12));
 });
 
+test('honors follow score thresholds regardless of difficulty or campaign completion', () => {
+  const ranks = [[0, '成年香蕉'], [1, '卧龙凤雏'], [4500, '小孩那桌'],
+    [12000, '夹菜我转桌'], [30000, '乌鸦哥'], [65000, '端水大师'],
+    [130000, '懂事长'], [230000, '敬酒悍匪'], [360000, '国家一级陪酒员'],
+    [480000, '先天敬酒圣体'], [580000, '铁血山东 👍'], [650000, 'DeepDrink']];
+  for (const mode of ['easy', 'normal', 'hard']) for (const layer of [0, 11, 12]) {
+    const g = game(layer, mode);
+    for (let i = 0; i < ranks.length; i++) {
+      const [score, title] = ranks[i];
+      g.inspect.st.score = score;
+      assert.equal(g.api.state().rank[0], title);
+      if (i) { g.inspect.st.score = score - 1; assert.equal(g.api.state().rank[0], ranks[i - 1][1]); }
+    }
+    g.inspect.st.score = 0; g.inspect.st.L = 11; g.inspect.breakFloor();
+    g.advance(240);
+    assert.notEqual(g.api.state().rank[0], 'DeepDrink', 'completion does not override score');
+  }
+});
+
 test('one shared highest score retains its difficulty across reloads and lower runs', () => {
   const g = game(0, 'hard', 7, { 'toastLower.best': '999999' });
   assert.equal(g.inspect.st.hiscore, 0, 'legacy scores are not compared to the new formula');

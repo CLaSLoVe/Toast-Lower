@@ -4,15 +4,9 @@ English | [简体中文](README.zh-CN.md)
 
 **[Play now!](https://claslove.github.io/Toast-Lower/)**
 
-## Alien chapter
-
-https://github.com/user-attachments/assets/1be85dbf-1237-42f0-a50e-abac49ac4972
-
-Automated playthrough.
-
 ## Hard-mode walkthrough
 
-https://github.com/user-attachments/assets/f2ff0433-9575-4edf-9ddb-2efe6dd09d32
+https://github.com/user-attachments/assets/eedbdbca-41e6-427a-8575-385b2f5df134
 
 Automated playthrough.
 
@@ -59,9 +53,9 @@ Your final score determines your title. Scores below are entry thresholds; the f
 | 130,000 | 懂事长 | Toasted your way into management. |
 | 230,000 | 敬酒悍匪 | Taking the offensive. |
 | 360,000 | 国家一级陪酒员 | Practically licensed for this. |
-| 550,000 | 先天敬酒圣体 | Born for this banquet. |
-| 850,000 | 铁血山东 👍 | Social etiquette: maxed out. |
-| 1,200,000 | DeepDrink | A large toasting model. |
+| 480,000 | 先天敬酒圣体 | Born for this banquet. |
+| 580,000 | 铁血山东 👍 | Social etiquette: maxed out. |
+| 650,000 | DeepDrink | A large toasting model. |
 
 ## Run locally
 

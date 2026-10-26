@@ -8,7 +8,6 @@ const files = [
   'index.html', 'game.js', 'config.js', 'settings.js', 'settings.css', 'music.js',
   'assets/home/favicon.svg', 'assets/home/banquet-v46.png', 'assets/home/logo-v46.png',
   'assets/audio/banquet-shuffle.mp3',
-  'alien-replay.html', 'docs/media/alien-chapter.jpg', 'docs/media/alien-chapter.mp4',
   'replay.html', 'docs/media/hard-clear.jpg', 'docs/media/hard-clear.mp4',
 ];
 // Check every source before replacing the generated directory.

@@ -4,15 +4,9 @@
 
 **[点这里开席！](https://claslove.github.io/Toast-Lower/)**
 
-## 外星人章节
-
-https://github.com/user-attachments/assets/1be85dbf-1237-42f0-a50e-abac49ac4972
-
-自动操作 · 全流程
-
 ## 高难通关视频
 
-https://github.com/user-attachments/assets/f2ff0433-9575-4edf-9ddb-2efe6dd09d32
+https://github.com/user-attachments/assets/eedbdbca-41e6-427a-8575-385b2f5df134
 
 自动操作 · 全流程
 
@@ -59,9 +53,9 @@ https://github.com/user-attachments/assets/f2ff0433-9575-4edf-9ddb-2efe6dd09d32
 | 130,000 | 懂事长 | 敬酒敬出了管理岗 |
 | 230,000 | 敬酒悍匪 | 开始主动进攻 |
 | 360,000 | 国家一级陪酒员 | 仿佛持证上岗 |
-| 550,000 | 先天敬酒圣体 | 天生就是吃这桌饭的 |
-| 850,000 | 铁血山东 👍 | 人情世故拉满 |
-| 1,200,000 | DeepDrink | 敬酒大模型 |
+| 480,000 | 先天敬酒圣体 | 天生就是吃这桌饭的 |
+| 580,000 | 铁血山东 👍 | 人情世故拉满 |
+| 650,000 | DeepDrink | 敬酒大模型 |
 
 ## 本地运行
 
