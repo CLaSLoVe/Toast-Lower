@@ -12,7 +12,7 @@
     common: ['roundWait', 'missPenalty', 'roundRefill', 'spillMultiplier', 'spillMax', 'minCapacity'],
     difficulty: ['Time', 'Taper', 'Setup', 'BodyCupCoupling', 'Hand'],
     feel: ['stickDeadzone', 'stickCurve', 'cupTiltLimit', 'bodyBrakeCoupling', 'bodyAccel', 'bodyBrake', 'cupAccel', 'cupBrake', 'releaseCup', 'releaseBody'],
-    advanced: ['openingRounds', 'regularRounds', 'chainRounds', 'toastScore', 'comboScore', 'comboCap', 'hypeScore', 'floorScore', 'clearScore', 'chainReach', 'chainWindow', 'alienRounds', 'alienStep1', 'alienStep2', 'alienStep3', 'musicVolume', 'musicBpm', 'spillSoundVolume', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'floorRefill', 'clinkSpill', 'spillGrace', 'spillRamp']
+    advanced: ['openingRounds', 'regularRounds', 'chainRounds', 'toastScore', 'comboScore', 'comboCap', 'hypeScore', 'floorScore', 'clearScore', 'chainReach', 'chainWindow', 'alienRounds', 'alienCountdown', 'alienReveal', 'alienStep1', 'alienStep2', 'alienStep3', 'musicVolume', 'musicBpm', 'spillSoundVolume', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'floorRefill', 'clinkSpill', 'spillGrace', 'spillRamp']
   };
   const tips = {
     openingRounds: '职场前两关各有几次固定敬酒机会；失败补敬不会增加计分机会。',
@@ -28,8 +28,10 @@
     stickCurve: '越大，小幅推杆越细腻；推到底仍保持原来的最大力度。',
     chainReach: '古墓连敬使用的短伸手动作；最多占一拍的 38%，给下一拍留出回收时间。',
     chainWindow: '连敬每拍的前后误差，以音乐拍长计算；普通单杯不受影响。',
+    alienCountdown: '从三杯同时亮圈到红色 0 秒；独立于普通回合、深度和难度的时间调整。',
+    alienReveal: '剩余这段时间时，只保留目标圆圈，同时出现辅助高度线。',
     alienRounds: '每关固定几轮敬酒后进入砸楼；失败补敬不增加计分机会。',
-    alienStep1: '三个候选杯的相邻高度差，揭晓后有一秒调整。',
+    alienStep1: '三个候选杯的相邻高度差，揭晓后按设定的剩余时间调整。',
     alienStep2: '第二关候选杯高度差；越大，需要调整得越快。',
     alienStep3: '第三关候选杯高度差；过大会难以赶到。',
     spillSoundVolume: '只调漏酒声；设为 0 可关闭。敬酒三声期间自动静音漏酒声。',
@@ -132,6 +134,7 @@
       event.preventDefault();
       const invalid = config.fields.find(([key, , , min, max]) => typeof draft[key] !== 'number' || !Number.isFinite(draft[key]) || draft[key] < min || draft[key] > max);
       if (invalid) { updateStatus(`${invalid[1]}请填写 ${invalid[3]}–${invalid[4]} 之间的数值`); return; }
+      if (draft.alienReveal > draft.alienCountdown - 0.5) { updateStatus('外星目标揭晓前至少保留 0.5 秒三杯倒计时'); return; }
       if (draft.minWait > draft.roundWait) { updateStatus('后期最短倒计时不能大于普通倒计时（可在高级中修改）'); return; }
       for (const id of ['easy', 'normal', 'hard']) if (draft[id + 'Taper'] > draft[id + 'Time'] - 0.05) { updateStatus('后期收紧后，碰杯容错至少要保留 0.05 秒'); return; }
       try { options.onSave({ values: draft, ctl: selectedCtl, layer: selectedLayer, muted: selectedMute }); close(); }

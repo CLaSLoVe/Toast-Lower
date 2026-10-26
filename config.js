@@ -17,6 +17,8 @@
     ['stickCurve', '手机摇杆微调曲线', 1.4, 1, 2, 0.1, '指数'],
     ['chainReach', '连敬伸手耗时', 0.18, 0.10, 0.25, 0.01, '秒'],
     ['chainWindow', '连敬拍点容错', 0.32, 0.15, 0.35, 0.01, '拍'],
+    ['alienCountdown', '外星完整倒计时', 3, 2, 6, 0.1, '秒'],
+    ['alienReveal', '外星目标揭晓剩余时间', 1, 0.5, 2, 0.1, '秒'],
     ['alienRounds', '外星每关敬酒轮数', 3, 2, 5, 1, '轮'],
     ['alienStep1', '外星第一关杯距', 36, 30, 70, 2, '像素'],
     ['alienStep2', '外星第二关杯距', 48, 30, 80, 2, '像素'],
@@ -84,6 +86,7 @@
     for (const name of ['openingRounds', 'regularRounds', 'chainRounds', 'alienRounds', 'comboCap']) out[name] = Math.round(out[name]);
     // Preserve a meaningful positive timing window and enough time for a reach.
     out.minWait = Math.min(out.minWait, out.roundWait);
+    out.alienReveal = Math.min(out.alienReveal, out.alienCountdown - 0.5);
     for (const id of ['easy', 'normal', 'hard']) out[id + 'Taper'] = Math.min(out[id + 'Taper'], out[id + 'Time'] - 0.05);
     return out;
   }

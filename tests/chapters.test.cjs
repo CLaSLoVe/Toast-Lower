@@ -69,6 +69,40 @@ test('three independent leaders hold distinct heights and only the chosen leader
   labels.length=0;g.render();assert.equal(labels.filter(s=>/^\d+\.\d+s$/.test(s)).length,1);
  }
 });
+test('alien countdown keeps three full seconds and one bubble; clocks and guide reveal together',()=>{
+ const quotes=['这两位都是上面的。','你们这儿敬酒不报销？','我有三个肝，你随意。'];
+ for(const mode of ['easy','normal','hard']) for(const layer of [9,10,11]) for(const bpm of [90,126,160]) {
+  const calls=[];
+  const g=createGame({search:`?capture=1&tut=0&seed=7&layer=${layer}&difficulty=${mode}`,
+    onDraw(key,args){calls.push([key,args]);}});
+  g.inspect.config.musicBpm=bpm;
+  const r=g.inspect.st.round,a=g.inspect.st.alien;
+  assert.ok(Math.abs(g.api.dbg().inputLeft-3)<1e-8);
+  assert.equal(g.inspect.bubbles.length,1);assert.ok(quotes.includes(g.inspect.bubbles[0].zh));
+  assert.equal(g.inspect.bubbles[0].c,a.leaders[quotes.indexOf(g.inspect.bubbles[0].zh)]);
+  g.sandbox.__musicClock=.173;g.advance(1);
+  assert.ok(Math.abs(r.T+.5-g.inspect.reachTime()-3)<1e-8);
+  const zero=r.musicAnchor+3,beat=60/bpm;
+  assert.ok(Math.abs(zero/beat-Math.round(zero/beat))<1e-8);
+  const check=(left,count,guide)=>{
+   g.sandbox.__musicClock=zero-left;g.inspect.stepRound(1/60);calls.length=0;g.render();
+   assert.equal(a.revealed,guide);
+   assert.equal(calls.filter(([k,v])=>k==='fillText'&&/^\d+\.\d+s$/.test(v[0])).length,count);
+   assert.equal(calls.some(([k,v])=>k==='setLineDash'&&String(v[0])==='18,12'),guide);
+  };
+  check(2.9,3,false);check(1.01,3,false);check(1,1,true);
+  assert.equal(g.inspect.bubbles.length,0);
+ }
+});
+test('settlement retains difficulty, perfects and misses on desktop and mobile',()=>{
+ for(const touch of [false,true]) {
+  const labels=[];const g=createGame({touch,width:touch?844:1080,height:touch?390:1080,
+   search:'?capture=1&tut=0&difficulty=hard',onDraw(k,a){if(k==='fillText')labels.push(a[0]);}});
+  Object.assign(g.inspect.st,{perfects:7,strikes:3,bestCombo:8});g.inspect.gameOver('beer');g.advance(150);g.render();
+  assert.ok(labels.includes('高难 · 35岁，杯杯是房贷'));
+  assert.ok(labels.includes('最高 8 连敬 · 完美 7 次 · 失误 3 次'));
+ }
+});
 test('all revealed heights are reachable using ordinary controls at all supported tempos',()=>{
  for(const layer of [9,10,11]) for(const bpm of [90,126,160]) for(const choice of [0,1,2]) {
   const g=game(layer,'&bot=expert'),r=g.inspect.st.round;g.inspect.config.musicBpm=bpm;r.alienChoice=choice;
