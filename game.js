@@ -19,7 +19,9 @@ let START_LAYER = loadStartL();
 function saveStartL(L) { START_LAYER = Math.max(0, Math.min(200, L|0)); try { localStorage.setItem(START_KEY, String(START_LAYER)); } catch (e) {} }
 const FONT = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Noto Sans SC",sans-serif';
 
-let seed = +(params.get('seed') || 20261022);
+const explicitSeed = params.has('seed') && Number.isFinite(Number(params.get('seed'))) ? Number(params.get('seed')) : null;
+let runSeed = explicitSeed ?? Math.floor(Math.random() * 4294967296);
+let seed = runSeed;
 function rnd() { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
 const R = (a, b) => a + (b - a) * rnd();
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -395,6 +397,9 @@ function revealAlienTarget() {
     r.partner = a.leaders[a.cup];
     r.target = r.base + a.cup * a.step;
     r.move = (a.cup - 1) * a.step;
+    const lines = a.cup === 0 ? ['这两位都是上面的。'] : ['我是你的碰杯人。', '主敬你一杯。', '执杯人，举杯。'];
+    say(r.partner, [lines[Math.floor(Math.random() * lines.length)]], CFG.alienReveal + 0.2);
+    bubbles[0].alienIntro = true; bubbles[0].alienReveal = true;
   }
 }
 function alienRimY(cup) {
@@ -409,9 +414,15 @@ function stepAlienLeaders(dt) {
     const y = r.base + i * a.step;
     c.s = r.smash ? 1 : sForRim(c.spec, y - floorY(st.L));
     c.tilt = c.vtilt = 0; poseFromS(c, c.s);
-    const selected = !r.smash && a.revealed && i === a.cup;
-    const cupX = selected ? Math.max(player.P.cupB.x, player.P.rim.x) + 24 * SC : player.x + 340 + i * 235;
-    c.x += (cupX - tableAt(c.spec, c.s).cupDX - c.x) * Math.min(1, (selected ? 12 : 7) * dt);
+    const selected = !r.smash && a.revealed && i === a.cup && r.phase === 'aim' && toastInputLeft() <= 0;
+    const homeX = player.x + 340 + i * 235 - tableAt(c.spec, c.s).cupDX;
+    if (selected) {
+      // Announce at one second; move only on zero, arriving with the player's reach.
+      if (r.alienApproachX == null) r.alienApproachX = c.x;
+      const contactX = Math.max(player.P.cupB.x, player.P.rim.x) + 24 * SC - tableAt(c.spec, c.s).cupDX;
+      const duration = Math.max(0.12, reachTime() - Math.min(0.06, timingWindow() * 0.25));
+      c.x = lerp(r.alienApproachX, contactX, ease(clamp(-toastInputLeft() / duration, 0, 1)));
+    } else c.x += (homeX - c.x) * Math.min(1, 7 * dt);
     settle(c, fl);
     if (!r.smash) { c.y += y - c.P.rim.y; c.P = fk(c); }
     updateCup(c, dt, true);
@@ -529,7 +540,7 @@ function makeFloorPlan() {
   const notes = chainCount() || 1, start = st.stand + 40 * SC / 1.45;
   const end = Math.max(start, Math.min(start + (rounds - 1) * diff().drop, floorLimit() - (st.alien ? 2 * st.alien.step : 0) - 12));
   // A separate per-stage sequence: missed inputs and cosmetic particles cannot reroll targets.
-  let rng = (+params.get('seed') || 20261022) ^ Math.imul(st.L + 1, 0x9e3779b1);
+  let rng = runSeed ^ Math.imul(st.L + 1, 0x9e3779b1);
   const random = () => { rng = rng + 0x6D2B79F5 | 0; let t = Math.imul(rng ^ rng >>> 15, 1 | rng); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   const targets = Array.from({ length: rounds }, (_, i) => {
     const base = lerp(start, end, rounds > 1 ? i / (rounds - 1) : 0);
@@ -597,6 +608,7 @@ function reset() {
 }
 reset();
 function restart() {
+  runSeed = explicitSeed ?? Math.floor(Math.random() * 4294967296); seed = runSeed;
   window.ToastMusic.reset();
   Object.assign(st, { L: START_LAYER, flipped: false, cycle: 0, holes: {}, score: 0, floorPlan: null, breaks: 0, strikes: 0, toasts: 0, perfects: 0, round: null, over: null, newRecord: false, coreBonus: false,
     pressure: 0, cracks: [], lastCrackStep: 0, playT: 0, layerT: 0, gameT: 0, state: 'play', stT: 0, best: 0, sawLow: false, bossSay: 1.5, alien: null, multiI: 0,
@@ -873,13 +885,14 @@ function breakFloor() {
   dust(st.crackX, fl, 50);
   st.shake = 36; st.breaks++; sfx('break'); sfx('smash'); sfx('boing'); buzz([50, 40, 140]); juiceFlash('#fff3c4', 0.25);
   const burst = st.round && st.round.burst;
-  st.punch = { word: burst ? '面子碎了！！' : '这层也归您！', t: 0, col: burst ? '#ffdf62' : '#fff3c4' };
+  st.punch = { word: burst ? '面子碎了！！' : '下面还有高手？！', t: 0, col: burst ? '#ffdf62' : '#fff3c4' };
   bigText = null; st.judge = null;
   for (const c of allChars()) { c.mode = 'fall'; c.landed = false; c.vy = R(-380, -120); c.vx = R(-70, 70); c.vrot = R(-6, 6); c.bounced = 0; }
   bubbles.length = 0;
-  say(boss, [burst ? '我没让你拆楼啊！！' : '我说低调！不是地窖！！'], 1.4);
+  if (burst) say(boss, ['我没让你拆楼啊！！'], 1.4);
+  else if (L === 1) say(boss, ['我说低调！不是地窖！！'], 1.4); // entering the wine cellar only
   st.state = 'fall';
-  if (L === 14) { st.punch.word = '地心也得让座！'; st.coreBonus = true; }
+  if (L === 14) { st.punch.word = '地球：你礼貌吗？'; st.coreBonus = true; }
   st.stT = 0; st.pressure = 0; st.cracks = [];
 }
 
@@ -1233,10 +1246,10 @@ function newRound(fresh) {
     else say(boss, pick([['接着来！'], ['下一杯！']]), 1.2);
   }
   else if (mN > 0 && partner !== boss) { say(partner, pick([['领导我也敬！'], ['轮到我了！'], ['来来来！']]), 1.3); }
-  else if (st.round.chain) say(boss, [`礼不可废，连敬${st.round.chain}杯！`], 1.3);
+  else if (st.round.chain) say(boss, ['再喝五百年！'], 1.3);
   else if (st.alien && !smash) {
     // Cosmetic random choice never changes the gameplay seed or reveals the target.
-    const lines = ['这两位都是上面的。', '你们这儿敬酒不报销？', '我有三个肝，你随意。'];
+    const lines = ['这两位都是上面的。', '给文明以酒精。', '我已脱水，急需补液。'];
     const speaker = Math.floor(Math.random() * lines.length);
     say(st.alien.leaders[speaker], [lines[speaker]], CFG.alienCountdown + 1);
     bubbles[0].alienIntro = true;
@@ -1276,6 +1289,10 @@ function strike(zh, en, why) {
   if (zh) banner(zh, '', 1.1, '#ff4d4d');
   if (st.judge && st.judge.t < 0.2) { if (!st.judge.sub) judgeSay(pick(RUDE_LINES)); }
   else if (!bubbles.length || bubbles[0].c !== boss || bubbles[0].t > 0.5) say(boss, pick(RUDE_LINES), 1.4);
+  if (st.alien && st.round.partner && st.round.partner.spec.alien && !st.round.smash) {
+    if (st.judge) { st.judge.sub = '酒量不存在了。'; bubbles.length = 0; }
+    else { say(st.round.partner, ['酒量不存在了。'], 1.4); bubbles[0].alienIntro = true; }
+  }
   st.round.result = 'strike';
   if (!st.tut) {
     const lost = Math.min(player.wine, CFG.missPenalty / 100);
@@ -1335,7 +1352,7 @@ function judgeClink() {
     return; }
   const cx = (player.P.rim.x + tc.P.rim.x) / 2, cy = (player.P.rim.y + tc.P.rim.y) / 2;
   if (offBeat) { judgeSay(r.timing > 0 ? ['急什么？我还没伸手呢！'] : ['这杯我举了一个世纪！']); strike(null, null, r.timing > 0 ? 'early' : 'late'); finishToastAttempt(); return; }
-  if (far) { judgeSay(['你人呢？够不着！']); strike(null, null, 'far'); finishToastAttempt(); return; }
+  if (far) { judgeSay(['接地气，不是接地府！']); strike(null, null, 'far'); finishToastAttempt(); return; }
   if (!ok) { strike(null); finishToastAttempt(); return; }
   for (let i = 0; i < 18; i++) parts.push({ x: cx + R(-12, 12), y: cy + R(-6, 6), vx: R(-260, 260), vy: R(-520, -120), life: 2, r: R(4, 9), col: rnd() < 0.3 ? '#fffbe8' : '#f2b51d', type: 'drop' });
   player.wine = Math.max(0.001, player.wine - CFG.clinkSpill / 100); slosh(R(0.35, 0.6) * (0.8 + 0.2 * d.slx) * (r.chain ? 0.25 : 1));
@@ -1375,12 +1392,12 @@ function syncToastClock() {
     if (r.cue && r.cue.next > 0) return; // never move a beat after its first audible cue
     const beat = 60 / CFG.musicBpm;
     if (st.alien) {
-      // Keep a full three-second visible countdown while zero lands on a song beat.
-      // Hold at 3.0 briefly before the countdown starts, rather than shortening it.
+      // Align the full countdown with the song; any partial-beat wait happens
+      // between rounds, before the cup clocks appear.
       const absoluteTarget = Math.ceil((clock + CFG.alienCountdown) / beat - 1e-9) * beat;
       r.musicAnchor = absoluteTarget - CFG.alienCountdown;
       r.T = CFG.alienCountdown + reachTime() - 0.5;
-      r.t = 0;
+      r.t = 0; r.clockWaiting = clock < r.musicAnchor;
       r.cue = { next: 0, target: CFG.alienCountdown, gap: beat };
       return;
     }
@@ -1389,7 +1406,7 @@ function syncToastClock() {
     const target = Math.ceil((r.musicAnchor + earliest) / beat - 1e-9) * beat - r.musicAnchor;
     r.T = target + reachTime() - 0.5;
     r.cue = { next: 0, target, gap: beat };
-  } else r.t = Math.max(0, clock - r.musicAnchor);
+  } else { r.t = Math.max(0, clock - r.musicAnchor); r.clockWaiting = clock < r.musicAnchor; }
 }
 // Use the same clock as the visible 0s and the input judgement.
 // No wall-clock timers: pausing or leaving the tab cannot advance the sequence.
@@ -1410,6 +1427,9 @@ function stepToastCue() {
 function stepRound(dt) {
   const r = st.round; if (!r || st.state !== 'play') return;
   r.t += dt; syncToastClock(); revealAlienTarget();
+  if (st.alien && r.phase === 'aim' && !r.smash && toastInputLeft() <= 0) {
+    for (let i = bubbles.length - 1; i >= 0; i--) if (bubbles[i].alienReveal) bubbles.splice(i, 1);
+  }
   if (r.phase === 'tie') {
     if (r.t > (st.breaks > 0 && !st.tut ? CFG.repeatSmashPause : 1.8)) { r.phase = 'aim'; r.t = 0; r.beep = 4; banner('砸穿地板！', '', 1.1, '#ff9a3d'); st.pressure = Math.max(st.pressure, 0); }
   } else if (r.phase === 'gap') {
@@ -3029,15 +3049,16 @@ function render() {
     ctx.beginPath(); ctx.moveTo(laneLeft, by); ctx.lineTo(laneRight, by); ctx.stroke(); ctx.restore();
   }
   // Each clock follows its own cup in world space; decoys vanish on reveal.
-  if (playing && rd && !rd.smash && st.alien && rd.phase === 'aim') {
+  if (playing && rd && !rd.smash && st.alien && rd.phase === 'aim' && !rd.clockWaiting) {
     const left = toastInputLeft(), total = Math.max(0.1, rd.T + 0.5 - reachTime());
     const z = cam.z;
     for (let i = 0; i < 3; i++) {
       if (st.alien.revealed && i !== st.alien.cup) continue;
       const leader = st.alien.leaders[i], cup = cupGeom(leader);
       const { x, y } = S(alienRimX(i), alienRimY(i) + cup.bowlH * leader.P.sc / 2);
-      const onBeat = Math.abs(left) < 0.05, col = onBeat ? '#ff6666' : st.alien.revealed ? '#ffd34d' : '#c2adff';
-      const rad = (20 + 20 * clamp(left / total, 0, 1)) * z;
+      const onBeat = Math.abs(left) < 0.05, col = onBeat ? '#ff6666' : toastBeatReady() ? '#ffd34d' : left < 0 ? '#a28b98' : '#ffffff';
+      // Same shrinking-to-red-zero grammar as ordinary rounds, scaled to three cups.
+      const rad = Math.max(6, 20 + 30 * left / total) * z;
       ctx.strokeStyle = '#ff6666'; ctx.lineWidth = 2 * z; ctx.beginPath(); ctx.arc(x, y, 20 * z, 0, 2 * PI); ctx.stroke();
       ctx.strokeStyle = 'rgba(28,20,38,.75)'; ctx.lineWidth = 8 * z; ctx.beginPath(); ctx.arc(x, y, rad, 0, 2 * PI); ctx.stroke();
       ctx.strokeStyle = col; ctx.lineWidth = 4 * z; ctx.beginPath(); ctx.arc(x, y, rad, 0, 2 * PI); ctx.stroke();

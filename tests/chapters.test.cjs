@@ -65,24 +65,28 @@ test('three independent leaders hold distinct heights and only the chosen leader
   r.alienChoice=choice;r.t=r.T+.5-g.inspect.reachTime()-.8;g.inspect.revealAlienTarget();
   assert.equal(r.partner,a.leaders[choice]);
   for(let f=0;f<45;f++)g.inspect.stepNPCs(1/60);
-  a.leaders.forEach((c,i)=>{if(i===choice)assert.ok(c.P.rim.x<before[i]-30);else assert.ok(Math.abs(c.P.rim.x-before[i])<.1);});
+  a.leaders.forEach((c,i)=>assert.ok(Math.abs(c.P.rim.x-before[i])<.1,'announcement does not move a leader'));
+  r.t=r.T+.5-g.inspect.reachTime();g.inspect.stepNPCs(1/60);
+  a.leaders.forEach((c,i)=>assert.ok(Math.abs(c.P.rim.x-before[i])<.1,'movement begins at zero'));
+  r.t+=.3;g.inspect.stepNPCs(1/60);
+  a.leaders.forEach((c,i)=>{if(i===choice)assert.ok(c.P.rim.x<before[i]-30);else assert.ok(Math.abs(c.P.rim.x-before[i])<.1);assert.ok(Math.abs(c.P.rim.y-r.base-i*a.step)<1e-7);});
   labels.length=0;g.render();assert.equal(labels.filter(s=>/^\d+\.\d+s$/.test(s)).length,1);
  }
 });
-test('alien countdown keeps three full seconds and one bubble; clocks and guide reveal together',()=>{
- const quotes=['这两位都是上面的。','你们这儿敬酒不报销？','我有三个肝，你随意。'];
+test('alien countdown keeps two full seconds and one bubble; clocks and guide reveal together',()=>{
+ const quotes=['这两位都是上面的。','给文明以酒精。','我已脱水，急需补液。'];
  for(const mode of ['easy','normal','hard']) for(const layer of [9,10,11]) for(const bpm of [90,126,160]) {
   const calls=[];
   const g=createGame({search:`?capture=1&tut=0&seed=7&layer=${layer}&difficulty=${mode}`,
     onDraw(key,args){calls.push([key,args]);}});
   g.inspect.config.musicBpm=bpm;
   const r=g.inspect.st.round,a=g.inspect.st.alien;
-  assert.ok(Math.abs(g.api.dbg().inputLeft-3)<1e-8);
+  assert.ok(Math.abs(g.api.dbg().inputLeft-2)<1e-8);
   assert.equal(g.inspect.bubbles.length,1);assert.ok(quotes.includes(g.inspect.bubbles[0].zh));
   assert.equal(g.inspect.bubbles[0].c,a.leaders[quotes.indexOf(g.inspect.bubbles[0].zh)]);
   g.sandbox.__musicClock=.173;g.advance(1);
-  assert.ok(Math.abs(r.T+.5-g.inspect.reachTime()-3)<1e-8);
-  const zero=r.musicAnchor+3,beat=60/bpm;
+  assert.ok(Math.abs(r.T+.5-g.inspect.reachTime()-2)<1e-8);
+  const zero=r.musicAnchor+2,beat=60/bpm;
   assert.ok(Math.abs(zero/beat-Math.round(zero/beat))<1e-8);
   const check=(left,count,guide)=>{
    g.sandbox.__musicClock=zero-left;g.inspect.stepRound(1/60);calls.length=0;g.render();
@@ -90,8 +94,11 @@ test('alien countdown keeps three full seconds and one bubble; clocks and guide 
    assert.equal(calls.filter(([k,v])=>k==='fillText'&&/^\d+\.\d+s$/.test(v[0])).length,count);
    assert.equal(calls.some(([k,v])=>k==='setLineDash'&&String(v[0])==='18,12'),guide);
   };
-  check(2.9,3,false);check(1.01,3,false);check(1,1,true);
-  assert.equal(g.inspect.bubbles.length,0);
+  if(r.clockWaiting){calls.length=0;g.render();assert.equal(calls.filter(([k,v])=>k==='fillText'&&/^\d+\.\d+s$/.test(v[0])).length,0,'no frozen clock before the countdown');}
+  check(1.9,3,false);check(1.01,3,false);check(1,1,true);
+  assert.equal(g.inspect.bubbles.length,1);assert.equal(g.inspect.bubbles[0].c,r.partner);
+  assert.ok(['这两位都是上面的。','我是你的碰杯人。','主敬你一杯。','执杯人，举杯。'].includes(g.inspect.bubbles[0].zh));
+  g.sandbox.__musicClock=zero+.001;g.inspect.stepRound(1/60);assert.equal(g.inspect.bubbles.length,0);
  }
 });
 test('settlement retains difficulty, perfects and misses on desktop and mobile',()=>{
@@ -110,5 +117,21 @@ test('all revealed heights are reachable using ordinary controls at all supporte
   const c=g.inspect.contacts[0];assert.ok(c,`${layer}/${bpm}/${choice} attempted`);assert.equal(c.revealed,true);
   assert.equal(c.result,'ok',`${layer}/${bpm}/${choice}: ${c.result}`);
  }
+});
+test('explicit seeds repeat, ordinary restarts vary, repeated leaders and retry targets are allowed',()=>{
+ const choices=g=>Array.from(g.inspect.st.floorPlan.targets,t=>t.alienChoice).join(',');
+ assert.equal(choices(game(9)),choices(game(9)));
+ const g=createGame({search:'?capture=1&tut=0&layer=9'}), sequences=new Set();
+ for(let n=0;n<12;n++){g.tap('KeyR');sequences.add(choices(g));}
+ assert.ok(sequences.size>1,'ordinary restarts create new target plans');
+ let repeat=false;
+ for(let seed=0;seed<30;seed++) {
+  const g=createGame({search:`?capture=1&tut=0&seed=${seed}&layer=9`});
+  const c=Array.from(g.inspect.st.floorPlan.targets,t=>t.alienChoice);
+  repeat ||= c.some((v,i)=>i>0&&v===c[i-1]);
+  const target=g.inspect.st.round.alienChoice;g.inspect.st.round.result='strike';g.inspect.newRound(false);
+  assert.equal(g.inspect.st.round.alienChoice,target);
+ }
+ assert.ok(repeat,'independent choices allow adjacent duplicates');
 });
 console.log(`${checks}/${checks} chapter checks passed`);

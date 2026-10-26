@@ -6,7 +6,7 @@
 
 ## 高难通关视频
 
-https://github.com/user-attachments/assets/2e4744ed-1500-4605-b8a4-38ccaf35ada0
+https://github.com/user-attachments/assets/c15435b4-0117-40ca-9d13-870b870e0441
 
 自动操作 · 全流程
 
@@ -32,7 +32,7 @@ https://github.com/user-attachments/assets/2e4744ed-1500-4605-b8a4-38ccaf35ada0
 | 职场 | 调整高度，学会单次敬酒 |
 | 地下交通 | 在晃动中扶稳杯子 |
 | 古墓 | 固定高度，连续踩 2 / 3 / 4 拍 |
-| 外星人 | 三杯同步倒计时 3 秒，最后 1 秒才揭晓敬酒目标和辅助高度线 |
+| 外星人 | 三杯同步倒计时 2 秒，最后 1 秒目标开口、出现辅助线，0 秒才上前碰杯；允许连续选中同一位 |
 
 十二关后可继续无尽模式，分数继续累计。
 
