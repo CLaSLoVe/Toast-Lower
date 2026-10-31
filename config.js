@@ -16,7 +16,24 @@
     ['stickDeadzone', '手机摇杆中心死区', 0.12, 0.04, 0.3, 0.01, '比例'],
     ['stickCurve', '手机摇杆微调曲线', 1.4, 1, 2, 0.1, '指数'],
     ['chainReach', '连敬伸手耗时', 0.18, 0.10, 0.25, 0.01, '秒'],
-    ['chainWindow', '连敬拍点容错', 0.32, 0.15, 0.35, 0.01, '拍'],
+    ['easyChainWindow', '简单 · 连敬拍点容错', 0.44, 0.15, 0.48, 0.01, '拍'],
+    ['normalChainWindow', '中等 · 连敬拍点容错', 0.38, 0.15, 0.48, 0.01, '拍'],
+    ['hardChainWindow', '高难 · 连敬拍点容错', 0.32, 0.15, 0.48, 0.01, '拍'],
+    ['chainPenaltyFirst', '连敬首次失误累计罚酒', 60, 0, 100, 5, '%标准罚酒'],
+    ['chainPenaltySecond', '三四连第二次累计罚酒', 80, 0, 100, 5, '%标准罚酒'],
+    ['chainPenaltyThird', '四连第三次累计罚酒', 90, 0, 100, 5, '%标准罚酒'],
+    ['successPause', '成功回合间隔', 0.52, 0.2, 1, 0.02, '秒'],
+    ['missPause', '失败回合间隔', 0.78, 0.3, 1.2, 0.02, '秒'],
+    ['smashCharge', '首次砸楼蓄力', 0.9, 0.3, 2, 0.05, '秒'],
+    ['focusDrift', '古墓外星扶杯漂移倍率', 0.35, 0, 1, 0.05, '倍'],
+    ['stallPause', '长卡顿自动暂停阈值', 0.5, 0.25, 2, 0.05, '秒'],
+    ['timingScore', '合拍最高加分', 120, 0, 500, 10, '分'],
+    ['heightScore', '普通碰杯高度最高加分', 200, 0, 500, 10, '分'],
+    ['wineScore', '碰杯剩酒加分系数', 40, 0, 200, 10, '分'],
+    ['floorWineScore', '过关剩酒加分系数', 120, 0, 500, 10, '分'],
+    ['hypeHit', '成功一组增加气势', 14, 0, 100, 1, '%'],
+    ['hypePerfect', '完美一组增加气势', 38, 0, 100, 1, '%'],
+    ['hypeMiss', '一组失误减少气势', 30, 0, 100, 1, '%'],
     ['alienCountdown', '外星完整倒计时', 2, 2, 6, 0.1, '秒'],
     ['alienReveal', '外星目标揭晓剩余时间', 1, 0.5, 2, 0.1, '秒'],
     ['alienRounds', '外星每关敬酒轮数', 3, 2, 5, 1, '轮'],
@@ -28,8 +45,8 @@
     ['spillSoundInterval', '漏酒音效间隔', 0.32, 0.15, 1, 0.01, '秒'],
     ['musicVolume', '背景音乐音量', 28, 0, 100, 5, '%'],
     ['roundWait', '普通回合总倒计时', 2.0, 1.2, 6, 0.1, '秒'],
-    ['missPenalty', '敬酒失败扣酒', 20, 0, 100, 1, '%'],
-    ['roundRefill', '每回合补酒', 3, 0, 30, 1, '%'],
+    ['missPenalty', '单次／整组全错罚酒', 20, 0, 100, 1, '%'],
+    ['roundRefill', '成功回合／组添酒', 3, 0, 30, 1, '%'],
     ['spillMultiplier', '漏酒速度倍率', 0.85, 0, 5, 0.05, '倍'],
     ['spillMax', '每秒漏酒上限', 11, 0, 50, 1, '%'],
     ['minCapacity', '最小酒杯容量', 60, 20, 100, 5, '%'],
@@ -48,7 +65,6 @@
     ['perfectRefill', '完美碰杯额外回酒', 0, 0, 30, 0.5, '%'],
     ['hypeRefill', '气势满格回酒', 0, 0, 50, 1, '%'],
     ['floorRefill', '过层回酒', 10, 0, 100, 1, '%'],
-    ['clinkSpill', '碰杯震动扣酒', 1.5, 0, 10, 0.5, '%'],
     ['spillGrace', '漏酒缓冲时间', 0.3, 0, 1, 0.02, '秒'],
     ['spillRamp', '漏酒加速时间', 0.6, 0.1, 2, 0.02, '秒'],
     ['easyTime', '简单 · 碰杯容错', 0.7, 0.1, 1, 0.05, '秒'],
@@ -85,6 +101,9 @@
     }
     for (const name of ['openingRounds', 'regularRounds', 'chainRounds', 'alienRounds', 'comboCap']) out[name] = Math.round(out[name]);
     // Preserve a meaningful positive timing window and enough time for a reach.
+    out.chainPenaltySecond = Math.max(out.chainPenaltyFirst, out.chainPenaltySecond);
+    out.chainPenaltyThird = Math.max(out.chainPenaltySecond, out.chainPenaltyThird);
+    out.hypePerfect = Math.max(out.hypeHit, out.hypePerfect);
     out.minWait = Math.min(out.minWait, out.roundWait);
     out.alienReveal = Math.min(out.alienReveal, out.alienCountdown - 0.5);
     for (const id of ['easy', 'normal', 'hard']) out[id + 'Taper'] = Math.min(out[id + 'Taper'], out[id + 'Time'] - 0.05);

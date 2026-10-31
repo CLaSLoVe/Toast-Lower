@@ -8,19 +8,31 @@ function game(layer = 0, difficulty = 'normal', seed = 7, storage) {
 }
 // Controlled contact poses isolate scoring from player skill and visual RNG.
 // Natural campaigns below separately exercise the unchanged input and contact paths.
-function hit(g) {
+function hit(g, wine = .8) {
   const r = g.inspect.st.round, p = g.inspect.player;
   const margin = g.inspect.perfBand() / 2;
   p.P.rim.y = g.inspect.toastRimY() + margin; p.tilt = p.w = p.cupRate = 0;
-  p.wine = .8; r.manual = true; r.t = .5 + r.T;
+  p.wine = wine; r.manual = true; r.t = .5 + r.T;
   r.mh = Array.from({ length: 10 }, (_, i) => [g.inspect.st.t - i / 60, margin, 0, 0]);
   g.inspect.judgeClink();
 }
 function miss(g) { g.inspect.player.wine = .8; g.inspect.strike(null, null, 'late'); g.inspect.finishToastAttempt(); }
 function next(g) { assert.equal(g.inspect.st.round.phase, 'react'); g.inspect.newRound(false); }
 
+test('successful ordinary and chained contacts never deduct wine', () => {
+  for (const layer of [0, 6, 7, 8, 9]) {
+    const g = game(layer);
+    assert.equal(g.inspect.config.clinkSpill, undefined, 'removed parameter cannot restore contact consumption');
+    const notes = g.inspect.st.round.chain || 1;
+    for (let i = 0; i < notes; i++) {
+      hit(g, .5);
+      assert.equal(g.inspect.player.wine, .5, 'a successful contact itself keeps the wine amount');
+    }
+  }
+});
+
 test('fixed opportunities survive retries across story, endless, seeds and modes', () => {
-  const expected = [3, 3, 2, 2, 2, 2, 4, 6, 8, 3, 3, 3, 2, 6, 3];
+  const expected = [3, 3, 2, 2, 2, 2, 4, 6, 8, 3, 3, 3, 2, 4, 3];
   for (let layer = 0; layer < expected.length; layer++) for (const difficulty of ['easy', 'normal', 'hard']) for (const seed of [1, 7]) {
     const clean = game(layer, difficulty, seed), retry = game(layer, difficulty, seed);
     assert.equal(clean.inspect.st.floorPlan.claimed.length, expected[layer]);
@@ -89,7 +101,7 @@ test('honors follow score thresholds regardless of difficulty or campaign comple
   const ranks = [[0, '成年香蕉'], [1, '卧龙凤雏'], [4500, '小孩那桌'],
     [12000, '夹菜我转桌'], [30000, '乌鸦哥'], [65000, '端水大师'],
     [130000, '懂事长'], [230000, '敬酒悍匪'], [360000, '国家一级陪酒员'],
-    [480000, '先天敬酒圣体'], [580000, '铁血山东 👍'], [650000, 'DeepDrink']];
+    [450000, '先天敬酒圣体'], [540000, '铁血山东 👍'], [600000, 'DeepDrink']];
   for (const mode of ['easy', 'normal', 'hard']) for (const layer of [0, 11, 12]) {
     const g = game(layer, mode);
     for (let i = 0; i < ranks.length; i++) {

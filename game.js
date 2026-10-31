@@ -11,8 +11,8 @@ const CAPTURE = params.has('capture');
 const START_KEY = 'toastLower.startL';
 function loadStartL() {
   const q = params.get('layer');
-  if (q != null && q !== '') return Math.max(0, Math.min(200, +q));
-  try { const v = localStorage.getItem(START_KEY); if (v != null) return Math.max(0, Math.min(200, +v)); } catch (e) {}
+  if (q != null && q !== '') return Number.isFinite(+q) ? Math.max(0, Math.min(200, Math.floor(+q))) : 0;
+  try { const v = localStorage.getItem(START_KEY); if (v != null) return Number.isFinite(+v) ? Math.max(0, Math.min(200, Math.floor(+v))) : 0; } catch (e) {}
   return 0;
 }
 let START_LAYER = loadStartL();
@@ -21,7 +21,9 @@ const FONT = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK 
 
 const explicitSeed = params.has('seed') && Number.isFinite(Number(params.get('seed'))) ? Number(params.get('seed')) : null;
 let runSeed = explicitSeed ?? Math.floor(Math.random() * 4294967296);
-let seed = runSeed;
+let seed = runSeed, physicsSeed = runSeed ^ 0x51ed270b;
+function physicsRandom() { physicsSeed |= 0; physicsSeed = physicsSeed + 0x6D2B79F5 | 0; let t = Math.imul(physicsSeed ^ physicsSeed >>> 15, 1 | physicsSeed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+const physicsRange = (a, b) => a + (b - a) * physicsRandom();
 function rnd() { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
 const R = (a, b) => a + (b - a) * rnd();
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -178,7 +180,7 @@ const BASE_LAYERS = [
   { name: '地下停车场', en: 'Parking Garage', depth: 15, ch: 1, room: 0, mech: 'shake', join: [GUEST('#22345e', { cap: '#1a2440', pants: '#1a2440' })] },
   { name: '下水道泵房', en: 'Sewer Pump Room', depth: 22, ch: 1, room: 1, mech: 'shake', join: [GUEST('#6b6b6b', { rat: true, skin: '#a3a3a3', pants: '#555' }), GUEST('#7b6b5b', { rat: true, skin: '#a3a3a3', pants: '#555' })] },
   { name: '地铁站台', en: 'Subway Platform', depth: 38, ch: 1, room: 2, mech: 'shake', join: [GUEST('#ffcc00', { helmet: '#ffcc00', pants: '#333' }), GUEST('#7b5ea7', { hair: '#5a3a22' })] },
-  // Ch3 地下加班 — multi-person
+  // Ch3 古墓 — fixed-height rhythm phrases
   // Ch4 千年酒局 — shrinking boss cup (visible beat)
   { name: '考古现场', en: 'Dig Site', depth: 200, ch: 2, room: 0, mech: 'chain', chain: 2, cupName: '高脚杯', join: [GUEST('#5a4a2a', { lamp: true, helmet: '#c9a227' }), GUEST('#efe6cf', { skeleton: true })] },
   { name: '古墓主墓室', en: 'Main Tomb Chamber', depth: 450, ch: 2, room: 1, mech: 'chain', chain: 3, cupName: '白酒杯', join: [GUEST('#5a4a2a', { lamp: true, helmet: '#c9a227' }), GUEST('#2a3a6a', { jiangshi: true, skin: '#a9c79a' })] },
@@ -203,14 +205,13 @@ function layerDef(i) {
   // endless: slowly growing mix of chapter mechanics
   const pool = ['shake', 'chain', 'alien'];
   const mech = pool[(n - 1) % pool.length];
-  const def = { name: '无尽模式', en: 'ENDLESS', endless: n, depth: 6371000 + n * 500000, ch: CHAPTERS.length, mech, chain: mech === 'chain' ? 2 + ((n - 1) % 3) : 0, join: n % 2 ? [GUEST('#ff8a2a', { lava: true })] : [] };
+  const def = { name: '无尽模式', en: 'ENDLESS', endless: n, depth: 6371000 + n * 500000, ch: CHAPTERS.length, mech, chain: mech === 'chain' ? 2 + (Math.floor((n - 1) / 3) % 3) : 0, join: n % 2 ? [GUEST('#ff8a2a', { lava: true })] : [] };
   layerCache.set(i, def); return def;
 }
 function activeMech(L) { const d = layerDef(L == null ? st.L : L); return (d && d.mech) || 'basic'; }
 function chainCount() { return st.tut ? 0 : layerDef(st.L).chain || 0; }
-function multiCount(L) { const d = layerDef(L == null ? st.L : L); return (d && d.multi) || 0; }
 // playtesting: all story layers + first endless selectable
-function maxUnlocked() { return STORY_N; } // 0..15 inclusive (15 = endless entry)
+function maxUnlocked() { return STORY_N; } // 0..12 inclusive (12 = endless entry)
 
 const BOSS_LINES = [['不急不急～', 'No rush~'], ['小伙子，杯子有点高啊', 'Your cup is a bit high'], ['年轻人要懂规矩', 'Know the rules, kid'], ['来来来，再低点', 'Come on, lower'], ['哎～差一点', 'Ah~ almost'], ['我先干为敬…才怪', 'Bottoms up… not']];
 const PLAYER_LINES = [['领导我敬您！', 'A toast to you, boss!'], ['我干了您随意！', 'I drink, you sip!'], ['再低一点…', 'A bit lower…']];
@@ -305,7 +306,33 @@ function beerK() {
 }
 // Absolute wine units: the starting glass holds 1; smaller glasses have a lower ceiling.
 function wineCapacity() { return st.tut ? 1 : lerp(1, CFG.minCapacity / 100, clamp(shapeK(st.L), 0, 1)); }
-function refillWine(amount) { player.wine = Math.min(wineCapacity(), player.wine + amount); }
+// All resource changes use starting-glass units; totals contain actual changes, never nominal costs.
+function wineLedger() { return st.wineLedger || (st.wineLedger = { spill: 0, penalty: 0, refill: 0, capacity: 0 }); }
+function winePercent(amount) { return String(Math.round(amount * 1000) / 10); }
+function changeWine(kind, amount) {
+  if (amount <= 0) return 0;
+  const before = player.wine;
+  player.wine = kind === 'refill' ? Math.max(before, Math.min(wineCapacity(), before + Math.max(0, amount))) : Math.max(0, before - Math.max(0, amount));
+  const actual = Math.abs(player.wine - before);
+  if (!actual || st.tut) return actual;
+  wineLedger()[kind] += actual;
+  if (kind === 'spill' || kind === 'penalty') { st.loss = actual; st.lossT = 0; }
+  if (kind !== 'capacity') {
+    const notices = st.wineNotices || (st.wineNotices = []);
+    const old = notices.find(n => n.kind === kind && (kind !== 'penalty') && st.t - n.at < 1.1);
+    if (old) { old.amount += actual; old.at = st.t; }
+    else notices.push({ kind, amount: actual, at: st.t });
+    st.wineNotices = notices.filter(n => st.t - n.at < 1.8).slice(-3);
+  }
+  return actual;
+}
+function refillWine(amount) { return changeWine('refill', amount); }
+function roundSucceeded(r) { return r && (r.chain ? r.chainHits > 0 : r.result === 'ok'); }
+function chainPenaltyRatio(r, misses) {
+  if (!r.chain || misses >= r.chain) return 1;
+  return [0, CFG.chainPenaltyFirst, CFG.chainPenaltySecond, CFG.chainPenaltyThird][misses] / 100;
+}
+
 function spillLim() { return cupGeom(player).lim; }
 function toastChar() { return (st.round && st.round.partner) || boss; }
 function toastRimY() {
@@ -351,7 +378,7 @@ function settle(c, floor) { c.P = fk(c); c.y += floor - lowest(c, c.P); c.P = fk
 // ---- chapter mechanics helpers ----
 function shakeParams(L) {
   const m = activeMech(L); if (m !== 'shake' && !(m === 'mix' && layerDef(L).mech === 'shake')) return null;
-  const d = layerDef(L), room = d.room != null ? d.room : Math.min(2, (d.endless || 1) % 3);
+  const d = layerDef(L), room = d.room != null ? d.room : Math.min(2, Math.floor(((d.endless || 1) - 1) / 3) % 3);
   // amp (px) and freq (Hz): car rumble → pump throb → subway rumble; endless grows
   const baseA = [8, 14, 22][Math.min(2, room)] * SC / 1.45;
   const baseF = [0.5, 0.75, 1.0][Math.min(2, room)];
@@ -373,7 +400,7 @@ function groundAcc() {
 function playFloor() { return floorY(st.L) + groundOff(); }
 // Three possible cups share a clock; only the selected leader keeps a clock for the last second.
 function alienRhythm(L) {
-  const d = layerDef(L), room = d.room != null ? d.room : (d.endless || 1) % 3;
+  const d = layerDef(L), room = d.room != null ? d.room : Math.floor(((d.endless || 1) - 1) / 3) % 3;
   return { step: [CFG.alienStep1, CFG.alienStep2, CFG.alienStep3][room], gap: 0, aimBonus: 0, n: 3 };
 }
 function prepareAlienLeaders() {
@@ -459,7 +486,6 @@ const CTL_KEY = 'toastLower.ctl.v22';
 let CTL = params.get('ctl'); try { if (CTL !== 'accel' && CTL !== 'vel') CTL = localStorage.getItem(CTL_KEY); } catch (e) { /* no storage */ }
 if (CTL !== 'accel' && CTL !== 'vel') CTL = 'accel';
 function toggleCtl() { CTL = CTL === 'accel' ? 'vel' : 'accel'; try { localStorage.setItem(CTL_KEY, CTL); } catch (e) { /* ignore */ } sfx('tick'); }
-const CTL_NAME = { accel: '醉拳', vel: '练习' };
 const DIFFICULTIES = [
   { id: 'easy', level: '简单', name: '我爸是局长', hint: '领导等你，手也稳些', get time() { return CFG.easyTime; }, get taper() { return CFG.easyTaper; }, get setup() { return CFG.easySetup; }, get hand() { return CFG.easyHand; } },
   { id: 'normal', level: '中等', name: '00后整顿酒桌', hint: '该扶扶，该碰碰', get time() { return CFG.normalTime; }, get taper() { return CFG.normalTaper; }, get setup() { return CFG.normalSetup; }, get hand() { return CFG.normalHand; } },
@@ -499,7 +525,7 @@ const st = { state: (AUTO || CAPTURE) ? 'play' : 'title', L: START_LAYER, t: 0, 
   score: 0, strikes: 0, toasts: 0, perfects: 0, combo: 0, bestCombo: 0, hype: 0, bursts: 0, manualToasts: 0, round: null, tut: null, judge: null, freeze: 0, gain: null, stand: 0, perfect: false, perfT: 0, notPerfT: 1, hist: [], trick: 0, trickT: 0, over: null, gameT: 0,
   floorPlan: null, hiscore: 0, bestDifficulty: null, newRecord: false, botT: 0, coreBonus: false, warnT: 0, paused: false, bump: null, bossOff: 0, bossJ: 0, bossJT: 0, tdrT: 0 };
 // New scoring has its own versioned record; the old score remains in storage, untouched.
-const BEST_KEY = 'toastLower.best.v2';
+const BEST_KEY = 'toastLower.best.v3';
 try {
   const best = JSON.parse(localStorage.getItem(BEST_KEY));
   if (best && Number.isFinite(best.score) && best.score >= 0 && DIFFICULTIES.some(d => d.id === best.difficulty)) {
@@ -510,6 +536,19 @@ const cam = { x: 540, y: 500, z: 1 };
 let player, boss, followers = [], pending = [];
 const parts = [], debris = [], puddles = [], bubbles = [], popups = [];
 let bigText = null;
+
+// Music/volume and touch ergonomics do not change score eligibility.
+function isCustomRun() {
+  const presentation = new Set(['musicVolume', 'spillSoundVolume', 'spillSoundInterval', 'stickDeadzone', 'stickCurve']);
+  return START_LAYER !== 0 || CTL !== 'accel' || (BOT && BOT !== 'none') ||
+    ['wob', 'slx', 'drf', 'bmp', 'spm', 'feel', 'debug', 'frame'].some(k => params.has(k)) ||
+    Object.keys(CONFIG.defaults).some(k => !presentation.has(k) && CFG[k] !== CONFIG.defaults[k]);
+}
+function saveBest() {
+  if (st.tut || st.customRun || isCustomRun() || st.score <= st.hiscore) return;
+  st.newRecord = true; st.hiscore = st.score; st.bestDifficulty = difficultyId;
+  try { localStorage.setItem(BEST_KEY, JSON.stringify({ score: st.score, difficulty: difficultyId })); } catch (e) { /* private mode */ }
+}
 
 // Score-based banquet titles. The banana is reserved for a zero-score run.
 const RANKS = [
@@ -522,9 +561,9 @@ const RANKS = [
   [130000, '懂事长', '敬酒敬出了管理岗'],
   [230000, '敬酒悍匪', '开始主动进攻'],
   [360000, '国家一级陪酒员', '仿佛持证上岗'],
-  [480000, '先天敬酒圣体', '天生就是吃这桌饭的'],
-  [580000, '铁血山东 👍', '人情世故拉满'],
-  [650000, 'DeepDrink', '敬酒大模型'],
+  [450000, '先天敬酒圣体', '天生就是吃这桌饭的'],
+  [540000, '铁血山东 👍', '人情世故拉满'],
+  [600000, 'DeepDrink', '敬酒大模型'],
 ];
 function rankFor(score) {
   let rank = RANKS[0];
@@ -570,7 +609,7 @@ function diff() {
     slx: 1 + SLX * k + 0.03 * e,                                        // cup side: how hard things slosh the drink
     drift: 1 + b0 + DRF * k + 0.03 * e, driftT: 1 + 0.06 * k,          // cup side: slow lean strength / how often it turns
     bumpT: 1 + BMP * k + 0.02 * e,                                      // cup side: bump kick on the cup + wave
-    need: 1 + 1.0 * u + 0.08 * e, T: Math.max(1.35, 2.7 + ([0.85, 0.6, 0.35, 0.15][L] || 0) - 0.85 * b0 - 0.13 * k - 0.04 * e),
+    T: Math.max(1.35, 2.7 + ([0.85, 0.6, 0.35, 0.15][L] || 0) - 0.85 * b0 - 0.13 * k - 0.04 * e),
     drop: (80 + 9 * Math.min(L, 16)) * SC / 1.45 };
 }
 
@@ -624,7 +663,7 @@ function formation(L) {
   boss.mode = 'play'; boss.s = 0; poseFromS(boss, 0); boss.x = 640; settle(boss, fl);
   let x = boss.x;
   for (const f of followers) { f.mode = 'play'; f.s = 0; poseFromS(f, 0); x += 150; f.x = x; settle(f, fl); }
-  st.stand = player.P.rim.y; st.bump = null; st.bossOff = 0; st.bossJ = 0; st.alien = null; st.multiI = 0; ensureAlien();
+  st.stand = player.P.rim.y; st.bump = null; st.bossOff = 0; st.bossJ = 0; st.alien = null; ensureAlien();
   if (st.alien) st.alien.leaders.forEach((c, i) => { c.x = 640 + i * 235; settle(c, fl); });
   if (layerDef(L).cupName && !st.tut) banner(layerDef(L).cupName + '！', '', 1.4, '#ffd34d');
 }
@@ -642,10 +681,10 @@ function reset() {
 }
 reset();
 function restart() {
-  runSeed = explicitSeed ?? Math.floor(Math.random() * 4294967296); seed = runSeed;
+  runSeed = explicitSeed ?? Math.floor(Math.random() * 4294967296); seed = runSeed; physicsSeed = runSeed ^ 0x51ed270b;
   window.ToastMusic.reset();
   Object.assign(st, { L: START_LAYER, flipped: false, cycle: 0, holes: {}, score: 0, floorPlan: null, breaks: 0, strikes: 0, toasts: 0, perfects: 0, round: null, over: null, newRecord: false, coreBonus: false,
-    chatSeen: [], pressure: 0, cracks: [], lastCrackStep: 0, playT: 0, layerT: 0, gameT: 0, state: 'play', stT: 0, best: 0, sawLow: false, bossSay: 1.5, alien: null, multiI: 0,
+    t: 0, tdrT: 0, swT: 0, bossJT: 0, why: {}, wineLedger: null, wineNotices: [], customRun: isCustomRun(), chatSeen: [], pressure: 0, cracks: [], lastCrackStep: 0, playT: 0, layerT: 0, gameT: 0, state: 'play', stT: 0, best: 0, sawLow: false, bossSay: 1.5, alien: null,
     combo: 0, bestCombo: 0, hype: 0, bursts: 0, manualToasts: 0, judge: null, freeze: 0, gain: null, paused: false, clinkGrace: 0, spillT: 0, spillOn: false, loss: 0, lossT: 9, punch: null });
   parts.length = debris.length = puddles.length = bubbles.length = popups.length = 0;
   reset(); bigText = null; player.wine = wineCapacity(); syncMusic();
@@ -662,8 +701,18 @@ function allChars() { return [player, boss, ...followers]; }
 const KEYMAP = { KeyQ: 'Q', KeyW: 'W', KeyO: 'O', KeyP: 'P', ArrowLeft: 'Q', ArrowRight: 'W', ArrowDown: 'O', ArrowUp: 'P' };
 const heldKeys = new Set();
 function clearInputs() { heldKeys.clear(); pointers.clear(); resetStick(); for (const k in keys) keys[k] = 0; }
-function setPaused(value) { st.paused = value; debugMenuOpen = false; clearInputs(); syncMusic(); }
+function runActive() { return ['play', 'fall', 'standup'].includes(st.state); }
+function rearmRoundClock() {
+  const r = st.round;
+  if (!r || r.smash || r.phase !== 'aim' || st.tut) return;
+  // Keep already judged notes and the target; restart only the pending cue sequence.
+  r.t = 0; r.T = (st.alien ? CFG.alienCountdown : Math.max(CFG.minWait, 2 * 60 / CFG.musicBpm)) + reachTime() - 0.5;
+  r.musicAnchor = null; r.cue = null; r.clockWaiting = false;
+  r.attacking = false; r.attackT = 0; r.mh = []; player.reach = player.reachV = 0;
+}
+function setPaused(value) { if (!value && st.rearmAfterPause) { rearmRoundClock(); st.rearmAfterPause = false; } st.paused = value; debugMenuOpen = false; clearInputs(); syncMusic(); }
 function returnToTitle() {
+  saveBest();
   clearInputs(); debugMenuOpen = false;
   Object.assign(st, { state: 'title', stT: 0, L: START_LAYER, tut: null, paused: false, round: null, over: null,
     freeze: 0, punch: null, judge: null, gain: null, shake: 0, pressure: 0, flipped: false, holes: {} });
@@ -682,7 +731,7 @@ addEventListener('keydown', e => {
   if (st.state === 'title' && !debugMenuOpen && /^Digit[123]$/.test(e.code)) { selectDifficulty(DIFFICULTIES[+e.code.slice(-1) - 1].id); return; }
   if (e.code === 'KeyC' && (st.state === 'title' || st.paused)) {  return; }
   if (debugMenuOpen) return;
-  if (e.code === 'Escape' && st.state === 'play') { setPaused(!st.paused); return; }
+  if (e.code === 'Escape' && runActive()) { setPaused(!st.paused); return; }
   if (e.code === 'KeyM') { setMute(!muted); if (!muted) sfx('ding'); return; }
   if (st.paused) { if (e.code === 'Space' || e.code === 'Enter') setPaused(false); return; }
   if (st.state === 'title') { if (['Space', 'Enter', 'KeyT'].includes(e.code)) startFromTitle(e.code === 'KeyT'); return; }
@@ -693,8 +742,8 @@ addEventListener('keydown', e => {
   if (params.has('debug') && e.code === 'BracketRight' && st.state === 'play') breakFloor();
 });
 addEventListener('keyup', e => { heldKeys.delete(e.code); refreshKeys(); });
-addEventListener('blur', () => { clearInputs(); if (!BOT && st.state === 'play') st.paused = true; syncMusic(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden && !BOT) { clearInputs(); if (st.state === 'play') st.paused = true; } syncMusic(); });
+addEventListener('blur', () => { clearInputs(); if ((!BOT || BOT === 'none') && runActive()) st.paused = true; syncMusic(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && (!BOT || BOT === 'none')) { clearInputs(); if (runActive()) st.paused = true; } syncMusic(); });
 // touch / mouse on the key legend
 // two clusters: LEFT = 手·杯 (Q tip back / W tip forward: the cup's angle), RIGHT = 身·高低 (O down / P up)
 const BTN = [['Q', '后仰', 'tip back'], ['W', '前倾', 'tip forward'], ['O', '弯下', 'go down'], ['P', '起身', 'stand up']];
@@ -766,7 +815,7 @@ cv.addEventListener('pointerdown', e => {
   e.preventDefault(); gestured = true; window.ToastMusic.gesture(); syncMusic();
   { const q0 = canvasPt(e), pb = pauseBtnRect();
     if (st.state !== 'title' && hitR(q0, homeBtnRect())) { returnToTitle(); return; }
-    if (st.state === 'play' && !st.paused && q0.x > pb.x && q0.x < pb.x + pb.w && q0.y > pb.y && q0.y < pb.y + pb.h) { setPaused(true); return; }
+    if (runActive() && !st.paused && q0.x > pb.x && q0.x < pb.x + pb.w && q0.y > pb.y && q0.y < pb.y + pb.h) { setPaused(true); return; }
     if (st.state === 'title' || st.paused) {
       const q = overlayPt(q0);
       if (debugMenuOpen) return;
@@ -874,7 +923,7 @@ function noSpill() {
   // 空档 between alien cups — setup only, never judged / never drained
   if (r && r.phase === 'gap') return true;
   // brief recovery after a good clink (react juice while you stand back up)
-  if (r && r.phase === 'react' && r.result === 'ok') return true;
+  if (r && r.phase === 'react' && roundSucceeded(r)) return true;
   if (st.clinkGrace && st.t < st.clinkGrace) return true;
   return false;
 }
@@ -921,9 +970,10 @@ function breakFloor() {
   if (st.floorPlan && !st.floorPlan.floorAwarded) {
     st.floorPlan.floorAwarded = true;
     addScore(breakPts(L));
-    addScore(player.wine * 120 * (L + 1));
+    addScore(player.wine * CFG.floorWineScore * (L + 1));
     if (L === STORY_N - 1 && START_LAYER === 0 && st.breaks === STORY_N - 1) addScore(CFG.clearScore);
   }
+  saveBest();
   let x1 = 1e9, x2 = -1e9;
   for (const c of allChars()) { const P = c.P || fk(c); for (const p of [P.hip, P.head, P.toe, P.hand]) { x1 = Math.min(x1, p.x); x2 = Math.max(x2, p.x); } }
   x1 -= 160; x2 += 160;
@@ -954,15 +1004,14 @@ function addCrack() {
 
 // ---------------------------------------------------------------- game over
 const OVER_TEXT = {
-  beer: ['酒洒光了！', 'YOU SPILLED ALL YOUR BEER'],
-  boss: ['你被开除了！', "THREE STRIKES — YOU'RE FIRED"],
+  beer: ['失败', 'FAILED'],
 };
 function gameOver(reason) {
   if (st.state !== 'play') return;
   st.state = 'over'; st.stT = 0; syncMusic();
   st.over = { reason, difficulty: difficultyId, cleared: START_LAYER === 0 && st.breaks >= STORY_N && st.L >= STORY_N, score: st.score, layer: st.L, depth: st.depth, people: allChars().length, t: st.gameT };
-  st.newRecord = st.score > st.hiscore;
-  if (st.newRecord) { st.hiscore = st.score; st.bestDifficulty = difficultyId; try { localStorage.setItem(BEST_KEY, JSON.stringify({ score: st.score, difficulty: difficultyId })); } catch (e) { /* ignore */ } }
+  saveBest();
+  st.over.wine = { ...wineLedger() }; st.over.custom = !!(st.customRun || isCustomRun());
   clearInputs();
   bubbles.length = 0; st.shake = 16; sfx('thud');
   const p = player;
@@ -992,22 +1041,29 @@ function stepOver(dt) {
 //   bowing is tiring (the body drifts back up), the cup slowly drifts toward tipping, and the odd telegraphed bump.
 // Short, predictable inertia; reversing the input gives a positive brake.
 const FEEL = { accel: { get hA() { return CFG.bodyAccel; }, get hD() { return CFG.bodyBrake; }, get tA() { return CFG.cupAccel; }, get tD() { return CFG.cupBrake; }, kH: 0.025, kT: 0.035, get rel() { return CFG.releaseCup; }, get relH() { return CFG.releaseBody; } }, vel: { hV: 0.65, tV: 0.92, sm: 28 } };
-if (params.get("feel")) { const [a, b, c, e] = params.get("feel").split(",").map(Number); Object.assign(FEEL.accel, { kH: a, kT: b, rel: c, relH: e }); } // test only
+if (params.get('feel')) {
+  const values = params.get('feel').split(',').map(Number);
+  if (values.length === 4 && values.every(Number.isFinite)) {
+    FEEL.accel.kH = clamp(values[0], 0, 1); FEEL.accel.kT = clamp(values[1], 0, 1);
+    CFG.releaseCup = clamp(values[2], 0.1, 1); CFG.releaseBody = clamp(values[3], 0.1, 1);
+  }
+} // test only
+
 function disturbLive() { const r = st.round; return st.state === 'play' && r && !r.smash && (r.phase === 'aim' || r.phase === 'clink' || r.phase === 'react'); }
 function stepDisturb(dt, d) {
-  const p = player, live = disturbLive() && !st.tut, tutDrift = st.tut && st.tut.drift;
+  const p = player, live = disturbLive() && !st.tut, allowBump = live && !['chain', 'alien'].includes(activeMech()), tutDrift = st.tut && st.tut.drift;
   // the cup's slow lean: a new direction every few seconds
   st.tdrT -= dt;
-  if (st.tdrT <= 0) { st.tdrT = R(1.6, 3.2) / d.driftT; p.tdrGoal = (rnd() < 0.5 ? -1 : 1) * R(0.3, 0.55) * d.drift; }
-  const goal = live ? (p.tdrGoal || 0) : tutDrift ? 0.35 * Math.sign(p.tdrGoal || 1) : 0;
+  if (st.tdrT <= 0) { st.tdrT = physicsRange(1.6, 3.2) / d.driftT; p.tdrGoal = (physicsRandom() < 0.5 ? -1 : 1) * physicsRange(0.3, 0.55) * d.drift; }
+  const goal = live ? (p.tdrGoal || 0) * (['chain', 'alien'].includes(activeMech()) ? CFG.focusDrift : 1) : tutDrift ? 0.35 * Math.sign(p.tdrGoal || 1) : 0;
   p.tdr += (goal - p.tdr) * Math.min(1, 2 * dt);
   // a bump: ~0.8 s warning (! over your head), then a shove on height and/or tilt
   const b = st.bump;
-  if (live && !b) st.bump = { at: st.t + R(6, 10) / Math.sqrt(d.wob), done: false };
-  else if (b && !b.done && !live) st.bump = null;                       // smash round / break: call it off
+  if (allowBump && !b) st.bump = { at: st.t + physicsRange(6, 10) / Math.sqrt(d.wob), done: false };
+  else if (b && !b.done && !allowBump) st.bump = null;                       // smash round / break: call it off
   else if (b && !b.done && st.t > b.at + 0.8) {
     { const m = 0.75 + 0.35 * d.wob; b.done = true; sfx('shove'); buzz(35); st.shake = Math.max(st.shake, 7);
-      if (rnd() < 0.7) p.veh += (rnd() < 0.5 ? -1 : 1) * 0.38 * m; const sg = rnd() < 0.5 ? -1 : 1; p.vet += sg * 0.28 * d.bumpT; slosh(sg * R(0.85, 1.25) * d.bumpT); }
+      if (physicsRandom() < 0.7) p.veh += (physicsRandom() < 0.5 ? -1 : 1) * 0.38 * m; const sg = physicsRandom() < 0.5 ? -1 : 1; p.vet += sg * 0.28 * d.bumpT; slosh(sg * physicsRange(0.85, 1.25) * d.bumpT); }
   } else if (b && b.done && st.t > b.at + 1.6) st.bump = null;
 }
 // Drunk sway (real, not just drawn): your body bobs up and down by itself (~1.7 s), and the bob GROWS while
@@ -1018,11 +1074,11 @@ const SWAY = { om: 2 * PI / 1.7, grow: 0.10, brace: 11 };
 function swayFade(p) { return clamp(p.h / 0.12, 0, 1); }
 // v20f_feel: ~1/3 of the clink window — readable bob, easy to brace against
 function swayAmp() { return (st.tut ? 16 : (CTL === 'vel' ? 0.18 : 0.42) * winSpan() * Math.min(1, 0.45 + instab()) * difficulty().hand) / 288; }
-function swayOn() { const r = st.round; if (st.tut) return !!st.tut.sway && st.state === 'play'; return disturbLive(); }
+function swayOn() { const r = st.round; if (st.tut) return !!st.tut.sway && st.state === 'play'; return disturbLive() && !['chain', 'alien'].includes(activeMech()); }
 function stepSway(p, dt, d) {
   if (!swayOn()) { const f = Math.exp(-4 * dt); p.sw = (p.sw || 0) * f; p.swv = (p.swv || 0) * f; return; }
   const om = SWAY.om, A = swayAmp(), amp = Math.hypot(p.sw || 0, (p.swv || 0) / om);
-  st.swT = (st.swT || 0) - dt; if (st.swT <= 0) { st.swT = R(1.2, 2.4); p.swv = (p.swv || 0) + (rnd() < 0.5 ? -1 : 1) * R(0.4, 1) * 0.35 * A * om; }
+  st.swT = (st.swT || 0) - dt; if (st.swT <= 0) { st.swT = physicsRange(1.2, 2.4); p.swv = (p.swv || 0) + (physicsRandom() < 0.5 ? -1 : 1) * physicsRange(0.4, 1) * 0.35 * A * om; }
   let a = -om * om * p.sw + 2 * SWAY.grow * om * p.swv * (amp < A ? 1 : -1.5);   // self-exciting up to A, then held there
   if (p.vh * p.swv < 0) a -= SWAY.brace * Math.abs(p.vh) * p.swv;              // fighting it brakes it
   p.swv += a * dt; p.sw += p.swv * dt;
@@ -1137,7 +1193,7 @@ function stepBeer(dt, d) {
     const ramp = clamp((st.spillT - CFG.spillGrace * gr) / (CFG.spillRamp * (1 / 3 + 2 / 3 * gr)), 0, 1);
     const rate = over * 0.34 * SPM * CFG.spillMultiplier / Math.sqrt(g.cap) * beerK() * ramp;
     const lost = Math.min(p.wine, Math.min(CFG.spillMax / 100, rate) * dt); // hard cap ~11%/s even wide open
-    p.wine -= lost; if (lost > 0) { st.loss = st.loss && st.lossT < 1.2 ? st.loss + lost : lost; st.lossT = 0; }
+    changeWine('spill', lost);
     if (rnd() < 0.22 + over * 0.7) spill(p, 1 + Math.floor(over * 2));
     if (!st.spillOn) { st.spillOn = true; st.dripAt = st.t; sfx('splash'); buzz(15); }
     else if (lost > 0 && st.t - st.dripAt > CFG.spillSoundInterval) { st.dripAt = st.t; sfx('drip'); }
@@ -1153,7 +1209,7 @@ function pressCheck(dt, d) {
   const p = player, fl = floorY(st.L);
   if (p.h > 0.9 && keys.O && smashOn()) { // flat on the floor, holding O: pound it
     st.crackX = p.P.cupB.x;
-    st.pressure += dt * 1.1 / (st.tut ? 0.7 : d.need * (st.breaks > 0 ? CFG.repeatSmashScale : 1));
+    st.pressure += dt / (st.tut ? 0.7 : CFG.smashCharge * (st.breaks > 0 ? CFG.repeatSmashScale : 1));
     st.shake = Math.max(st.shake, 3 + st.pressure * 6);
     if (rnd() < 0.3) dust(p.P.head.x, fl, 1);
   } else st.pressure = Math.max(0, st.pressure - dt * 0.05);
@@ -1184,7 +1240,7 @@ function toastButtonRect() {
 let REACH_TIME = CFG.reachTime;
 function reachTime() { return st.round && st.round.chain ? Math.min(REACH_TIME, CFG.chainReach, 60 / CFG.musicBpm * 0.38) : REACH_TIME; }
 // A readable reaction window; later rooms keep some timing pressure.
-function timingWindow() { const d = difficulty(); const w = CTL === 'vel' ? d.time + CFG.practiceBonus : d.time - d.taper * Math.min(1, shapeK(st.L)); return st.round && st.round.chain ? Math.min(w, 60 / CFG.musicBpm * CFG.chainWindow) : w; }
+function timingWindow() { const d = difficulty(); const w = CTL === 'vel' ? d.time + CFG.practiceBonus : d.time - d.taper * Math.min(1, shapeK(st.L)); return st.round && st.round.chain ? Math.min(w, 60 / CFG.musicBpm * CFG[d.id + 'ChainWindow']) : w; }
 // The visible clock targets the input beat, compensating for the reach animation.
 function toastInputLeft() { return roundLeft() - reachTime(); }
 function toastBeatReady() { return Math.abs(toastInputLeft()) <= timingWindow(); }
@@ -1210,91 +1266,45 @@ function stepReach(dt) {
 }
 function floorLimit() { return floorY(st.L) - 83 * SC; } // lower than this and nobody can clink on their feet: smash time
 function roundLeft() { const r = st.round; return r ? 0.5 + r.T - r.t : 9; }
-function multiPartners() {
-  // boss + first (N-1) followers; pad with clones of last if short — exactly N people for the queue
-  const N = multiCount(); if (N <= 0) return [boss];
-  const list = [boss];
-  for (let i = 0; i < N - 1; i++) {
-    if (followers[i]) list.push(followers[i]);
-    else { const c = mkChar(GUEST('#445566', { glasses: true }), -1); c.s = 0; poseFromS(c, 0); c.x = boss.x + 160 * (i + 1); settle(c, floorY(st.L)); followers.push(c); list.push(c); }
-  }
-  return list;
-}
-// clear per-person height steps (readable ladder). i=0 boss at base; each next person clearly lower.
-function partnerBiasFor(i) { return (i | 0) * 34 * SC / 1.45; } // modest but obvious ladder; held-base mid-queue keeps smash fair
-function multiExtra(f) {
-  const mN = multiCount(); if (mN <= 0 || st.tut) return false;
-  return multiPartners().indexOf(f) < 0;
-}
 function newRound(fresh) {
   const d = diff(), fl = floorY(st.L), prev = st.round;
-  if (!fresh && prev && prev.result && !prev.refilled && !st.tut && st.state === 'play' && player.wine > 0) {
+  if (!fresh && prev && roundSucceeded(prev) && !prev.refilled && !st.tut && st.state === 'play' && player.wine > 0) {
     refillWine(CFG.roundRefill / 100); prev.refilled = true;
   }
   ensureAlien();
   if (!st.tut && (fresh || !st.floorPlan || st.floorPlan.layer !== st.L)) st.floorPlan = makeFloorPlan();
-  const progress = fresh || !prev ? 0 : (prev.progress || 0) + (!prev.smash && (prev.result === 'ok' || prev.chainHits > 0) ? 1 : 0);
+  const progress = fresh || !prev ? 0 : (prev.progress || 0) + (!prev.smash && roundSucceeded(prev) ? 1 : 0);
   const planned = !st.tut && st.floorPlan.targets[Math.min(progress, st.floorPlan.rounds - 1)];
-  // multi-person: advance partner index after a good clink
-  const mN = multiCount();
-  if (mN > 0 && !st.tut) {
-    if (fresh || !prev) st.multiI = 0;
-    else if (prev.result === 'ok') st.multiI = (st.multiI + 1) % mN;
-  } else st.multiI = 0;
   if (st.alien) { st.alien.cup = 1; st.alien.revealed = false; }
-  const partners = multiPartners();
-  const partner = (mN > 0 && !st.tut) ? partners[st.multiI % partners.length] : boss;
-  // mid-queue (person 2..N): hold base, only bias changes — drop applies when the queue wraps to 0
-  const midQueue = mN > 0 && !st.tut && !fresh && prev && prev.result === 'ok' && (st.multiI % mN) !== 0;
-  // mid-trio (cup 2..3): hold base + cup step so the ladder stays readable (incl. retry after a miss).
-  // Drop applies only when the trio wraps back to cup 1.
-  const midTrio = false;
-  const holdBase = midQueue || midTrio;
+  const partner = boss;
   const base = planned ? planned.base : fresh || !prev ? st.stand + 40 * SC / 1.45
-    : holdBase ? (prev.base != null ? prev.base : prev.target)
-    : (prev.base != null ? prev.base : prev.target) + (prev.result === 'ok' || prev.chainHits > 0 ? (st.alien ? Math.max(10, (floorLimit() - st.stand - 40 - 2 * st.alien.step) / Math.max(1, CFG.alienRounds - 1) * 0.98) : d.drop * R(0.85, 1.15)) : 0);
-  // per-partner height bias — readable steps; modest so 3–4 people fit before smash
-  const partnerBias = (mN > 0 && !st.tut) ? partnerBiasFor(st.multiI % mN) : 0;
+    : prev.base + (roundSucceeded(prev) ? d.drop : 0);
   const cupBias = (st.alien && st.alien.on && !st.tut) ? st.alien.cup * st.alien.step : 0;
-  const heightBias = partnerBias + cupBias;
+  const heightBias = cupBias;
   const smash = !st.tut ? progress >= st.floorPlan.rounds : (prev && !fresh && prev.smash && prev.result !== 'ok') || (base + (st.alien ? 2 * st.alien.step : heightBias)) > floorLimit();
   let target = base + heightBias;
   if (planned && !st.alien) target = planned.target;
   if (smash) target = fl + poseTable(boss.spec)[100].low;
   const retry = smash && prev && !fresh && prev.smash;
-  if (st.alien && st.alien.on && !smash && !st.tut) st.alien.flash = midTrio ? 0.9 : 0.5;
+  if (st.alien && st.alien.on && !smash && !st.tut) st.alien.flash = 0.5;
   let T = smash ? d.T * 1.6 + 1.6 : Math.max(CFG.minWait, CFG.roundWait - CFG.depthSpeedup * Math.min(1, shapeK(st.L))) - 0.5 + (prev && !fresh ? clamp(Math.abs(target - (prev.target || target)) / 400, 0, CFG.retargetBonus) : 0);
   if (!smash && !st.tut) T = Math.max(Math.max(CFG.minWait, reachTime() + 0.5) - 0.5, T + difficulty().setup);
-  if (mN > 0 && !smash && !st.tut) T += CFG.multiBonus; // extra re-aim time between clearly different heights
   if (st.alien && st.alien.on && !smash && !st.tut) T = CFG.alienCountdown + reachTime() - 0.5; // full input countdown, independent of ordinary setup/depth
-  const advanced = mN > 0 && !fresh && prev && prev.result === 'ok' && !smash;
-  // mid-trio cups start in a fixed gap beat after a good clink (setup — never judged); retries go straight to aim
-  const startGap = midTrio && !smash && prev && prev.result === 'ok';
-  st.round = { progress, phase: smash && !retry ? 'tie' : (startGap ? 'gap' : 'aim'), t: 0, T, target, base, off: target - base, move: prev && !fresh && !smash ? target - prev.target : 0, smash, mh: [], result: null, n: (fresh || !prev ? 0 : prev.n) + 1, beep: 4, partner, multiI: st.multiI, alienCup: st.alien ? st.alien.cup : 0 };
+  st.round = { progress, phase: smash && !retry ? 'tie' : 'aim', t: 0, T, target, base, off: target - base, move: prev && !fresh && !smash ? target - prev.target : 0, smash, mh: [], result: null, n: (fresh || !prev ? 0 : prev.n) + 1, beep: 4, partner, alienCup: st.alien ? st.alien.cup : 0 };
   if (!smash && chainCount()) {
     st.round.chain = chainCount(); st.round.chainIndex = 0; st.round.chainHits = 0;
     st.round.chainResults = []; st.round.chainBeat = 60 / CFG.musicBpm;
+    st.round.comboStart = st.combo; st.round.chainMisses = 0; st.round.chainPerfects = 0; st.round.scoredHits = 0;
   }
   if (st.alien && !smash) st.round.alienChoice = planned ? planned.alienChoice : Math.floor(rnd() * 3);
   st.judge = null;
   // A visible change of rules every few cups, with an opening beat to read it.
-  if (!smash && !st.tut && !st.round.chain && mN === 0 && !(st.alien && st.alien.on) && progress > 0) {
+  if (!smash && !st.tut && !st.round.chain && !(st.alien && st.alien.on) && progress > 0) {
     st.round.event = ['feint', 'rush', 'steady'][(progress - 1 + st.L) % 3];
     if (st.round.event === 'rush') st.round.T = Math.max(CFG.minWait - 0.5, (st.round.T + 0.5) * CFG.rushScale - 0.5);
   }
   if (smash && !retry) { st.judge = null; if (!bubbles.some(b => b.chapterChat)) { banner('到底了！', '', 1.6, '#ff9a3d'); say(boss, ['…到底了？'], 1.8); } }
   else if (smash) say(boss, ['再来！砸！'], 1.2);
-  else if (startGap) {
-    const k = st.alien.cup + 1;
-    banner(k === 2 ? '二！' : '三！', '下一杯 ↓', 0.7, '#9d7dff');
-    say(boss, k === 2 ? ['第二杯，再低！'] : ['第三杯，最低！'], 1.1);
-  }
-  else if (advanced) {
-    banner('下一个！', '', 1.05, '#7dff8a');
-    if (partner !== boss) say(partner, pick([['领导我也敬！'], ['轮到我了！'], ['来来来！'], ['我的杯口在这！']]), 1.35);
-    else say(boss, pick([['接着来！'], ['下一杯！']]), 1.2);
-  }
-  else if (mN > 0 && partner !== boss) { say(partner, pick([['领导我也敬！'], ['轮到我了！'], ['来来来！']]), 1.3); }
   else if (st.round.chain || st.alien) { /* Chatter belongs to the gaps after successful rounds. */ }
   else if (rnd() < 0.5) { const ln = pick(BOSS_LINES); if (!st.judge) say(boss, ln, 1.4); }
 }
@@ -1327,7 +1337,7 @@ function strike(zh, en, why) {
   if (!st.round || st.round.result === 'strike' || st.state !== 'play') return;
   st.why = st.why || {}; st.why[why || 'high'] = (st.why[why || 'high'] || 0) + 1;
   claimScoreOpportunity('miss');
-  st.strikes++; st.combo = 0; st.hype = Math.max(0, st.hype - 30); sfx('thud'); st.shake = Math.max(st.shake, 14); juiceFlash('#ff3030', 0.22); buzz(60);
+  st.strikes++; st.combo = 0; if (!st.round.chain || !st.round.chainMisses) st.hype = Math.max(0, st.hype - CFG.hypeMiss); sfx('thud'); st.shake = Math.max(st.shake, 14); juiceFlash('#ff3030', 0.22); buzz(60);
   if (zh) banner(zh, '', 1.1, '#ff4d4d');
   if (st.judge && st.judge.t < 0.2) { if (!st.judge.sub) judgeSay(pick(RUDE_LINES)); }
   else if (!bubbles.length || bubbles[0].c !== boss || bubbles[0].t > 0.5) say(boss, pick(RUDE_LINES), 1.4);
@@ -1337,9 +1347,10 @@ function strike(zh, en, why) {
   }
   st.round.result = 'strike';
   if (!st.tut) {
-    const lost = Math.min(player.wine, CFG.missPenalty / 100);
-    player.wine -= lost; st.loss = lost; st.lossT = 0;
-    if (st.judge) st.judge.bonus = `失误扣酒 −${CFG.missPenalty}%`;
+    const r = st.round, misses = r.chainMisses || 0;
+    const fraction = r.chain ? chainPenaltyRatio(r, misses + 1) - (misses ? chainPenaltyRatio(r, misses) : 0) : 1;
+    r.chainMisses = misses + 1;
+    changeWine('penalty', CFG.missPenalty / 100 * fraction);
     if (player.wine <= 0) { player.wine = 0; gameOver('beer'); }
   }
 }
@@ -1348,6 +1359,7 @@ function judgeSay(pair) { if (st.judge) { st.judge.sub = pair[0]; bubbles.length
 function finishToastAttempt() {
   const r = st.round;
   if (r.chain) {
+    if (r.chainIndex >= r.chain) return;
     r.lastNoteResult = r.result;
     r.chainResults.push(r.result === 'ok'); if (r.result === 'ok') r.chainHits++;
     st.freeze = 0; st.shake = Math.min(st.shake, 2); bigText = null; bubbles.length = 0;
@@ -1360,7 +1372,25 @@ function finishToastAttempt() {
       return;
     }
   }
+  if (st.state !== 'play') { r.phase = 'react'; r.t = 0; return; }
+  if (r.chain) {
+    r.groupOutcome = r.chainHits === r.chain ? 'all-hit' : r.chainHits > 0 ? 'partial' : 'miss';
+    if (r.scoredHits > 0) {
+      st.combo = r.chainHits === r.chain && !r.chainMisses ? r.comboStart + 1 : 0;
+      st.bestCombo = Math.max(st.bestCombo, st.combo);
+      if (r.chainPerfects === r.chain) refillWine(CFG.perfectRefill / 100);
+      awardHype((CFG.hypeHit * r.scoredHits + (CFG.hypePerfect - CFG.hypeHit) * r.chainPerfects) / r.chain);
+    }
+  }
   r.phase = 'react'; r.t = 0;
+}
+function awardHype(amount) {
+  st.hype = Math.min(100, st.hype + amount);
+  if (st.hype < 100) return;
+  st.hype = 0; st.bursts++; addScore(CFG.hypeScore * (st.L + 1));
+  refillWine(CFG.hypeRefill / 100);
+  if (st.judge) { st.judge.word = '全桌服气！！'; st.judge.col = '#ffdf62'; }
+  if (!st.round.chain) { st.freeze = Math.max(st.freeze, 0.17); st.shake = Math.max(st.shake, 12); }
 }
 function judgeClink() {
   const r = st.round, d = diff(), L = d.L;
@@ -1397,28 +1427,23 @@ function judgeClink() {
   if (far) { judgeSay(['接地气，不是接地府！']); strike(null, null, 'far'); finishToastAttempt(); return; }
   if (!ok) { strike(null); finishToastAttempt(); return; }
   for (let i = 0; i < 18; i++) parts.push({ x: cx + R(-12, 12), y: cy + R(-6, 6), vx: R(-260, 260), vy: R(-520, -120), life: 2, r: R(4, 9), col: rnd() < 0.3 ? '#fffbe8' : '#f2b51d', type: 'drop' });
-  player.wine = Math.max(0.001, player.wine - CFG.clinkSpill / 100); slosh(R(0.35, 0.6) * (0.8 + 0.2 * d.slx) * (r.chain ? 0.25 : 1));
   if (ok) {
     r.result = 'ok'; st.toasts++;
     const scoring = claimScoreOpportunity('hit');
     st.clinkGrace = st.t + (r.chain ? 0.08 : 0.65);
     if (!scoring) { st.judge.bonus = '补敬成功'; finishToastAttempt(); return; }
-    st.combo++; st.bestCombo = Math.max(st.bestCombo, st.combo);
+    const divisor = r.chain || 1;
+    const combo = r.chain ? r.comboStart + 1 : st.combo + 1;
+    if (r.chain) { r.scoredHits++; if (perfect) r.chainPerfects++; }
+    else { st.combo = combo; st.bestCombo = Math.max(st.bestCombo, st.combo); }
     const close = clamp(1 - margin / 90, 0, 1);
-    addScore(CFG.toastScore * (L + 1), '碰杯 CLINK', '#ffffff');
-    if (perfect) { addScore(CFG.perfectScore * (L + 1)); st.perfects++; }
-    else addScore(close * close * 200 * (L + 1), '够低 LOW', '#7dff8a');
-    addScore(player.wine * 40 * (L + 1), '剩酒 BEER', '#f2b51d');
-    const quick = r.manual ? Math.round(120 * clamp(1 - Math.abs(r.timing) / timingWindow(), 0, 1)) : 0;
-    addScore((quick + CFG.comboScore * Math.min(st.combo, CFG.comboCap)) * (L + 1));
-    st.hype = Math.min(100, st.hype + (perfect ? 34 : 10) + (r.manual ? 4 : 0) + (perfect && r.event === 'steady' ? 14 : 0));
-    if (perfect && !r.chain) refillWine(CFG.perfectRefill / 100);
-    st.judge.bonus = `${st.combo} 连敬${quick ? '  ·  合拍 +' + quick : ''}${perfect ? `  ·  完美 +${CFG.perfectScore * (L + 1)}` : ''}${perfect && CFG.perfectRefill > 0 ? `  ·  回酒 +${CFG.perfectRefill}%` : ''}`;
-    if (st.hype >= 100) {
-      st.bursts++; st.hype = 0; addScore(CFG.hypeScore * (L + 1)); if (!r.chain) refillWine(CFG.hypeRefill / 100);
-      st.judge.word = '全桌服气！！'; st.judge.col = '#ffdf62'; st.judge.bonus = `气势满格 · 加分 +${CFG.hypeScore * (L + 1)}${CFG.hypeRefill > 0 ? ` · 回酒 +${CFG.hypeRefill}%` : ''}`;
-      st.freeze = 0.17; st.shake = 19;
-    }
+    const quick = r.manual ? CFG.timingScore * clamp(1 - Math.abs(r.timing) / timingWindow(), 0, 1) : 0;
+    const quality = perfect ? CFG.perfectScore : close * close * CFG.heightScore;
+    const points = (CFG.toastScore + quality + player.wine * CFG.wineScore + quick + CFG.comboScore * Math.min(combo, CFG.comboCap)) * (L + 1) / divisor;
+    addScore(points);
+    if (perfect) st.perfects++;
+    if (!r.chain) { awardHype(perfect ? CFG.hypePerfect : CFG.hypeHit); if (perfect) refillWine(CFG.perfectRefill / 100); }
+    st.judge.bonus = `+${Math.round(points)}`;
     const polite = margin > 150 ? ['你这也太客气了…'] : pick(POLITE_LINES);
     if (!r.chain && !st.alien) judgeSay(polite);
   } else strike(null);
@@ -1509,8 +1534,7 @@ function stepRound(dt) {
     if (r.tut && (Math.abs(tx - (player.P.rim.x + 24 * SC)) < 14 || r.t > 0.25)) judgeClink();
   } else if (r.phase === 'react') {
     // keep the 1→2→3 beat tight: short juice then gap/aim for next cup
-    const short = st.alien && st.alien.on && r.result === 'ok' && st.alien.cup < 2;
-    if (r.t > (short ? 0.28 : r.result === 'ok' ? 0.52 : 0.78) && st.state === 'play') newRound(false);
+    if (r.t > (roundSucceeded(r) ? CFG.successPause : CFG.missPause) && st.state === 'play') newRound(false);
   }
 }
 
@@ -1612,7 +1636,7 @@ function stepNPCs(dt) {
   const r = st.round;
   if (st.alien && r) { stepAlienLeaders(dt); return; }
   const swayOn = r && !r.chain && !st.alien && !r.smash && !st.tut && (r.phase === 'aim' || r.phase === 'react');
-  st.bossJT -= dt; if (st.bossJT <= 0) { st.bossJT = R(2.2, 4.2); st.bossJ = (rnd() < 0.5 ? -1 : 1) * R(0.5, 1) * 20 * d.wob * SC / 1.45; }
+  st.bossJT -= dt; if (st.bossJT <= 0) { st.bossJT = physicsRange(2.2, 4.2); st.bossJ = (physicsRandom() < 0.5 ? -1 : 1) * physicsRange(0.5, 1) * 20 * d.wob * SC / 1.45; }
   // ground shake rides on bossOff so relative height becomes a tracking skill (boss kinematic, rumble telegraphed)
   const rumble = swayOn ? groundOff() : 0;
   const swayGoal = swayOn ? (9 * d.wob * SC / 1.45) * Math.min(1, 0.35 + 0.65 * instab()) * (0.6 * Math.sin(st.t * 0.9) + 0.4 * Math.sin(st.t * 0.37 + 1)) + st.bossJ + rumble : rumble;
@@ -1620,15 +1644,7 @@ function stepNPCs(dt) {
   const bo0 = st.bossOff;
   if (!(r && r.phase === 'clink')) st.bossOff += (swayGoal - st.bossOff) * Math.min(1, 1.8 * dt);
   st.bossOffV = (st.bossOff - bo0) / dt;
-  const mN = multiCount();
-  const multiOn = mN > 0 && !st.tut && r && !r.smash;
-  const partners = multiOn ? multiPartners() : null;
-  const partner = (r && r.partner) || boss;
-  // boss bows to the ACTIVE toast height; when waiting in a multi queue he holds HIS own ladder step.
-  const alienOn = !!(st.alien && st.alien.on && !st.tut);
-  const bossAimY = !r ? null : r.smash ? null : (multiOn && partner !== boss)
-    ? (r.base + partnerBiasFor(0) + st.bossOff * 0.35)
-    : (alienOn ? ((r.base != null ? r.base : r.target) + st.bossOff) : (r.target + st.bossOff));
+  const bossAimY = r && !r.smash ? r.target + st.bossOff : null;
   const sNeed = !r ? 0 : r.smash ? 1 : sForRim(boss.spec, Math.min(bossAimY, floorLimit()) - floorY(st.L));
   if (sNeed > boss.s) boss.s = Math.min(sNeed, boss.s + 2.6 * dt); else boss.s = Math.max(sNeed, boss.s - 1.6 * dt);
   if (r && r.chain && !r.smash) boss.s = sNeed;
@@ -1640,57 +1656,13 @@ function stepNPCs(dt) {
   const pFront = Math.max(q.head.x + q.hr, q.knee.x + 14 * qs, q.shoulder.x + 22 * qs, q.hip.x + 22 * qs, q.toe.x);
   const minX = pFront + 12 + 60 * boss.s - e.frontDX;
   const clinking = r && r.phase === 'clink', approach = r && r.phase === 'aim' && !r.smash ? clamp(1 - roundLeft() / (reachTime() + timingWindow() * 0.88), 0, 1) : 0, away = r && r.phase === 'aim' ? 110 + 40 * Math.sin(st.t * 2) * 0.2 : 140;
-  // when a follower is the toast partner, THEY step forward with cup extended; boss stays a bit back
-  if (partner !== boss && r && !r.smash) {
-    const pe = tableAt(partner.spec, partner.s);
-    const pTouch = Math.max(pc.x, pr.x) + 24 * SC - pe.cupDX;
-    const pWant = clinking ? Math.max(pTouch, pFront + 20) : Math.max(pTouch + away * 0.55 * (1 - approach), pFront + 40);
-    partner.x += (clamp(pWant, player.x + 80, 2000) - partner.x) * Math.min(1, (clinking ? 16 : 6) * dt);
-    const psNeed = sForRim(partner.spec, Math.min(r.target + st.bossOff, floorLimit()) - floorY(st.L));
-    if (psNeed > partner.s) partner.s = Math.min(psNeed, partner.s + 3.2 * dt); else partner.s = Math.max(psNeed, partner.s - 2.2 * dt);
-    poseFromS(partner, partner.s);
-    // extend cup arm a bit more so "active toaster" reads clearly
-    partner.arm = Math.max(partner.arm, 1.15);
-    boss.x += (clamp(Math.max(partner.x + 150, minX + 50), player.x + 120, 2000) - boss.x) * Math.min(1, 4 * dt);
-  } else {
-    const wantX = clinking ? Math.max(touchX, minX) : Math.max(touchX + away * (1 - approach), minX + 40 * (1 - approach));
-    boss.x += (clamp(wantX, player.x + 90, 2000) - boss.x) * Math.min(1, (clinking ? 16 : 6) * dt);
-  }
+  const wantX = clinking ? Math.max(touchX, minX) : Math.max(touchX + away * (1 - approach), minX + 40 * (1 - approach));
+  boss.x += (clamp(wantX, player.x + 90, 2000) - boss.x) * Math.min(1, (clinking ? 16 : 6) * dt);
   settle(boss, fl);
   if (r && r.chain && !r.smash) { const dy = r.target - boss.P.rim.y; boss.y += dy; boss.P = fk(boss); }
   updateCup(boss, dt, true);
   let prev = boss, prevS = boss.s;
   followers.forEach((f, i) => {
-    if (multiOn && multiExtra(f)) {
-      // park crowd off-screen so only the N-person queue is visible
-      f.x += (boss.x + 900 + i * 40 - f.x) * Math.min(1, 4 * dt);
-      f.s += (0.05 - f.s) * Math.min(1, 4 * dt);
-      poseFromS(f, f.s); settle(f, fl); updateCup(f, dt, true);
-      return;
-    }
-    if (f === partner && partner !== boss) {
-      settle(f, fl); updateCup(f, dt, true);
-      prev = f; prevS = f.s;
-      return;
-    }
-    // waiting multi partners: hold cup at THEIR upcoming ladder height so the height line is obvious
-    if (multiOn && partners) {
-      const pi = partners.indexOf(f);
-      if (pi >= 0) {
-        const done = pi < (st.multiI % mN);
-        const ty = (r.base != null ? r.base : r.target) + partnerBiasFor(pi) + st.bossOff * 0.25;
-        const ps = sForRim(f.spec, Math.min(ty, floorLimit()) - floorY(st.L));
-        f.s += (ps - f.s) * Math.min(1, 5 * dt);
-        poseFromS(f, f.s);
-        f.arm += Math.sin(st.t * 3.3 + f.sway) * 0.04;
-        // stand back in a clear line; done people ease a little farther
-        const slot = 140 + pi * 120 + (done ? 30 : 0);
-        f.x += (boss.x + slot - f.x) * Math.min(1, 5 * dt);
-        settle(f, fl); updateCup(f, dt, true);
-        prev = f; prevS = f.s;
-        return;
-      }
-    }
     const s = Math.min(1, boss.s + 0.16 * (i + 1));
     f.s += (s - f.s) * Math.min(1, 6 * dt);
     poseFromS(f, f.s); f.arm += Math.sin(st.t * 3.3 + f.sway) * 0.06;
@@ -1726,7 +1698,7 @@ function stepFall(dt) {
 
 let su = null;
 function beginStandup() {
-  st.L++; player.wine = Math.min(player.wine, wineCapacity()); st.state = 'standup'; st.stT = 0;
+  st.L++; changeWine('capacity', Math.max(0, player.wine - wineCapacity())); st.state = 'standup'; st.stT = 0;
   const joiners = pending; pending = [];
   for (const j of joiners) j.face = -1;
   followers.unshift(...joiners);
@@ -2677,6 +2649,32 @@ function gaugeRect() {
   return { x: 22, y: 140, w: 118, h: 200 };
 }
 const gaugeDrops = [];
+function drawMobileResult(o) {
+  const [rank, remark] = rankFor(o.score), mode = DIFFICULTIES.find(d => d.id === o.difficulty) || difficulty();
+  const fit = Math.min(1, (W - 80) / 1920);
+  ctx.save(); ctx.translate(540, 540); ctx.scale(fit, fit); ctx.translate(-540, -540);
+  const l = o.wine || wineLedger(), left = 70, right = 1000;
+  ctx.fillStyle = '#211a24'; rr(-390, 160, 1860, 690, 36); ctx.fill();
+  text('失败', 540, 90, 50, '#ff796b', 'center', 900);
+  ctx.fillStyle = '#ffd34d'; rr(left - 360, 235, 720, 122, 24); ctx.fill();
+  text(rank, left, 296, 72, '#7a1019', 'center', 900);
+  text(remark, left, 420, 40, '#e5d2c4', 'center', 800);
+  text(Math.round(o.score).toLocaleString('en-US'), left, 555, 142, '#ffd34d', 'center', 900);
+  text(`${o.custom ? '自定义 · ' : ''}${mode.level} · ${mode.name}`, left, 710, 38, '#e5d2c4', 'center', 800);
+  text(`完美 ${st.perfects} 次    失误 ${st.strikes} 次`, right, 252, 46, '#fff', 'center', 900);
+  text(`最高 ${st.bestCombo} 连敬`, right, 330, 34, '#e5d2c4', 'center', 800);
+  const rows = [['洒酒', l.spill, '#ffc36f', '−'], ['罚酒', l.penalty, '#ff796b', '−'], ['添酒', l.refill, '#91e0a4', '+']];
+  rows.forEach(([name, amount, color, sign], i) => {
+    text(name, right - 290, 440 + i * 82, 46, color, 'left', 900);
+    text(`${sign}${winePercent(amount)}%`, right + 290, 440 + i * 82, 50, color, 'right', 900);
+  });
+  text('本局累计 · 按初始杯容量', right, 710, 30, '#bfaeb9', 'center', 700);
+  if (l.capacity > .0005) text(`换小杯 −${winePercent(l.capacity)}%`, right, 770, 30, '#bfaeb9', 'center', 700);
+  text(`${o.cleared ? '十二关已通关 · ' : ''}第 ${o.layer + 1} 层`, left, 795, 34, '#bfaeb9', 'center', 800);
+  text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}${st.bestDifficulty ? ' · ' + DIFFICULTIES.find(d => d.id === st.bestDifficulty).level : ''}${st.newRecord ? ' · 新纪录！' : ''}`, 540, 910, 34, '#7fd0ff', 'center', 800);
+  text('点一下重来', 540, 1000, 38, '#fff', 'center', 900);
+  ctx.restore();
+}
 function drawGauge(t) {
   const g = gaugeRect(), p = player, wine = clamp(p.wine / wineCapacity(), 0, 1), col = drinkCol(p);
   const hurt = st.state === 'play' && st.lossT < 0.35 && st.loss > 0.002 ? 1 - st.lossT / 0.35 : 0;
@@ -2725,9 +2723,19 @@ function drawGauge(t) {
     for (let i = 0; i < 3; i++) gaugeDrops.push({ x: wx, y: wy, vx: (tilt >= 0 ? 1 : -1) * (60 + Math.random() * 140), vy: (-120 + Math.random() * 160), life: 0.9 });
   }
   ctx.restore();
-  // how much this spill cost, right under the glass (red), fades a second after it stops
-  if (st.loss > 0.004 && st.lossT < 1.2 && (st.state === 'play' || st.state === 'over')) { const u = LAY === 'port' ? 1.35 : 1;
-    ctx.globalAlpha = clamp((1.2 - st.lossT) * 3, 0, 1); text(`−${Math.max(1, Math.round(st.loss * 100))}%`, g.x + g.w / 2, g.y + g.h + 34 * u, 30 * u, '#ff5a4d', 'center', 900, 'rgba(0,0,0,0.85)'); ctx.globalAlpha = 1; }
+  // Resource feedback has its own lane, outside the cup clocks and beat judgment.
+  const notices = (st.state === 'over' ? [] : st.wineNotices || []).filter(n => st.t - n.at < 1.8 && n.amount >= 0.001);
+  notices.forEach((n, i) => {
+    const label = n.kind === 'penalty' ? '罚酒' : n.kind === 'refill' ? '添酒' : '洒酒';
+    const color = n.kind === 'refill' ? '#91e0a4' : n.kind === 'penalty' ? '#ff796b' : '#ffc36f';
+    const u = TOUCH ? 1.3 : LAY === 'port' ? 1.2 : 1, w = 218 * u, h = 48 * u;
+    const x = Math.max(12, g.x + g.w / 2 - w / 2), y = g.y + g.h + 18 + i * (h + 7);
+    ctx.save(); ctx.globalAlpha = clamp((1.8 - (st.t - n.at)) * 3, 0, 1);
+    ctx.fillStyle = '#211b22'; rr(x, y, w, h, 12); ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+    text(`${label} ${n.kind === 'refill' ? '+' : '−'}${winePercent(n.amount)}%`, x + w / 2, y + h / 2, 30 * u, color, 'center', 900);
+    ctx.restore();
+  });
   for (let i = gaugeDrops.length - 1; i >= 0; i--) { const d = gaugeDrops[i]; d.life -= 1 / 60; d.vy += 900 / 60; d.x += d.vx / 60; d.y += d.vy / 60; if (d.life <= 0 || d.y > H) { gaugeDrops.splice(i, 1); continue; } ctx.globalAlpha = clamp(d.life * 2, 0, 1); circ(d.x, d.y, 6, col); ctx.globalAlpha = 1; }
 }
 
@@ -2742,7 +2750,6 @@ function fmtDepth(m) {
   if (m < 10000) return `${(m / 1000).toFixed(1)} 公里`;
   return `${Math.round(m / 1000).toLocaleString('en-US')} 公里`;
 }
-function ctlRect(paused) { return { x: 540 - 260, y: paused ? 660 : LAY === 'port' ? 930 : 800, w: 520, h: 56 }; }
 function pauseBtnRect() {
   if (TOUCH) return { x: W - 160, y: 34, w: 112, h: 116 };
   return { x: W - 78, y: hudBottom() + 14, w: 58, h: 58 };
@@ -2762,7 +2769,7 @@ function drawGameNavigation() {
   ctx.beginPath(); ctx.moveTo(cx - 11 * unit, cy); ctx.lineTo(cx, cy - 10 * unit); ctx.lineTo(cx + 11 * unit, cy);
   ctx.moveTo(cx - 8 * unit, cy - 2 * unit); ctx.lineTo(cx - 8 * unit, cy + 10 * unit); ctx.lineTo(cx + 8 * unit, cy + 10 * unit); ctx.lineTo(cx + 8 * unit, cy - 2 * unit); ctx.stroke();
   text('主页', r.x + r.w - 15 * unit, cy, TOUCH ? 34 : 27, '#fff0d8', 'right', 800);
-  if (st.state === 'play' && !st.paused) {
+  if (runActive() && !st.paused) {
     const p = pauseBtnRect(); ctx.fillStyle = 'rgba(20,14,23,.62)'; rr(p.x, p.y, p.w, p.h, 14 * unit); ctx.fill();
     const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
     ctx.fillStyle = '#fff0d8'; ctx.fillRect(cx - 12 * unit, cy - 14 * unit, 8 * unit, 28 * unit); ctx.fillRect(cx + 4 * unit, cy - 14 * unit, 8 * unit, 28 * unit);
@@ -2775,14 +2782,6 @@ function drawMute() { const r = muteRect();
   ctx.fillStyle = muted ? 'rgba(255,255,255,0.1)' : '#7fd0ff'; rr(r.x, r.y, r.w, r.h, r.h / 2); ctx.fill();
   text(muted ? '声音：关' : '声音：开', 540, r.y + r.h / 2 + 1, 26, muted ? 'rgba(255,255,255,0.7)' : '#111', 'center', 900);
   if (!TOUCH) text('M', r.x + r.w + 26, r.y + r.h / 2 + 1, 22, 'rgba(255,255,255,0.45)', 'left', 700); }
-function drawCtlToggle(paused) {
-  const r = ctlRect(paused), half = r.w / 2;
-  ctx.fillStyle = 'rgba(255,255,255,0.1)'; rr(r.x, r.y, r.w, r.h, r.h / 2); ctx.fill();
-  ['accel', 'vel'].forEach((m, i) => { const on = CTL === m, x = r.x + i * half;
-    if (on) { ctx.fillStyle = '#7fd0ff'; rr(x + 5, r.y + 5, half - 10, r.h - 10, r.h / 2 - 5); ctx.fill(); }
-    text(`${CTL_NAME[m]}${m === 'accel' ? ' · 惯性' : ' · 易刹车'}`, x + half / 2, r.y + r.h / 2 + 1, 26, on ? '#111' : 'rgba(255,255,255,0.7)', 'center', 900); });
-  text(TOUCH ? '选择手感' : '手感 · C 切换', 540, r.y - 20, 22, 'rgba(255,255,255,0.65)', 'center', 700);
-}
 // Local, independently replaceable cover art. Canvas fallback also supports offline tests.
 function homeImage(src) {
   if (typeof Image === 'undefined') return null;
@@ -2866,71 +2865,7 @@ function drawMobileTitle() {
   drawDebugEntry();
 }
 function drawDebugEntry() { const r = debugEntryRect(); text('···', r.x + r.w / 2, r.y + r.h / 2, 32, '#8d7b88', 'center', 900); }
-// ---- level / chapter picker (title + pause); playtesting unlocks all story + endless entry
-function pickCh() { return START_LAYER >= STORY_N ? CHAPTERS.length : Math.floor(START_LAYER / 3); }
-function pickRoom() { return START_LAYER >= STORY_N ? 0 : START_LAYER % 3; }
-function layerFromPick(ch, room) { return ch >= CHAPTERS.length ? STORY_N : ch * 3 + clamp(room, 0, 2); }
-function pickerTop(paused) { return paused ? 310 : 530; }
-function chPillRect(i, paused) {
-  if (LAY === 'port') return { x: 130 + (i % 3) * 278, y: pickerTop(paused) + Math.floor(i / 3) * 70, w: 264, h: 58 };
-  const top = pickerTop(paused), w = 150, gap = 10, x0 = 540 - (6 * w + 5 * gap) / 2;
-  return { x: x0 + i * (w + gap), y: top, w, h: 48 };
-}
-function roomBtnRect(paused) { const top = pickerTop(paused) + (LAY === 'port' ? 148 : 70); return { x: 540 - 280, y: top, w: 560, h: 56 }; }
-function roomArrowL(paused) { const r = roomBtnRect(paused); return { x: r.x, y: r.y, w: 70, h: r.h }; }
-function roomArrowR(paused) { const r = roomBtnRect(paused); return { x: r.x + r.w - 70, y: r.y, w: 70, h: r.h }; }
-function jumpBtnRect(paused) { return { x: 540 - 180, y: pickerTop(paused) + (LAY === 'port' ? 216 : 140), w: 360, h: 52 }; }
 function hitR(q, r) { return q.x > r.x && q.x < r.x + r.w && q.y > r.y && q.y < r.y + r.h; }
-function drawLevelPicker(paused) {
-  const top = pickerTop(paused);
-  text(paused ? '换个酒局' : '选择开始关卡', 540, top - 28, 24, 'rgba(255,255,255,0.7)', 'center', 700);
-  const names = CHAPTERS.map(c => c.zh).concat(['无尽']);
-  for (let i = 0; i <= CHAPTERS.length; i++) {
-    const r = chPillRect(i, paused), on = pickCh() === i;
-    ctx.fillStyle = on ? '#ffd34d' : 'rgba(255,255,255,0.12)'; rr(r.x, r.y, r.w, r.h, 14); ctx.fill();
-    text(names[i], r.x + r.w / 2, r.y + r.h / 2 + 1, LAY === 'port' ? 27 : 20, on ? '#111' : '#fff', 'center', 900);
-  }
-  const rr0 = roomBtnRect(paused);
-  ctx.fillStyle = 'rgba(255,255,255,0.1)'; rr(rr0.x, rr0.y, rr0.w, rr0.h, 16); ctx.fill();
-  const ch = pickCh();
-  let roomZh;
-  if (ch >= CHAPTERS.length) roomZh = '无尽模式入口';
-  else roomZh = CHAPTERS[ch].rooms[pickRoom()];
-  text('◀', rr0.x + 35, rr0.y + rr0.h / 2 + 1, 28, '#7fd0ff', 'center', 900);
-  text('▶', rr0.x + rr0.w - 35, rr0.y + rr0.h / 2 + 1, 28, '#7fd0ff', 'center', 900);
-  const sub = ch >= CHAPTERS.length ? '终章' : (`第${pickRoom() + 1}小关`);
-  text(`${roomZh}  ·  ${sub}`, 540, rr0.y + rr0.h / 2 + 1, 26, '#fff', 'center', 900);
-  if (paused && st.paused) {
-    const jb = jumpBtnRect(true);
-    ctx.fillStyle = '#7dff8a'; rr(jb.x, jb.y, jb.w, jb.h, 16); ctx.fill();
-    text('跳到此关（满酒）', 540, jb.y + jb.h / 2 + 1, 26, '#111', 'center', 900);
-  }
-}
-function handlePickerHit(q, paused) {
-  for (let i = 0; i <= CHAPTERS.length; i++) {
-    if (hitR(q, chPillRect(i, paused))) {
-      const room = i >= CHAPTERS.length ? 0 : clamp(pickRoom(), 0, 2);
-      saveStartL(layerFromPick(i, room)); sfx('tick'); return true;
-    }
-  }
-  if (hitR(q, roomArrowL(paused))) {
-    if (pickCh() >= CHAPTERS.length) { saveStartL(STORY_N - 1); }
-    else { const r = (pickRoom() + 2) % 3; saveStartL(layerFromPick(pickCh(), r)); }
-    sfx('tick'); return true;
-  }
-  if (hitR(q, roomArrowR(paused))) {
-    if (pickCh() >= CHAPTERS.length) { saveStartL(0); }
-    else { const r = (pickRoom() + 1) % 3; saveStartL(layerFromPick(pickCh(), r)); }
-    sfx('tick'); return true;
-  }
-  if (st.paused && paused && hitR(q, jumpBtnRect(true))) {
-    st.paused = false; debugMenuOpen = false; restart(); sfx('ding'); return true;
-  }
-  // absorb clicks on the picker panel so pause doesn't resume
-  const panel = { x: 40, y: pickerTop(paused) - 40, w: 1000, h: (paused ? 220 : 180) + (LAY === 'port' ? 76 : 0) };
-  if (hitR(q, panel)) return true;
-  return false;
-}
 function overlayPt(p) { if (mobileTitle()) return p; const k = LAY === 'port' ? 1.12 : 1, cy = LAY === 'port' ? btnTop() * 0.5 + 40 : H / 2; return { x: (p.x - W / 2) / k + 540, y: (p.y - cy) / k + 540 }; }
 function overlayBox() {
   // overlays are laid out on a 1080x1080 card; centre it, and enlarge it on phones
@@ -3049,33 +2984,13 @@ function render() {
   // pending (next room) + characters, back to front
   for (let i = iA; i <= iB; i++) { const fl = floorY(i); if (fl + SLAB > vt && fl < vb) drawSlab(i, l, r); }
   for (const c of pending) drawChar(c);
-  const mNdraw = multiCount(), multiDraw = mNdraw > 0 && !st.tut;
-  const partnersDraw = multiDraw ? multiPartners() : null;
   for (let i = followers.length - 1; i >= 0; i--) {
     const f = followers[i];
     if (st.alien && (!st.alien.leaders.includes(f) || (st.alien.revealed && f === toastChar()))) continue;
-    if (multiDraw && multiExtra(f)) continue; // only N queue people on screen
     drawChar(f);
   }
   drawChar(boss);
   if (st.alien && st.alien.revealed && toastChar() !== boss) drawChar(toastChar());
-  // gold/green outline + arrow on the active multi toaster
-  if (multiDraw && st.state === 'play' && st.round && st.round.partner && st.round.partner.P && !st.round.smash) {
-    const tc = st.round.partner, P = tc.P;
-    const pulse = 0.65 + 0.35 * Math.sin(st.t * 7);
-    ctx.save();
-    ctx.shadowColor = '#ffd34d'; ctx.shadowBlur = 18 * pulse;
-    ctx.strokeStyle = `rgba(125,255,138,${0.55 + 0.35 * pulse})`; ctx.lineWidth = 6;
-    ctx.beginPath(); ctx.arc(P.head.x, P.head.y, (P.hr || 28) + 14, 0, 2 * PI); ctx.stroke();
-    ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(P.rim.x, P.rim.y + 10, 28, 0, 2 * PI); ctx.stroke();
-    // arrow label above cup
-    const ax = P.rim.x, ay = P.rim.y - 55;
-    ctx.fillStyle = '#ffd34d'; ctx.strokeStyle = '#111'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(ax, ay + 22); ctx.lineTo(ax - 14, ay); ctx.lineTo(ax + 14, ay); ctx.closePath(); ctx.stroke(); ctx.fill();
-
-    ctx.restore();
-  }
   drawChar(player);
   // cracks
   if (st.cracks.length) {
@@ -3149,33 +3064,6 @@ function render() {
       const col = done ? rd.chainResults[i] ? '#92dbb2' : '#ec786f' : current ? '#ffd34d' : '#6c5b4e';
       circ(x, y, (current ? 21 : 17) * UI, col, '#292018', 3);
       text(done ? rd.chainResults[i] ? '✓' : '×' : String(i + 1), x, y, 22 * UI, '#211a19', 'center', 900);
-    }
-  }
-  // --- multi queue: 「第 k / N 杯」 + side cup ladder icons
-  if (playing && rd && !rd.smash && !st.tut) {
-    const mN = multiCount();
-    if (mN > 0) {
-      const k = ((rd.multiI != null ? rd.multiI : st.multiI) % mN) + 1;
-      const bry = toastRimY(), by = S(0, bry).y;
-      const labelY = Math.max(HB + 36 * UI, by - 42 * UI);
-      ctx.save();
-      ctx.fillStyle = 'rgba(0,0,0,0.55)'; rr(W / 2 - 110 * UI, labelY - 22 * UI, 220 * UI, 44 * UI, 14 * UI); ctx.fill();
-      ctx.strokeStyle = '#7dff8a'; ctx.lineWidth = 3 * UI; ctx.stroke();
-      text(`第 ${k} / ${mN} 杯`, W / 2, labelY + 2 * UI, 28 * UI, '#7dff8a', 'center', 900);
-      // tiny side icons: N cups at stepped heights; filled = done, gold = current
-      const ix = 28 * UI, iTop = labelY + 40 * UI;
-      for (let i = 0; i < mN; i++) {
-        const cy = iTop + i * 34 * UI;
-        const done = i < k - 1, cur = i === k - 1;
-        ctx.globalAlpha = done ? 0.95 : cur ? 1 : 0.55;
-        ctx.fillStyle = done ? '#ffd34d' : cur ? '#7dff8a' : 'rgba(255,255,255,0.25)';
-        ctx.strokeStyle = cur ? '#ffd34d' : '#111'; ctx.lineWidth = cur ? 3.5 * UI : 2 * UI;
-        const cw = 16 * UI, ch = 22 * UI;
-        ctx.beginPath(); ctx.moveTo(ix - cw * 0.55, cy); ctx.lineTo(ix + cw * 0.55, cy); ctx.lineTo(ix + cw * 0.4, cy + ch); ctx.lineTo(ix - cw * 0.4, cy + ch); ctx.closePath();
-        if (done || cur) ctx.fill(); ctx.stroke();
-        if (cur) text('←', ix + 22 * UI, cy + 12 * UI, 18 * UI, '#ffd34d', 'left', 900);
-      }
-      ctx.globalAlpha = 1; ctx.restore();
     }
   }
   // --- clink path + countdown ring around his cup
@@ -3364,23 +3252,31 @@ function render() {
       ctx.globalAlpha = a;
       ctx.fillStyle = 'rgba(8,8,12,0.86)'; ctx.fillRect(0, 0, W, H);
       ctx.save(); overlayBox();
+      if (TOUCH && LAY === 'land') drawMobileResult(o);
+      else {
       const [rz, remark] = rankFor(o.score);
-      const [tz, te] = OVER_TEXT[o.reason];
-      text('敬酒模拟器', 540, 110, 30, '#ffd34d', 'center', 900);
-      text(tz, 540, 215, 100, '#ff5a4d', 'center', 900, '#2a0505');
+      const [tz] = OVER_TEXT[o.reason] || OVER_TEXT.beer;
+      text(tz, 540, 120, 48, '#ff796b', 'center', 900);
       const mode = DIFFICULTIES.find(d => d.id === o.difficulty) || difficulty();
-      text(`${mode.level} · ${mode.name}`, 540, 295, 32, '#e5d2c4', 'center', 800);
-      text(Math.round(o.score).toLocaleString('en-US'), 540, 400, 150, '#ffd34d', 'center', 900, '#3a2a00');
-      ctx.font = `900 58px ${FONT}`;
-      const rankWidth = Math.max(460, ctx.measureText(rz).width + 72);
-      ctx.fillStyle = '#ffd34d'; rr(540 - rankWidth / 2, 500, rankWidth, 110, 24); ctx.fill();
-      text(rz, 540, 555, 58, '#7a1019', 'center', 900);
-      text(remark, 540, 640, 27, '#e5d2c4', 'center', 700);
-      text(`${o.cleared ? '十二关已通关 · ' : ''}最深 ${o.depth < 0.05 ? '0 米' : '−' + fmtDepth(o.depth)} · ${layerDef(o.layer).endless ? `无尽模式 第 ${o.layer + 1} 层` : `第 ${o.layer + 1} 层`}`, 540, 692, 31, '#fff', 'center', 800);
-      text(`最高 ${st.bestCombo} 连敬 · 完美 ${st.perfects} 次 · 失误 ${st.strikes} 次`, 540, 740, 25, '#e5d2c4', 'center', 800);
-      text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}${st.bestDifficulty ? ' · ' + DIFFICULTIES.find(d => d.id === st.bestDifficulty).level : ''}`, 540, 790, 32, '#7fd0ff', 'center', 900);
-      if (st.newRecord && Math.floor(t * 3) % 2 === 0) text('新纪录！', 540, 840, 32, '#7dff8a', 'center', 900);
+      ctx.font = `900 66px ${FONT}`;
+      const rankWidth = Math.max(460, ctx.measureText(rz).width + 80);
+      ctx.fillStyle = '#ffd34d'; rr(540 - rankWidth / 2, 190, rankWidth, 116, 24); ctx.fill();
+      text(rz, 540, 248, 66, '#7a1019', 'center', 900);
+      text(remark, 540, 350, 30, '#e5d2c4', 'center', 700);
+      text(Math.round(o.score).toLocaleString('en-US'), 540, 450, 112, '#ffd34d', 'center', 900);
+      text(`${o.custom ? '自定义 · ' : ''}${mode.level} · ${mode.name}`, 540, 540, 30, '#e5d2c4', 'center', 800);
+      text(`完美 ${st.perfects} 次    失误 ${st.strikes} 次    最高 ${st.bestCombo} 连敬`, 540, 594, 30, '#fff', 'center', 800);
+      const ledger = o.wine || wineLedger();
+      ctx.fillStyle = '#241e28'; rr(130, 638, 820, 132, 22); ctx.fill();
+      text(`洒酒 −${winePercent(ledger.spill)}%`, 170, 678, 32, '#ffc36f', 'left', 900);
+      text(`罚酒 −${winePercent(ledger.penalty)}%`, 540, 678, 32, '#ff796b', 'center', 900);
+      text(`添酒 +${winePercent(ledger.refill)}%`, 910, 678, 32, '#91e0a4', 'right', 900);
+      const capacity = ledger.capacity > 0.0005 ? ` · 换小杯 −${winePercent(ledger.capacity)}%` : '';
+      text(`本局累计 · 按初始杯容量${capacity}`, 540, 738, 23, '#bfaeb9', 'center', 700);
+      text(`${o.cleared ? '十二关已通关 · ' : ''}第 ${o.layer + 1} 层 · ${o.depth < 0.05 ? '0 米' : '−' + fmtDepth(o.depth)}`, 540, 815, 28, '#e5d2c4', 'center', 800);
+      text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}${st.bestDifficulty ? ' · ' + DIFFICULTIES.find(d => d.id === st.bestDifficulty).level : ''}${st.newRecord ? ' · 新纪录！' : ''}`, 540, 867, 28, '#7fd0ff', 'center', 900);
       text(TOUCH ? '点一下重来' : '按 R 重来', 540, 930, 34, '#fff', 'center', 900);
+      }
       ctx.restore(); ctx.globalAlpha = 1;
     }
   }
@@ -3404,8 +3300,12 @@ function render() {
 const DT = 1 / 60;
 let last = performance.now(), acc = 0;
 function frame(now) {
+  const elapsed = Math.max(0, (now - last) / 1000);
+  if (elapsed > CFG.stallPause && runActive() && !st.paused && (!BOT || BOT === 'none')) {
+    st.rearmAfterPause = true; setPaused(true); acc = 0;
+  }
   syncMusic();
-  acc += Math.min(0.1, (now - last) / 1000); last = now;
+  acc += Math.min(0.1, elapsed); last = now;
   while (acc >= DT) { step(DT); acc -= DT; }
   render();
   requestAnimationFrame(frame);
@@ -3421,7 +3321,7 @@ window.__toast = {
   advance(n, noRender) { for (let i = 0; i < n; i++) step(DT); if (!noRender) render(); return this.state(); },
   ctl(m) { if (m && m !== CTL) toggleCtl(); return CTL; },
   rimCurve() { const c = mkChar(P_SPEC, 1), out = []; for (let i = 0; i <= 20; i++) { poseFromS(c, h2s(i / 20)); c.tilt = 0; c.x = 300; c.y = 0; settle(c, floorY(st.L)); out.push(Math.round(floorY(st.L) - c.P.rim.y)); } return { rim: out, lim: Math.round(floorY(st.L) - floorLimit()), stand: Math.round(floorY(st.L) - st.stand) }; },
-  state() { const ld = layerDef(st.L); return { rank: rankFor(st.score), difficulty: { id: difficultyId, level: difficulty().level, name: difficulty().name }, storyRooms: STORY_N, chain: st.round && st.round.chain ? { index: st.round.chainIndex, total: st.round.chain, hits: st.round.chainHits } : null, keys: { ...keys }, reach: +(player.reach || 0).toFixed(3), combo: st.combo, hype: st.hype, manualToasts: st.manualToasts, lay: LAY, W, H, state: st.state, layer: st.L, ch: ld.ch, mech: ld.mech, depth: +st.depth.toFixed(1), score: Math.round(st.score), beer: +player.wine.toFixed(2), strikes: st.strikes, toasts: st.toasts, perfects: st.perfects, round: st.round ? st.round.n : 0, phase: st.round ? st.round.phase : null, left: st.round && st.round.phase === 'aim' ? +roundLeft().toFixed(2) : null, smash: st.round ? st.round.smash : false, pressure: +st.pressure.toFixed(2), breaks: st.breaks, flipped: st.flipped, gameT: +st.gameT.toFixed(2), why: st.why || {}, over: st.over, tilt: +player.tilt.toFixed(2), startL: START_LAYER, alien: st.alien && st.alien.on ? { revealed: st.alien.revealed, cup: st.alien.cup|0, n: st.alien.n|3, step: +st.alien.step.toFixed(1), gap: +st.alien.gap.toFixed(2), phase: st.round ? st.round.phase : null } : null, multi: multiCount(), multiI: st.multiI|0, qw: st.qw ? { presses: st.qw.n, sw: st.qw.sw || 0, held: +st.qw.held.toFixed(1), t: +st.qw.t.toFixed(1), rms: +Math.sqrt((st.qw.m2 || 0) / Math.max(1e-6, st.qw.mt || 0)).toFixed(3) } : null }; },
+  state() { const ld = layerDef(st.L); return { rank: rankFor(st.score), difficulty: { id: difficultyId, level: difficulty().level, name: difficulty().name }, storyRooms: STORY_N, chain: st.round && st.round.chain ? { index: st.round.chainIndex, total: st.round.chain, hits: st.round.chainHits } : null, keys: { ...keys }, reach: +(player.reach || 0).toFixed(3), combo: st.combo, hype: st.hype, manualToasts: st.manualToasts, lay: LAY, W, H, state: st.state, layer: st.L, ch: ld.ch, mech: ld.mech, depth: +st.depth.toFixed(1), score: Math.round(st.score), beer: +player.wine.toFixed(2), strikes: st.strikes, toasts: st.toasts, perfects: st.perfects, round: st.round ? st.round.n : 0, phase: st.round ? st.round.phase : null, left: st.round && st.round.phase === 'aim' ? +roundLeft().toFixed(2) : null, smash: st.round ? st.round.smash : false, pressure: +st.pressure.toFixed(2), breaks: st.breaks, flipped: st.flipped, gameT: +st.gameT.toFixed(2), why: st.why || {}, over: st.over, tilt: +player.tilt.toFixed(2), startL: START_LAYER, alien: st.alien && st.alien.on ? { revealed: st.alien.revealed, cup: st.alien.cup|0, n: st.alien.n|3, step: +st.alien.step.toFixed(1), gap: +st.alien.gap.toFixed(2), phase: st.round ? st.round.phase : null } : null, qw: st.qw ? { presses: st.qw.n, sw: st.qw.sw || 0, held: +st.qw.held.toFixed(1), t: +st.qw.t.toFixed(1), rms: +Math.sqrt((st.qw.m2 || 0) / Math.max(1e-6, st.qw.mt || 0)).toFixed(3) } : null }; },
   restart() { restart(); },
   tut() { return st.tut ? { step: st.tut.step, sub: st.tut.sub, t: +st.tut.t.toFixed(1) } : null; },
   dbg() { const r = st.round; return { reach: player.reach || 0, reachV: player.reachV || 0, beatReady: toastBeatReady(), inputLeft: toastInputLeft(), attacking: !!(r && r.attacking), timingWindow: timingWindow(), cupRate: player.cupRate || 0, vh: player.vh, margin: r && r.margin, result: r && r.result, smash: r && r.smash, target: r && Math.round(floorY(st.L) - r.target), windowSpan: Math.round(winSpan()), lim: +spillLim().toFixed(3), cap: +cupGeom(player).cap.toFixed(2), wineCapacity: wineCapacity(), rimH: player.P ? Math.round(floorY(st.L) - player.P.rim.y) : 0, bossH: boss.P ? Math.round(floorY(st.L) - boss.P.rim.y) : 0, h: +(player.h || 0).toFixed(2), wine: +player.wine.toFixed(2), tilt: +player.tilt.toFixed(2), ctl: CTL, difficulty: difficultyId, pressure: +st.pressure.toFixed(2) , w: player.w, wv: player.wv, bump: !!(st.bump && !st.bump.done && st.t > st.bump.at), paused: st.paused, judge: !!st.judge, jword: st.judge && st.judge.word, jt: st.judge && st.judge.t, fx: fx.length, loss: st.loss || 0, lossT: st.lossT || 0, move: r && r.move, rt: r && +r.t.toFixed(2), sw: +(player.sw || 0).toFixed(3), vis: player.vis ? { l: +player.vis.lean.toFixed(2), b: +player.vis.bend.toFixed(2), k: +player.vis.knee.toFixed(2), a: +player.vis.arm.toFixed(2), h: +player.vis.head.toFixed(2) } : null }; },

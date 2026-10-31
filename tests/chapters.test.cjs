@@ -32,10 +32,10 @@ test('missing a middle note costs wine once, does not reset the phrase or refill
  const target=r.target,beat=r.chainBeat,T=r.T,wine=p.wine;
  g.inspect.strike(null,null,'late');g.inspect.finishToastAttempt();
  assert.equal(r.chainIndex,2);assert.equal(r.phase,'aim');assert.equal(r.target,target);
- assert.ok(Math.abs(r.T-T-beat)<1e-8);assert.ok(Math.abs(p.wine-(wine-.2))<1e-8);
+ assert.ok(Math.abs(r.T-T-beat)<1e-8);assert.ok(Math.abs(p.wine-(wine-.12))<1e-8);
  r.result='ok';g.inspect.finishToastAttempt();r.result='ok';g.inspect.finishToastAttempt();
- assert.equal(r.phase,'react');assert.equal(r.chainHits,3);assert.equal(p.wine,wine-.2);
- g.inspect.newRound(false);assert.ok(Math.abs(p.wine-(wine-.2+.03))<1e-8);
+ assert.equal(r.phase,'react');assert.equal(r.chainHits,3);assert.equal(p.wine,wine-.12);
+ g.inspect.newRound(false);assert.ok(Math.abs(p.wine-(wine-.12+.03))<1e-8);
 });
 test('alien targets are concealed, revealed one second before zero, then remain fixed',()=>{
  for(const layer of [9,10,11]) for(const bpm of [90,126,160]) for(const choice of [0,1,2]) {
@@ -103,8 +103,8 @@ test('settlement retains difficulty, perfects and misses on desktop and mobile',
   const labels=[];const g=createGame({touch,width:touch?844:1080,height:touch?390:1080,
    search:'?capture=1&tut=0&difficulty=hard',onDraw(k,a){if(k==='fillText')labels.push(a[0]);}});
   Object.assign(g.inspect.st,{perfects:7,strikes:3,bestCombo:8});g.inspect.gameOver('beer');g.advance(150);g.render();
-  assert.ok(labels.includes('高难 · 35岁，杯杯是房贷'));
-  assert.ok(labels.includes('最高 8 连敬 · 完美 7 次 · 失误 3 次'));
+  assert.ok(labels.some(s=>s.endsWith('高难 · 35岁，杯杯是房贷')));
+  for (const stat of ['最高 8 连敬', '完美 7 次', '失误 3 次']) assert.ok(labels.some(s=>s.includes(stat)));
  }
 });
 test('all revealed heights are reachable using ordinary controls at all supported tempos',()=>{

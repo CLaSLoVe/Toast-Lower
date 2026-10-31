@@ -23,7 +23,7 @@ Automated playthrough.
 
 On desktop, R restarts and M mutes. Choose a difficulty or open the tutorial from the home screen. On mobile, diagonal stick input controls both axes; releasing it preserves momentum. The game always uses landscape: with portrait rotation lock enabled, the display and touch controls rotate automatically inside the page.
 
-The red **0s** marks the ideal toast timing. Run out of wine and the game ends. Missed toasts cost wine; completed rounds restore a little. Perfect toasts require both precise timing and a steady glass. Later glasses are smaller and hold less wine.
+The red **0s** marks the ideal toast timing. Run out of wine and the game ends. Missed toasts cost wine; successful rounds restore a little. Perfect toasts require both precise timing and a steady glass. Later glasses are smaller and hold less wine.
 
 ## Four chapters, twelve stages
 
@@ -36,7 +36,9 @@ The red **0s** marks the ideal toast timing. Run out of wine and the game ends. 
 
 Endless mode follows the twelve stages, and the same score keeps accumulating.
 
-Each stage has a fixed set of scoring opportunities. Each beat scores only on its first attempt; retries can advance the stage but award no points or hype. Perfect toasts, combos and completed stages earn bonuses, with an extra bonus for clearing all twelve stages from the beginning. One high score is shared across difficulties and records the difficulty used. The new scoring rules use a separate record; legacy records remain in local storage.
+Each stage has a fixed set of scoring opportunities. Each beat scores only on its first attempt, with a chain sharing one group’s score budget; retries can advance the stage but award no points or hype. Combos and hype settle once per group. Perfect toasts, combos and completed stages earn bonuses, with an extra bonus for clearing all twelve stages from the beginning. One high score is shared across difficulties and records the difficulty used. It saves on clearing stages and returning home. Custom rules, practice controls, stage skips and automated runs do not replace standard records. The new scoring rules use a separate record; legacy records remain in local storage.
+
+Successful contact itself consumes no wine. For 2/3/4-note chains, cumulative penalties are 12%/20%, 12%/16%/20%, and 12%/16%/18%/20%. A group with at least one successful note gets one refill (3% by default); an all-miss group gets none. Percentages use the starting glass capacity. Results show actual spills, penalties and refills.
 
 ## Ranks
 
@@ -53,9 +55,9 @@ Your final score determines your title. Scores below are entry thresholds; the f
 | 130,000 | 懂事长 | Toasted your way into management. |
 | 230,000 | 敬酒悍匪 | Taking the offensive. |
 | 360,000 | 国家一级陪酒员 | Practically licensed for this. |
-| 480,000 | 先天敬酒圣体 | Born for this banquet. |
-| 580,000 | 铁血山东 👍 | Social etiquette: maxed out. |
-| 650,000 | DeepDrink | A large toasting model. |
+| 450,000 | 先天敬酒圣体 | Born for this banquet. |
+| 540,000 | 铁血山东 👍 | Social etiquette: maxed out. |
+| 600,000 | DeepDrink | A large toasting model. |
 
 ## Run locally
 

@@ -10,16 +10,22 @@
   };
   const groups = {
     common: ['roundWait', 'missPenalty', 'roundRefill', 'spillMultiplier', 'spillMax', 'minCapacity'],
-    difficulty: ['Time', 'Taper', 'Setup', 'BodyCupCoupling', 'Hand'],
+    difficulty: ['Time', 'Taper', 'Setup', 'BodyCupCoupling', 'Hand', 'ChainWindow'],
     feel: ['stickDeadzone', 'stickCurve', 'cupTiltLimit', 'bodyBrakeCoupling', 'bodyAccel', 'bodyBrake', 'cupAccel', 'cupBrake', 'releaseCup', 'releaseBody'],
-    advanced: ['openingRounds', 'regularRounds', 'chainRounds', 'toastScore', 'comboScore', 'comboCap', 'hypeScore', 'floorScore', 'clearScore', 'chainReach', 'chainWindow', 'alienRounds', 'alienCountdown', 'alienReveal', 'alienStep1', 'alienStep2', 'alienStep3', 'musicVolume', 'musicBpm', 'spillSoundVolume', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'floorRefill', 'clinkSpill', 'spillGrace', 'spillRamp']
+    advanced: ['openingRounds', 'regularRounds', 'chainRounds', 'toastScore', 'comboScore', 'comboCap', 'hypeScore', 'floorScore', 'clearScore', 'chainReach', 'chainPenaltyFirst', 'chainPenaltySecond', 'chainPenaltyThird', 'successPause', 'missPause', 'smashCharge', 'focusDrift', 'stallPause', 'timingScore', 'heightScore', 'wineScore', 'floorWineScore', 'hypeHit', 'hypePerfect', 'hypeMiss', 'alienRounds', 'alienCountdown', 'alienReveal', 'alienStep1', 'alienStep2', 'alienStep3', 'musicVolume', 'musicBpm', 'spillSoundVolume', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'floorRefill', 'spillGrace', 'spillRamp']
   };
   const tips = {
     openingRounds: '职场前两关各有几次固定敬酒机会；失败补敬不会增加计分机会。',
     regularRounds: '其余普通与晃动关卡的固定敬酒轮数。',
+    chainPenaltyFirst: '一组第一次失误罚标准额度的60%；默认即12%初始杯容量。',
+    chainPenaltySecond: '三连／四连第二次失误后的累计额度；80%标准罚酒默认即累计16%。',
+    chainPenaltyThird: '四连第三次失误后的累计额度；最后一次全错固定达到100%。',
+    smashCharge: '首次砸楼所需蓄力，后续乘重复倍率，不再随楼层增加。',
+    focusDrift: '古墓和外星保留的扶杯漂移强度；这两章不再随机推搡。',
+    stallPause: '超过这个时长未更新画面时暂停；恢复后重新给出当前待碰杯的拍子。',
     chainRounds: '每关连续踩拍的组数；每拍只在第一次尝试时计分。',
-    toastScore: '成功碰杯基础分，乘以当前关数；补敬不计分。',
-    comboScore: '每次连敬增加的分数，乘以当前关数；不再使用连击倍增。',
+    toastScore: '成功一组的基础分，乘以当前关数；连敬按拍数平分，补敬不计分。',
+    comboScore: '每组全中延续连敬；连敬加分乘以当前关数。',
     comboCap: '超过此连敬次数后，连敬加分不再增加。',
     hypeScore: '气势满格的奖励，乘以当前关数；补敬不积累气势。',
     floorScore: '每关完成时的基础分，乘以当前关数。',
@@ -27,7 +33,7 @@
     stickDeadzone: '手机摇杆靠近中心时不输入，避免手指微晃。电脑键盘不受影响。',
     stickCurve: '越大，小幅推杆越细腻；推到底仍保持原来的最大力度。',
     chainReach: '古墓连敬使用的短伸手动作；最多占一拍的 38%，给下一拍留出回收时间。',
-    chainWindow: '连敬每拍的前后误差，以音乐拍长计算；普通单杯不受影响。',
+    ChainWindow: '连敬每拍的前后误差，以音乐拍长计算；普通单杯不受影响。',
     alienCountdown: '从三杯同时亮圈到红色 0 秒；独立于普通回合、深度和难度的时间调整。',
     alienReveal: '剩余这段时间时，只保留目标圆圈，同时出现辅助高度线。',
     alienRounds: '每关固定几轮敬酒后进入砸楼；失败补敬不增加计分机会。',
@@ -50,7 +56,7 @@
     repeatStandup: '第二次落地开始，起身动画的时长。',
     roundWait: '越小，领导越快碰杯。难度和特殊回合会在此基础上调整。',
     missPenalty: '没敬上时扣掉多少酒。20% 指初始大杯的五分之一。',
-    roundRefill: '每回合结束后补回多少酒，最多补到满杯。',
+    roundRefill: '成功回合结束后添酒；连敬一组至少碰上一次才添一次，最多到满杯。',
     spillMultiplier: '越大漏得越快；1 是正常速度，0 关闭持续漏酒。',
     spillMax: '大幅倾斜时，每秒最多扣多少酒。',
     Time: '允许碰杯早一点或晚一点。越大越容易。',
@@ -63,7 +69,7 @@
     reachTime: '按下空格到杯子接触所需的时间。', minWait: '后期倒计时的下限，不超过普通倒计时。',
     depthSpeedup: '深入后最多缩短多少秒。', retargetBonus: '杯口高度变化大时，额外给出的调整时间上限。',
     practiceBonus: '练习手感额外增加的碰杯容错。', perfectRefill: '完美碰杯额外补酒。',
-    hypeRefill: '气势满格时额外补酒。', floorRefill: '进入下一层时补酒。', clinkSpill: '成功碰杯震动造成的小额损耗。',
+    hypeRefill: '气势满格时额外补酒。', floorRefill: '进入下一层时补酒。',
     spillGrace: '开始倾斜后，多久才逐渐扣酒。', spillRamp: '从缓冲结束到正常漏酒速度所需的时间。'
   };
   let dialog, options, draft, tab, difficulty, selectedCtl, selectedLayer, selectedMute, status;
@@ -135,6 +141,7 @@
       const invalid = config.fields.find(([key, , , min, max]) => typeof draft[key] !== 'number' || !Number.isFinite(draft[key]) || draft[key] < min || draft[key] > max);
       if (invalid) { updateStatus(`${invalid[1]}请填写 ${invalid[3]}–${invalid[4]} 之间的数值`); return; }
       if (draft.alienReveal > draft.alienCountdown - 0.5) { updateStatus('外星目标揭晓前至少保留 0.5 秒三杯倒计时'); return; }
+      if (draft.chainPenaltyFirst > draft.chainPenaltySecond || draft.chainPenaltySecond > draft.chainPenaltyThird) { updateStatus('连敬累计罚酒比例必须依次递增'); return; }
       if (draft.minWait > draft.roundWait) { updateStatus('后期最短倒计时不能大于普通倒计时（可在高级中修改）'); return; }
       for (const id of ['easy', 'normal', 'hard']) if (draft[id + 'Taper'] > draft[id + 'Time'] - 0.05) { updateStatus('后期收紧后，碰杯容错至少要保留 0.05 秒'); return; }
       try { options.onSave({ values: draft, ctl: selectedCtl, layer: selectedLayer, muted: selectedMute }); close(); }

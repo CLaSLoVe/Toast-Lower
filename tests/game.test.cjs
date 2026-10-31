@@ -126,7 +126,7 @@ if (!matrixOnly) {
     assert.notEqual(g.api.dbg().ctl, original);
     settings.onClose(); g.tap('Enter'); assert.equal(g.api.state().state, 'play');
   });
-  test('misses cost wine instead of lives and completed rounds refill once', () => {
+  test('misses cost wine instead of lives and failed rounds never refill', () => {
     const g = game(); g.tap('Enter');
     until(g, () => g.api.state().strikes >= 3, 1800);
     assert.equal(g.api.state().state, 'play');
@@ -139,7 +139,7 @@ if (!matrixOnly) {
     assert.notEqual(g.inspect.st.round, round);
     const refill = g.inspect.player.wine - before;
     // Continuous spilling can still drain up to 0.11 / 60 on this frame.
-    assert.ok(refill >= 0.03 - 0.11 / 60 - 1e-9 && refill <= 0.03 + 1e-9);
+    assert.ok(refill >= -0.11 / 60 - 1e-9 && refill <= 1e-9);
     const wine = g.inspect.player.wine; g.advance(3);
     assert.ok(g.inspect.player.wine <= wine + 1e-9, 'no repeated refill during aim');
   });
@@ -408,7 +408,7 @@ if (!matrixOnly) {
     for (const g of [early, late, shaky, fast]) { assert.equal(g.api.state().toasts, 1); assert.equal(g.api.state().perfects, 0); }
     assert.ok(perfect.api.state().score > shaky.api.state().score);
     assert.equal(perfect.inspect.player.vtilt, 0, 'contact does not force the wrist forwards');
-    assert.ok(Math.abs(perfect.inspect.player.wine - 0.485) < 1e-9, 'perfect no longer adds wine by default');
+    assert.equal(perfect.inspect.player.wine, 0.5, 'perfect adds points without consuming or refilling wine by default');
   });
   test('repeat floor smashing keeps the first reveal and shortens later preparation and charge', () => {
     function trial(breaks) {
