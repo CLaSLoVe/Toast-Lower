@@ -112,7 +112,7 @@ test('later smash charge stays fixed even deep in endless',()=>{
 });
 test('endless cycles existing phrase lengths and alien height spans rather than repeating one variant',()=>{
  assert.deepEqual([13,16,19].map(i=>game(i).inspect.st.round.chain),[2,3,4]);
- assert.deepEqual([14,17,20].map(i=>game(i).inspect.st.alien.step),[36,48,60]);
+ assert.deepEqual([14,17,20].map(i=>game(i,'easy').inspect.st.alien.step),[36,48,60]);
 });
 test('cosmetic drawing cannot change seeded physics, and focused chapters have no random shove',()=>{
  const a=game(),b=game();for(let i=0;i<60;i++){b.render();a.advance(1);b.advance(1);}

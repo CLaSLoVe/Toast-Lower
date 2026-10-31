@@ -10,9 +10,9 @@
   };
   const groups = {
     common: ['roundWait', 'missPenalty', 'roundRefill', 'spillMultiplier', 'spillMax', 'minCapacity'],
-    difficulty: ['Time', 'Taper', 'Setup', 'BodyCupCoupling', 'Hand', 'ChainWindow'],
+    difficulty: ['Time', 'Taper', 'Setup', 'BodyCupCoupling', 'Hand', 'ChainWindow', 'FocusDrift', 'FloorRefill', 'AlienHeight'],
     feel: ['stickDeadzone', 'stickCurve', 'cupTiltLimit', 'bodyBrakeCoupling', 'bodyAccel', 'bodyBrake', 'cupAccel', 'cupBrake', 'releaseCup', 'releaseBody'],
-    advanced: ['openingRounds', 'regularRounds', 'chainRounds', 'toastScore', 'comboScore', 'comboCap', 'hypeScore', 'floorScore', 'clearScore', 'chainReach', 'chainPenaltyFirst', 'chainPenaltySecond', 'chainPenaltyThird', 'successPause', 'missPause', 'smashCharge', 'focusDrift', 'stallPause', 'timingScore', 'heightScore', 'wineScore', 'floorWineScore', 'hypeHit', 'hypePerfect', 'hypeMiss', 'alienRounds', 'alienCountdown', 'alienReveal', 'alienStep1', 'alienStep2', 'alienStep3', 'musicVolume', 'musicBpm', 'spillSoundVolume', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'floorRefill', 'spillGrace', 'spillRamp']
+    advanced: ['openingRounds', 'regularRounds', 'chainRounds', 'toastScore', 'comboScore', 'comboCap', 'hypeScore', 'floorScore', 'clearScore', 'chainReach', 'chainPenaltyFirst', 'chainPenaltySecond', 'chainPenaltyThird', 'successPause', 'missPause', 'smashCharge', 'stallPause', 'timingScore', 'heightScore', 'wineScore', 'floorWineScore', 'hypeHit', 'hypePerfect', 'hypeMiss', 'alienRounds', 'alienCountdown', 'alienReveal', 'alienStep1', 'alienStep2', 'alienStep3', 'musicVolume', 'musicBpm', 'spillSoundVolume', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'spillGrace', 'spillRamp']
   };
   const tips = {
     openingRounds: '职场前两关各有几次固定敬酒机会；失败补敬不会增加计分机会。',
@@ -21,7 +21,7 @@
     chainPenaltySecond: '三连／四连第二次失误后的累计额度；80%标准罚酒默认即累计16%。',
     chainPenaltyThird: '四连第三次失误后的累计额度；最后一次全错固定达到100%。',
     smashCharge: '首次砸楼所需蓄力，后续乘重复倍率，不再随楼层增加。',
-    focusDrift: '古墓和外星保留的扶杯漂移强度；这两章不再随机推搡。',
+    FocusDrift: '古墓和外星保留的扶杯漂移强度；这两章不再随机推搡。',
     stallPause: '超过这个时长未更新画面时暂停；恢复后重新给出当前待碰杯的拍子。',
     chainRounds: '每关连续踩拍的组数；每拍只在第一次尝试时计分。',
     toastScore: '成功一组的基础分，乘以当前关数；连敬按拍数平分，补敬不计分。',
@@ -33,6 +33,7 @@
     stickDeadzone: '手机摇杆靠近中心时不输入，避免手指微晃。电脑键盘不受影响。',
     stickCurve: '越大，小幅推杆越细腻；推到底仍保持原来的最大力度。',
     chainReach: '古墓连敬使用的短伸手动作；最多占一拍的 38%，给下一拍留出回收时间。',
+    AlienHeight: '放大三个候选杯的高度差；倒计时仍为2秒、最后1秒揭晓，操作速度不变。',
     ChainWindow: '连敬每拍的前后误差，以音乐拍长计算；普通单杯不受影响。',
     alienCountdown: '从三杯同时亮圈到红色 0 秒；独立于普通回合、深度和难度的时间调整。',
     alienReveal: '剩余这段时间时，只保留目标圆圈，同时出现辅助高度线。',
@@ -69,7 +70,7 @@
     reachTime: '按下空格到杯子接触所需的时间。', minWait: '后期倒计时的下限，不超过普通倒计时。',
     depthSpeedup: '深入后最多缩短多少秒。', retargetBonus: '杯口高度变化大时，额外给出的调整时间上限。',
     practiceBonus: '练习手感额外增加的碰杯容错。', perfectRefill: '完美碰杯额外补酒。',
-    hypeRefill: '气势满格时额外补酒。', floorRefill: '进入下一层时补酒。',
+    hypeRefill: '气势满格时额外补酒。', FloorRefill: '进入下一层时添酒，按初始大杯容量计算；实际添酒不超过当前杯容量。',
     spillGrace: '开始倾斜后，多久才逐渐扣酒。', spillRamp: '从缓冲结束到正常漏酒速度所需的时间。'
   };
   let dialog, options, draft, tab, difficulty, selectedCtl, selectedLayer, selectedMute, status;

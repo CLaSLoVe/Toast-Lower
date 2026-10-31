@@ -68,3 +68,9 @@ pause handling in every active state, long-frame recovery, difficulty-specific
 chain timing, constant repeat smash charge, endless variants, and both result layouts.
 The harness optionally accepts a CPU Canvas context for local pixel review; default
 checks remain dependency-free and never request a GPU.
+
+Difficulty checks (`node tests/difficulty.test.cjs`) protect the unchanged easy
+preset, compare equal early/late errors, verify actual per-mode floor refills,
+and check the height/drift scaling. The optional VM timing probe shifts only the
+bot's intended tap time; physics, movement and contact still run normally. Alien
+reachability tests cover all three difficulties, targets and supported test tempos.

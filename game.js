@@ -401,7 +401,7 @@ function playFloor() { return floorY(st.L) + groundOff(); }
 // Three possible cups share a clock; only the selected leader keeps a clock for the last second.
 function alienRhythm(L) {
   const d = layerDef(L), room = d.room != null ? d.room : Math.floor(((d.endless || 1) - 1) / 3) % 3;
-  return { step: [CFG.alienStep1, CFG.alienStep2, CFG.alienStep3][room], gap: 0, aimBonus: 0, n: 3 };
+  return { step: [CFG.alienStep1, CFG.alienStep2, CFG.alienStep3][room] * CFG[difficulty().id + 'AlienHeight'], gap: 0, aimBonus: 0, n: 3 };
 }
 function prepareAlienLeaders() {
   if (st.tut || activeMech() !== 'alien') return;
@@ -1055,7 +1055,7 @@ function stepDisturb(dt, d) {
   // the cup's slow lean: a new direction every few seconds
   st.tdrT -= dt;
   if (st.tdrT <= 0) { st.tdrT = physicsRange(1.6, 3.2) / d.driftT; p.tdrGoal = (physicsRandom() < 0.5 ? -1 : 1) * physicsRange(0.3, 0.55) * d.drift; }
-  const goal = live ? (p.tdrGoal || 0) * (['chain', 'alien'].includes(activeMech()) ? CFG.focusDrift : 1) : tutDrift ? 0.35 * Math.sign(p.tdrGoal || 1) : 0;
+  const goal = live ? (p.tdrGoal || 0) * (['chain', 'alien'].includes(activeMech()) ? CFG[difficulty().id + 'FocusDrift'] : 1) : tutDrift ? 0.35 * Math.sign(p.tdrGoal || 1) : 0;
   p.tdr += (goal - p.tdr) * Math.min(1, 2 * dt);
   // a bump: ~0.8 s warning (! over your head), then a shove on height and/or tilt
   const b = st.bump;
@@ -1720,7 +1720,7 @@ function beginStandup() {
   saved.forEach(f => Object.assign(f.c, { k: f.k, b: f.b, phi: f.phi, arm: f.arm, x: f.x, y: f.y }));
   su = { from: saved, to };
   for (const c of allChars()) { c.mode = 'play'; if (c !== player) c.wine = 1; }
-  refillWine(CFG.floorRefill / 100);
+  refillWine(CFG[difficulty().id + 'FloorRefill'] / 100);
   const ld = layerDef(st.L); st.depth = ld.depth;
   if (ld.endless === 1) banner('进入无尽模式！', '', 1.9, '#ff9a3d');
   else banner(layerLabel(st.L), '', 1.7);

@@ -5,8 +5,8 @@
   "description": "敬酒模拟器 — 支持电脑键盘和手机横屏的节奏协调小游戏",
   "scripts": {
     "build": "node scripts/build.cjs",
-    "test": "node tests/game.test.cjs --quick && node tests/chapters.test.cjs && node tests/scoring.test.cjs && node tests/mobile.test.cjs && node tests/navigation.test.cjs && node tests/music.test.cjs && node tests/balance.test.cjs",
-    "test:full": "node tests/game.test.cjs && node tests/chapters.test.cjs && node tests/scoring.test.cjs && node tests/mobile.test.cjs && node tests/navigation.test.cjs && node tests/music.test.cjs && node tests/balance.test.cjs"
+    "test": "node tests/game.test.cjs --quick && node tests/chapters.test.cjs && node tests/scoring.test.cjs && node tests/mobile.test.cjs && node tests/navigation.test.cjs && node tests/music.test.cjs && node tests/balance.test.cjs && node tests/difficulty.test.cjs",
+    "test:full": "node tests/game.test.cjs && node tests/chapters.test.cjs && node tests/scoring.test.cjs && node tests/mobile.test.cjs && node tests/navigation.test.cjs && node tests/music.test.cjs && node tests/balance.test.cjs && node tests/difficulty.test.cjs"
   },
   "engines": {
     "node": ">=22"

@@ -108,11 +108,11 @@ test('settlement retains difficulty, perfects and misses on desktop and mobile',
  }
 });
 test('all revealed heights are reachable using ordinary controls at all supported tempos',()=>{
- for(const layer of [9,10,11]) for(const bpm of [90,126,160]) for(const choice of [0,1,2]) {
-  const g=game(layer,'&bot=expert'),r=g.inspect.st.round;g.inspect.config.musicBpm=bpm;r.alienChoice=choice;
+ for(const mode of ['easy','normal','hard']) for(const layer of [9,10,11]) for(const bpm of [90,126,160]) for(const choice of [0,1,2]) {
+  const g=game(layer,`&bot=expert&difficulty=${mode}`),r=g.inspect.st.round;g.inspect.config.musicBpm=bpm;r.alienChoice=choice;
   for(let f=0;f<400&&g.inspect.contacts.length===0;f++){g.sandbox.__musicClock=f/60;g.advance(1);}
-  const c=g.inspect.contacts[0];assert.ok(c,`${layer}/${bpm}/${choice} attempted`);assert.equal(c.revealed,true);
-  assert.equal(c.result,'ok',`${layer}/${bpm}/${choice}: ${c.result}`);
+  const c=g.inspect.contacts[0];assert.ok(c,`${mode}/${layer}/${bpm}/${choice} attempted`);assert.equal(c.revealed,true);
+  assert.equal(c.result,'ok',`${mode}/${layer}/${bpm}/${choice}: ${c.result}`);
  }
 });
 test('explicit seeds repeat, ordinary restarts vary, repeated leaders and retry targets are allowed',()=>{

@@ -40,7 +40,12 @@ function makeAudio() {
 
 function createGame(options = {}) {
   const sourcePath = options.source || path.join(__dirname, '..', 'game.js');
-  const source = fs.readFileSync(sourcePath, 'utf8');
+  let source = fs.readFileSync(sourcePath, 'utf8');
+  // Optional timing-error probe: real motion/contact, only the bot's intended tap beat shifts.
+  if (options.timingProbe) {
+    source = source.replace('const late = roundLeft() <= reachTime();', 'const late = roundLeft() <= reachTime() + (window.__timingOffset || 0);')
+      .replace('const ready = roundLeft() <= reachTime() + Math.min(0.06, timingWindow() * 0.25);', 'const ready = roundLeft() <= reachTime() + (window.__timingOffset || 0);');
+  }
   const canvasEvents = eventTarget(), windowEvents = eventTarget();
   let draws = 0, animationFrame;
   const gradient = { addColorStop() {} };
