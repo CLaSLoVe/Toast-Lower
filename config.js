@@ -1,7 +1,7 @@
 'use strict';
 // 游戏调参入口。每行依次是：键名、显示名、默认值、最小值、最大值、步长、单位。
 // 百分比直接写 20 表示 20%（按标准大杯容量计算），时间单位为秒。
-// 游戏内「···」使用同一张表。修改本文件后刷新，旧的本机覆盖自动失效。
+// 游戏内「···」使用同一张表。修改本文件后刷新，旧的测试参数覆盖自动失效；玩家音量设置保留。
 (() => {
   const fields = [
     ['openingRounds', '职场前两关敬酒轮数', 3, 2, 5, 1, '轮'],
@@ -104,6 +104,8 @@
     ['releaseBody', '松手身体制动', 0.78, 0.1, 1, 0.02, '']
   ];
   const defaults = Object.fromEntries(fields.map(([key, , value]) => [key, value]));
+  const preferenceKeys = ['musicVolume', 'sfxVolume', 'spillSoundVolume'];
+  const preferenceKey = 'toastLower.preferences.v1';
   const signature = JSON.stringify(defaults), key = 'toastLower.parameters.v1';
   function validate(input) {
     const out = { ...defaults };
@@ -123,13 +125,29 @@
     return out;
   }
   function load(storage) {
-    try { const saved = JSON.parse(storage.getItem(key)); if (saved && saved.signature === signature) return validate(saved.values); } catch (e) {}
-    return validate(defaults);
+    let values = { ...defaults }, legacy;
+    try {
+      const saved = JSON.parse(storage.getItem(key)); legacy = saved?.values;
+      if (saved && saved.signature === signature) values = validate(saved.values);
+    } catch (_) {}
+    let preferences;
+    try { preferences = JSON.parse(storage.getItem(preferenceKey)); } catch (_) {}
+    for (const name of preferenceKeys) {
+      const value = preferences?.[name] ?? legacy?.[name];
+      if (Number.isFinite(value)) values[name] = value;
+    }
+    return validate(values);
+  }
+  function savePreferences(storage, values) {
+    const clean = validate(values);
+    storage.setItem(preferenceKey, JSON.stringify(Object.fromEntries(preferenceKeys.map(k => [k, clean[k]]))));
+    return clean;
   }
   function save(storage, values) {
     const clean = validate(values);
     storage.setItem(key, JSON.stringify({ signature, values: clean }));
+    savePreferences(storage, clean);
     return clean;
   }
-  window.ToastConfig = { fields, defaults, validate, load, save };
+  window.ToastConfig = { fields, defaults, preferenceKeys, validate, load, save, savePreferences };
 })();

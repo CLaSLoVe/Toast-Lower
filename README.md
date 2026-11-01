@@ -21,7 +21,7 @@ Automated playthrough.
 | Pause | Esc / pause button | Top-right pause button |
 | Return home | Top-right home button | Top-right home button |
 
-On desktop, R restarts and M mutes. Choose a difficulty or open the tutorial from the home screen. On mobile, diagonal stick input controls both axes; releasing it preserves momentum. The game always uses landscape: with portrait rotation lock enabled, the display and touch controls rotate automatically inside the page.
+On desktop, R restarts and M mutes. Open Settings from the home screen or during play to adjust audio; closing it resumes an active game. Choose a difficulty or open the tutorial from the home screen. On mobile, diagonal stick input controls both axes; releasing it preserves momentum. The game always uses landscape: with portrait rotation lock enabled, the display and touch controls rotate automatically inside the page.
 
 The red **0s** marks the ideal toast timing. Run out of wine and the game ends. Missed toasts cost wine; successful rounds restore a little. Perfect toasts require both precise timing and a steady glass. Later glasses are smaller and hold less wine.
 
@@ -36,11 +36,11 @@ Easy keeps forgiving timing. Normal and Hard tighten timing, increase cup drift 
 | Ancient tomb | Hold a fixed height and hit 2, 3, then 4 consecutive beats |
 | Aliens | Three cups count down from 2 seconds. Only the target’s circle and height guide remain in the final second; the leader steps forward at 0s. The same leader can be picked again |
 
-Endless mode follows the twelve stages, and the same score keeps accumulating.
+After stage twelve, the results screen shows your rank, score, difficulty, perfects, misses and wine totals. Choose Continue Endless to keep playing with the same score and resources, or return home.
 
 Each stage has a fixed set of scoring opportunities. Each beat scores only on its first attempt, with a chain sharing one group’s score budget; retries can advance the stage but award no points or hype. Combos and hype settle once per group. Perfect toasts, combos and completed stages earn bonuses, with an extra bonus for clearing all twelve stages from the beginning. One high score is shared across difficulties and records the difficulty used. It saves on clearing stages and returning home. Custom rules, practice controls, stage skips and automated runs do not replace standard records. The new scoring rules use a separate record; legacy records remain in local storage.
 
-Successful contact itself consumes no wine. For 2/3/4-note chains, cumulative penalties are 12%/20%, 12%/16%/20%, and 12%/16%/18%/20%. A group with at least one successful note gets one refill (3% by default); an all-miss group gets none. Percentages use the starting glass capacity. Results show actual spills, penalties and refills.
+Successful contact itself consumes no wine. For 2/3/4-note chains, cumulative penalties are 12%/20%, 12%/16%/20%, and 12%/16%/18%/20%. A group with at least one successful note gets one refill (3% by default); an all-miss group gets none. Percentages use the standard full-glass capacity, including when Hard starts with a smaller glass. Results show actual spills, penalties and refills.
 
 ## Ranks
 
@@ -73,19 +73,26 @@ Open <http://127.0.0.1:8783/> in your browser.
 
 ## Editing and checks
 
-- `game.js`: rendering, physics, stages and controls.
+- `game.js`: physics, rendering and game flow.
+- `rules.js`: wine accounting, fixed scoring opportunities, toast points and rank thresholds.
+- `chapters.js`: chapter definitions, characters and dialogue.
+- `input-ui.js`: keyboard/touch mapping and device-specific prompts.
 - `config.js`: parameter defaults, ranges and units, with Chinese descriptions.
-- `settings.js` / `settings.css`: hidden debug settings. Click “···” on the home or pause screen, or press Shift+D.
-- `music.js` / `assets/audio/`: music playback and beat clock; `tools/make_music.py` contains the music synthesis source.
+- `settings.js` / `settings.css`: player settings and a separate test panel. “Settings” changes music, effects, spill sounds, mute and first-use hints immediately, without restarting. “···” on the home/pause screen or Shift+D opens test parameters; rule changes restart the run.
+- `music.js` / `audio-clock.js` / `assets/audio/`: audio mixing and a round clock that falls back safely if playback stalls; `tools/make_music.py` contains the music synthesis source.
 - `assets/home/`: current home background, logo and favicon.
 - `tests/`: logic tests that run without a browser or GPU. See the [test notes](tests/README.md).
 
-In-game settings are saved only in the current browser. Edit `config.js` to change the published defaults. No npm dependencies are required; use Node.js 22 or later:
+In-game settings are saved only in the current browser. Player volume preferences survive updates to rule defaults. A brief hint appears the first time each chapter mechanic is encountered; it can be disabled in Settings. Edit `config.js` to change the published defaults. No npm dependencies are required; use Node.js 22 or later:
 
 ```sh
 npm test
 npm run build
 ```
+
+## Notice
+
+Minors must not drink alcohol. Do not imitate the game’s drinking behavior. The cellar label uses a fictional wine name.
 
 ## Development
 

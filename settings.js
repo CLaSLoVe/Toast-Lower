@@ -12,7 +12,7 @@
     common: ['roundWait', 'missPenalty', 'roundRefill', 'spillMultiplier', 'spillMax', 'minCapacity'],
     difficulty: ['Time', 'Taper', 'Setup', 'BodyCupCoupling', 'Hand', 'ChainWindow', 'FocusDrift', 'FloorRefill', 'AlienHeight', 'HeightWindow'],
     feel: ['stickDeadzone', 'stickCurve', 'cupTiltLimit', 'bodyBrakeCoupling', 'bodyAccel', 'bodyBrake', 'cupAccel', 'cupBrake', 'releaseCup', 'releaseBody'],
-    advanced: ['openingRounds', 'regularRounds', 'chainRounds', 'toastScore', 'comboScore', 'comboCap', 'hypeScore', 'floorScore', 'clearScore', 'chainReach', 'chainPenaltyFirst', 'chainPenaltySecond', 'chainPenaltyThird', 'successPause', 'missPause', 'smashCharge', 'stallPause', 'timingScore', 'heightScore', 'wineScore', 'floorWineScore', 'hypeHit', 'hypePerfect', 'hypeMiss', 'alienRounds', 'alienCountdown', 'alienReveal', 'alienStep1', 'alienStep2', 'alienStep3', 'musicVolume', 'sfxVolume', 'musicBpm', 'hardStartCapacity', 'spillSoundVolume', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'spillGrace', 'spillRamp']
+    advanced: ['openingRounds', 'regularRounds', 'chainRounds', 'toastScore', 'comboScore', 'comboCap', 'hypeScore', 'floorScore', 'clearScore', 'chainReach', 'chainPenaltyFirst', 'chainPenaltySecond', 'chainPenaltyThird', 'successPause', 'missPause', 'smashCharge', 'stallPause', 'timingScore', 'heightScore', 'wineScore', 'floorWineScore', 'hypeHit', 'hypePerfect', 'hypeMiss', 'alienRounds', 'alienCountdown', 'alienReveal', 'alienStep1', 'alienStep2', 'alienStep3', 'musicBpm', 'hardStartCapacity', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'spillGrace', 'spillRamp']
   };
   const tips = {
     openingRounds: '职场前两关各有几次固定敬酒机会；失败补敬不会增加计分机会。',
@@ -110,8 +110,9 @@
   }
   function render() {
     dialog.replaceChildren();
+    if (options.user) { renderPlayer(); return; }
     const form = el('form', { novalidate: '' });
-    form.append(el('header', {}, [el('div', {}, [el('h1', { text: '游戏设置' }), el('p', { text: options.paused ? '保存后重开本局，新参数立即用于这一局。' : '改好后保存，下一局就用新参数。' })]), el('button', { type: 'button', class: 'close-settings', text: '取消', onclick: close })]));
+    form.append(el('header', {}, [el('div', {}, [el('h1', { text: '测试设置' }), el('p', { text: options.paused ? '保存后重开本局，新参数立即用于这一局。' : '改好后保存，下一局就用新参数。' })]), el('button', { type: 'button', class: 'close-settings', text: '取消', onclick: close })]));
     const nav = el('nav', { 'aria-label': '设置分类' });
     for (const [id, label] of [['common', '常用'], ['difficulty', '难度'], ['feel', '手感'], ['advanced', '高级']]) nav.append(el('button', { type: 'button', text: label, 'aria-pressed': String(tab === id), onclick: () => { tab = id; render(); } }));
     form.append(nav);
@@ -133,9 +134,7 @@
       const select = el('select', { id: 'setting-level', 'aria-label': '开始关卡' });
       options.layers.forEach((label, i) => select.append(el('option', { value: i, text: label })));
       select.value = selectedLayer; select.addEventListener('change', () => { selectedLayer = Number(select.value); updateStatus(); });
-      const mute = el('input', { type: 'checkbox', id: 'setting-mute' }); mute.checked = selectedMute;
-      mute.addEventListener('change', () => { selectedMute = mute.checked; updateStatus(); });
-      panel.append(el('div', { class: 'setting-row' }, [el('label', { for: 'setting-level', text: '开始关卡' }), select]), el('div', { class: 'setting-row' }, [el('label', { for: 'setting-mute', text: '静音' }), mute]));
+      panel.append(el('div', { class: 'setting-row' }, [el('label', { for: 'setting-level', text: '开始关卡' }), select]));
     }
     form.append(panel);
     status = el('p', { class: 'settings-status', role: 'status' });
@@ -153,6 +152,25 @@
     });
     dialog.append(form); updateStatus();
   }
+  function renderPlayer() {
+    const form = el('form', { class: 'player-settings' });
+    form.addEventListener('submit', e => e.preventDefault());
+    form.append(el('header', {}, [el('h1', { text: '设置' }), el('button', { type: 'button', class: 'close-settings', text: '完成', onclick: close })]));
+    const content = el('section', { class: 'settings-content' });
+    const apply = () => options.onChange(draft, selectedMute, options.guides);
+    for (const [key, label] of [['musicVolume', '音乐'], ['sfxVolume', '音效'], ['spillSoundVolume', '漏酒声']]) {
+      const input = el('input', { id: 'player-' + key, type: 'range', min: 0, max: 100, step: 1, value: draft[key], 'aria-label': label });
+      const output = el('output', { for: 'player-' + key, text: draft[key] + '%' });
+      input.addEventListener('input', () => { draft[key] = Number(input.value); output.textContent = draft[key] + '%'; apply(); });
+      content.append(el('div', { class: 'setting-row volume-row' }, [el('label', { for: 'player-' + key, text: label }), input, output]));
+    }
+    for (const [key, label, checked] of [['mute', '静音', selectedMute], ['guides', '首次引导', options.guides]]) {
+      const input = el('input', { id: 'player-' + key, type: 'checkbox' }); input.checked = checked;
+      input.addEventListener('change', () => { if (key === 'mute') selectedMute = input.checked; else options.guides = input.checked; apply(); });
+      content.append(el('div', { class: 'setting-row' }, [el('label', { for: 'player-' + key, text: label }), input]));
+    }
+    form.append(content); dialog.append(form);
+  }
   window.ToastSettings = {
     isOpen: () => !!dialog?.open,
     open(value) {
@@ -163,6 +181,7 @@
         dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
         for (const event of ['keydown', 'keyup', 'touchstart', 'touchmove', 'touchend', 'dblclick']) dialog.addEventListener(event, e => e.stopPropagation());
       }
+      dialog.classList.toggle('user-settings', !!value.user);
       render(); dialog.showModal(); dialog.querySelector('.close-settings').focus();
     }
   };

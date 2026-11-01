@@ -18,3 +18,15 @@
 [data-game-rotated] .setting-copy{min-width:0}
 [data-game-rotated] .difficulty-selector{flex-direction:row}
 [data-game-rotated] .game-settings footer{padding:8px 20px 12px}
+
+/* Player controls stay large and fit short landscape screens. */
+.user-settings{width:min(600px,calc(100vw - 24px))}
+.player-settings header{padding:14px 22px 10px;align-items:center}
+.player-settings .settings-content{padding:0 22px 14px}
+.player-settings .setting-row{padding:9px 0;gap:16px;flex-wrap:nowrap;align-items:center;min-height:32px}
+.volume-row label{min-width:56px;font-weight:700}
+.volume-row input[type=range]{flex:1;min-width:60px;height:36px;accent-color:#f2d699;touch-action:none}
+.volume-row output{width:48px;text-align:right;color:#ffe2a2;font-variant-numeric:tabular-nums}
+[data-game-rotated] .user-settings{width:min(600px,calc(100dvh - 24px))}
+[data-game-rotated] .player-settings .setting-row{padding:6px 0}
+@media(max-height:450px){.player-settings header{padding:8px 20px}.player-settings .setting-row{padding:5px 0}.player-settings .settings-content{padding-bottom:8px}}

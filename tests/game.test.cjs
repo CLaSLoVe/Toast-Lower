@@ -518,7 +518,8 @@ if (!matrixOnly) {
     const g = game('?tut=0&seed=20261022&debug=1'); g.tap('Enter');
     for (let target = 1; target <= 13; target++) {
       g.tap('BracketRight'); assert.equal(g.api.state().state, 'fall');
-      for (let frame = 0; frame < 600 && g.api.state().state !== 'play'; frame++) g.advance(1, frame % 30 === 0);
+      for (let frame = 0; frame < 600 && !['play', 'clear'].includes(g.api.state().state); frame++) g.advance(1, frame % 30 === 0);
+      if (target === 12) { assert.equal(g.api.state().state, 'clear'); g.tap('Enter'); g.advance(60); }
       assert.equal(g.api.state().layer, target); assert.equal(g.api.state().state, 'play');
       finiteState(g); g.render();
     }

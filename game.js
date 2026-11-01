@@ -92,9 +92,10 @@ function sfx(type) {
   if (muted || CAPTURE || !gestured) return;
   try {
     const audio = window.ToastMusic.audio?.();
-    if (!AC) AC = audio ? audio.context : new (window.AudioContext || window.webkitAudioContext)();
-    const output = audio ? audio.effects : AC.destination;
-    if (AC.state === 'suspended') AC.resume();
+    if (!audio) return;
+    AC = audio.context;
+    const output = audio.effects;
+    if (AC.state === 'suspended') Promise.resolve(AC.resume()).catch(() => {});
     const now = AC.currentTime, g = AC.createGain(); g.connect(output);
     if (type === 'boing') {
       // A rubbery downward glissando under the collapsing-floor impact.
@@ -156,43 +157,7 @@ const LH = 1000, SLAB = 150, F0 = 820, G = 2600;
 const floorY = i => F0 + i * LH;
 const SC = 1.45; // character scale
 
-const P_SPEC = { kind: 'player', shirt: '#f3f3f0', pants: '#24272e', skin: '#f4c9a1', hair: '#1a1a1a', tie: '#d42a35', scale: SC };
-const B_SPEC = { kind: 'boss', shirt: '#2c2f38', pants: '#2c2f38', skin: '#f1b28a', tie: '#d9a82e', belly: true, scale: SC * 1.07 };
-const TOMB_BOSS = { ...B_SPEC, skin: '#a4b98a', jiangshi: true, shirt: '#263556', tie: '#c59b40' };
-const ALIEN_HOST = { ...B_SPEC, scale: SC * 1.12 };
-const ALIEN_DELEGATES = [
-  { ...ALIEN_HOST, shirt: '#344e48', skin: '#7dd87a', tie: '#ffc65d', alien: true, planet: 'sprout' },
-  { ...ALIEN_HOST, shirt: '#473855', skin: '#ba93ee', tie: '#80e4de', alien: true, planet: 'ring' },
-];
-const GUEST = (shirt, extra) => Object.assign({ kind: 'guest', shirt, pants: '#2a2a30', skin: '#f1c39a', hair: '#222', scale: SC }, extra || {});
-
-// Four chapters, one distinct skill each; twelve story rooms, then endless.
-const CHAPTERS = [
-  { id: 0, zh: '职场酒局', en: 'Office Banquet', mech: 'basic', rooms: ['豪华包间', '私人KTV', '地下酒窖'] },
-  { id: 1, zh: '地下交通', en: 'Underground Transit', mech: 'shake', rooms: ['地下停车场', '下水道泵房', '地铁站台'] },
-  { id: 2, zh: '千年酒局', en: 'Millennium Toast', mech: 'chain', rooms: ['考古现场', '古墓主墓室', '兵马俑坑'] },
-  { id: 3, zh: '地心外交', en: 'Core Diplomacy', mech: 'alien', rooms: ['51区外星基地', '岩浆外星观测站', '地心外星总部'] },
-];
-const STORY_N = 12; // 0..11 story, 12+ endless
-const BASE_LAYERS = [
-  // Ch1 职场酒局 — basic
-  { name: '豪华包间', en: 'Luxury Private Room', depth: 0, ch: 0, room: 0, mech: 'basic', join: [] },
-  { name: '私人KTV', en: 'Private KTV', depth: 3.6, ch: 0, room: 1, mech: 'basic', join: [GUEST('#e0389a', { hair: '#111' }), GUEST('#3a78c2', { hair: '#3b2a1a', glasses: true })] },
-  { name: '地下酒窖', en: 'Wine Cellar', depth: 9, ch: 0, room: 2, mech: 'basic', join: [GUEST('#5a1f2e', { hair: '#d8d8d8', glasses: true })] },
-  // Ch2 地下交通 — ground shake
-  { name: '地下停车场', en: 'Parking Garage', depth: 15, ch: 1, room: 0, mech: 'shake', join: [GUEST('#22345e', { cap: '#1a2440', pants: '#1a2440' })] },
-  { name: '下水道泵房', en: 'Sewer Pump Room', depth: 22, ch: 1, room: 1, mech: 'shake', join: [GUEST('#6b6b6b', { rat: true, skin: '#a3a3a3', pants: '#555' }), GUEST('#7b6b5b', { rat: true, skin: '#a3a3a3', pants: '#555' })] },
-  { name: '地铁站台', en: 'Subway Platform', depth: 38, ch: 1, room: 2, mech: 'shake', join: [GUEST('#ffcc00', { helmet: '#ffcc00', pants: '#333' }), GUEST('#7b5ea7', { hair: '#5a3a22' })] },
-  // Ch3 古墓 — fixed-height rhythm phrases
-  // Ch4 千年酒局 — shrinking boss cup (visible beat)
-  { name: '考古现场', en: 'Dig Site', depth: 200, ch: 2, room: 0, mech: 'chain', chain: 2, cupName: '高脚杯', join: [GUEST('#5a4a2a', { lamp: true, helmet: '#c9a227' }), GUEST('#efe6cf', { skeleton: true })] },
-  { name: '古墓主墓室', en: 'Main Tomb Chamber', depth: 450, ch: 2, room: 1, mech: 'chain', chain: 3, cupName: '白酒杯', join: [GUEST('#5a4a2a', { lamp: true, helmet: '#c9a227' }), GUEST('#2a3a6a', { jiangshi: true, skin: '#a9c79a' })] },
-  { name: '兵马俑坑', en: 'Terracotta Pit', depth: 800, ch: 2, room: 2, mech: 'chain', chain: 4, cupName: '袖珍杯', join: [GUEST('#a85a3a', { terracotta: true }), GUEST('#a85a3a', { terracotta: true })] },
-  // Ch4 地心外交 — human boss and two alien delegates
-  { name: '51区外星基地', en: 'Area 51 Alien Base', depth: 9000, ch: 3, room: 0, mech: 'alien', join: [GUEST('#9aa5b5', { alien: true, skin: '#7dd87a' }), GUEST('#9aa5b5', { alien: true, skin: '#7dd87a' })] },
-  { name: '岩浆外星观测站', en: 'Magma Alien Observatory', depth: 35000, ch: 3, room: 1, mech: 'alien', join: [GUEST('#2a1410', { lava: true }), GUEST('#9aa5b5', { alien: true, skin: '#7dd87a' })] },
-  { name: '地心外星总部', en: "Core Alien HQ", depth: 6371000, ch: 3, room: 2, mech: 'alien', join: [GUEST('#ffb13b', { lava: true }), GUEST('#9aa5b5', { alien: true, skin: '#9d7dff' })] },
-];
+const { P_SPEC, B_SPEC, TOMB_BOSS, ALIEN_HOST, ALIEN_DELEGATES, GUEST, CHAPTERS, STORY_N, BASE_LAYERS, BOSS_LINES, PLAYER_LINES, JOIN_LINES, TOMB_CHAT, ALIEN_CHAT, STORY_SMASH_LINES, POLITE_LINES, RUDE_LINES, ROUND_EVENTS } = window.ToastChapters.create(SC);
 const layerCache = new Map();
 function chapterOf(L) { if (L < 0) return null; if (L >= STORY_N) return { id: CHAPTERS.length, zh: '无尽敬酒', en: 'Endless', mech: 'mix', room: L - STORY_N }; return CHAPTERS[Math.floor(L / 3)]; }
 function layerLabel(i) {
@@ -213,12 +178,6 @@ function layerDef(i) {
 }
 function activeMech(L) { const d = layerDef(L == null ? st.L : L); return (d && d.mech) || 'basic'; }
 function chainCount() { return st.tut ? 0 : layerDef(st.L).chain || 0; }
-// playtesting: all story layers + first endless selectable
-function maxUnlocked() { return STORY_N; } // 0..12 inclusive (12 = endless entry)
-
-const BOSS_LINES = [['不急不急～', 'No rush~'], ['小伙子，杯子有点高啊', 'Your cup is a bit high'], ['年轻人要懂规矩', 'Know the rules, kid'], ['来来来，再低点', 'Come on, lower'], ['哎～差一点', 'Ah~ almost'], ['我先干为敬…才怪', 'Bottoms up… not']];
-const PLAYER_LINES = [['领导我敬您！', 'A toast to you, boss!'], ['我干了您随意！', 'I drink, you sip!'], ['再低一点…', 'A bit lower…']];
-const JOIN_LINES = [['带我一个！', 'Count me in!'], ['也敬领导！', 'Toast the boss!'], ['我比他低！', "I'm lower!"]];
 
 // ---------------------------------------------------------------- characters
 let cid = 0;
@@ -258,7 +217,7 @@ function fk(c) {
 // (rimOff = rim above the hand, bowlH = bowl depth under the rim, wt/wb = half-width at rim/bowl bottom, free = how far
 // the full drink sits under the rim, foot = the cup's foot under the hand).
 // k = 0 on layers 1-2 (tiny step on 2), one visible step per layer from layer 3, capped at layer 10; endless adds a hair.
-// shape ramp: gentle through ch1-3, Ch4 is the VISIBLE shrink beat (glass→baijiu→tiny), ch5 holds, endless creeps
+// Shape progression across the twelve rooms; endless grows slightly further.
 const SHAPE_K = [0, 0.08, 0.16, 0.24, 0.32, 0.40, 0.52, 0.66, 0.78, 0.86, 0.94, 1.0];
 function shapeK(L) {
   if (L < SHAPE_K.length) return SHAPE_K[Math.max(0, L)];
@@ -279,14 +238,10 @@ function cupGeom(c) {
   if (sp.kind === 'player') g = { rimOff: 32 + 14 * k, bowlH: lerp(44, 26, k), wt: lerp(17, 13, k), wb: lerp(13, 5, k), free: lerp(5.2, 2.6, k), foot: 14, footW: lerp(13, 11, k) };
   // the boss: tall glass -> short cup -> tiny cup. His bowl IS the clink window (rim .. bowl bottom)
   else {
-    // Ch4 shrink beat: extra bowl cut on room 0/1/2 of shrink chapter; alien uses mid bowl
+    // Early boss glasses are taller; aliens keep their existing bowl geometry.
     let bonus = 0;
     if (c === boss && !st.tut) {
-      const m = activeMech();
-      if (m === 'shrink' || m === 'mix' && layerDef(st.L).mech === 'shrink') {
-        const room = (layerDef(st.L).room != null) ? layerDef(st.L).room : Math.min(2, st.L % 3);
-        bonus = [14, 6, 1][room] || 0; // tall glass → baijiu → tiny (visible beat, still fair)
-      } else if (st.L < 3) bonus = [15, 13, 6][st.L];
+      if (st.L < 3) bonus = [15, 13, 6][st.L];
     }
     g = { rimOff: 32, bowlH: Math.max(14, lerp(39, 20, k) + bonus), wt: lerp(17, 10, k), wb: lerp(13, 6.5, k), free: 5, foot: 14, footW: lerp(13, 9, k) };
   }
@@ -328,7 +283,7 @@ function winePercent(amount) { return String(Math.round(amount * 1000) / 10); }
 function changeWine(kind, amount) {
   if (amount <= 0) return 0;
   const before = player.wine;
-  player.wine = kind === 'refill' ? Math.max(before, Math.min(wineCapacity(), before + Math.max(0, amount))) : Math.max(0, before - Math.max(0, amount));
+  player.wine = window.ToastRules.wineAfter(kind, before, amount, wineCapacity());
   const actual = Math.abs(player.wine - before);
   if (!actual || st.tut) return actual;
   wineLedger()[kind] += actual;
@@ -345,8 +300,7 @@ function changeWine(kind, amount) {
 function refillWine(amount) { return changeWine('refill', amount); }
 function roundSucceeded(r) { return r && (r.chain ? r.chainHits > 0 : r.result === 'ok'); }
 function chainPenaltyRatio(r, misses) {
-  if (!r.chain || misses >= r.chain) return 1;
-  return [0, CFG.chainPenaltyFirst, CFG.chainPenaltySecond, CFG.chainPenaltyThird][misses] / 100;
+  return window.ToastRules.chainPenaltyRatio(CFG, r.chain, misses);
 }
 
 function spillLim() { return cupGeom(player).lim; }
@@ -362,7 +316,8 @@ function toastRimY() {
   }
   return c.P ? c.P.rim.y : 0;
 }
-function winSpan() { return cupGeom(toastChar()).bowlH * toastChar().spec.scale * (st.tut ? 1 : CFG[difficulty().id + 'HeightWindow'] / 100); } // clink window: target rim .. bowl bottom
+function physicalCupSpan() { return cupGeom(toastChar()).bowlH * toastChar().spec.scale; }
+function winSpan() { return physicalCupSpan() * (st.tut ? 1 : CFG[difficulty().id + 'HeightWindow'] / 100); } // clink window: target rim .. bowl bottom
 function perfBand() { return Math.max(12, 0.36 * winSpan()); }
 function contactPts(c, P) {
   const s = P.sc;
@@ -417,7 +372,7 @@ function playFloor() { return floorY(st.L) + groundOff(); }
 // Three possible cups share a clock; only the selected leader keeps a clock for the last second.
 function alienRhythm(L) {
   const d = layerDef(L), room = d.room != null ? d.room : Math.floor(((d.endless || 1) - 1) / 3) % 3;
-  return { step: [CFG.alienStep1, CFG.alienStep2, CFG.alienStep3][room] * CFG[difficulty().id + 'AlienHeight'], gap: 0, aimBonus: 0, n: 3 };
+  return { step: [CFG.alienStep1, CFG.alienStep2, CFG.alienStep3][room] * CFG[difficulty().id + 'AlienHeight'], n: 3 };
 }
 function prepareAlienLeaders() {
   if (st.tut || activeMech() !== 'alien') return;
@@ -463,11 +418,6 @@ function stepAlienLeaders(dt) {
     updateCup(c, dt, true);
   });
 }
-function com(c, P) {
-  const w = [[P.hip, 3], [P.knee, 1.5], [P.ankle, 1], [P.shoulder, 3], [P.head, 2], [P.hand, 0.6], [P.belly, c.spec.belly ? 2 : 0.5]];
-  let x = 0, y = 0, s = 0; for (const [p, k] of w) { x += p.x * k; y += p.y * k; s += k; } return { x: x / s, y: y / s };
-}
-
 // NPC pose keyframes: s, k, b, phi, arm
 const KF = [[0, 0, 0.05, 0, 0.3], [0.25, 0.12, 0.8, 0, 0.95], [0.5, 1, 0.55, 0, 1.05], [0.75, 1, 1.45, 0.12, 1.35], [1, 0.15, 0.1, 1.5, 0.95]];
 function poseFromS(c, s) {
@@ -504,10 +454,28 @@ const DIFFICULTIES = [
 ];
 let debugMenuOpen = false;
 function applySettings(selection) {
-  Object.assign(CFG, CONFIG.save(localStorage, selection.values)); REACH_TIME = CFG.reachTime;
+  const clean = CONFIG.validate(selection.values);
+  const rulesChanged = Object.keys(clean).some(k => !CONFIG.preferenceKeys.includes(k) && clean[k] !== CFG[k]) || selection.ctl !== CTL || selection.layer !== START_LAYER;
+  Object.assign(CFG, CONFIG.save(localStorage, clean)); REACH_TIME = CFG.reachTime;
   if (selection.ctl !== CTL) toggleCtl();
   saveStartL(selection.layer); setMute(selection.muted);
-  if (st.state !== 'title') { st.paused = false; restart(); }
+  if (rulesChanged && st.state !== 'title') { st.paused = false; restart(); }
+}
+function openPlayerSettings() {
+  const wasPaused = st.paused, active = runActive();
+  if (active) setPaused(true);
+  clearInputs();
+  window.ToastSettings.open({ user: true, values: { ...CFG }, muted,
+    guides: guidesEnabled, touch: TOUCH,
+    onChange(values, mute, guides) {
+      const clean = CONFIG.validate(values);
+      for (const key of CONFIG.preferenceKeys) CFG[key] = clean[key];
+      guidesEnabled = guides; setMute(mute);
+      // Storage may be disabled; volume still works for this session.
+      try { CONFIG.savePreferences(localStorage, CFG); localStorage.setItem('toastLower.guides.enabled', guides ? '1' : '0'); } catch (_) {}
+    },
+    onClose() { if (active && !wasPaused) setPaused(false); }
+  });
 }
 function openDebugMenu() {
   debugMenuOpen = true; clearInputs();
@@ -529,6 +497,20 @@ function selectDifficulty(id) {
   sfx('tick');
 }
 
+let guidesEnabled = true;
+const seenGuides = new Set();
+try {
+  guidesEnabled = localStorage.getItem('toastLower.guides.enabled') !== '0';
+  const saved = JSON.parse(localStorage.getItem('toastLower.guides.seen.v1'));
+  if (Array.isArray(saved)) for (const id of saved) seenGuides.add(id);
+} catch (_) {}
+function firstGuide() {
+  const mech = activeMech();
+  if (st.tut || BOT || CAPTURE || !guidesEnabled || seenGuides.has(mech)) return;
+  st.guide = { text: window.ToastUI.guide(mech, TOUCH), until: st.t + 2 };
+  seenGuides.add(mech); bigText = null;
+  try { localStorage.setItem('toastLower.guides.seen.v1', JSON.stringify([...seenGuides])); } catch (_) {}
+}
 const BOT = params.get('bot') || (AUTO ? 'human' : CAPTURE ? 'smart' : null);
 const AUTO_RESTART = AUTO && !CAPTURE && !params.has('once');
 const st = { state: (AUTO || CAPTURE) ? 'play' : 'title', L: START_LAYER, t: 0, stT: 0, playT: 0, layerT: 0, flipped: false, cycle: 0, pressure: 0, shake: 0,
@@ -562,25 +544,7 @@ function saveBest() {
 }
 
 // Score-based banquet titles. The banana is reserved for a zero-score run.
-const RANKS = [
-  [0, '成年香蕉', '手是长了，但没完全长'],
-  [1, '卧龙凤雏', '左手卧龙，右手凤雏'],
-  [4500, '小孩那桌', '这桌暂时还坐不了'],
-  [12000, '夹菜我转桌', '主打一个不懂事'],
-  [30000, '乌鸦哥', '敬不好就掀桌'],
-  [65000, '端水大师', '杯子端稳，谁也不得罪'],
-  [130000, '懂事长', '敬酒敬出了管理岗'],
-  [230000, '敬酒悍匪', '开始主动进攻'],
-  [360000, '国家一级陪酒员', '仿佛持证上岗'],
-  [450000, '先天敬酒圣体', '天生就是吃这桌饭的'],
-  [540000, '铁血山东 👍', '人情世故拉满'],
-  [600000, 'DeepDrink', '敬酒大模型'],
-];
-function rankFor(score) {
-  let rank = RANKS[0];
-  for (const entry of RANKS) if (score >= entry[0]) rank = entry;
-  return rank.slice(1);
-}
+const { rankFor } = window.ToastRules;
 function breakPts(L) { return CFG.floorScore * (L + 1); }
 function makeFloorPlan() {
   const rounds = activeMech() === 'alien' ? CFG.alienRounds : chainCount() ? CFG.chainRounds : st.L < 2 ? CFG.openingRounds : CFG.regularRounds;
@@ -597,12 +561,7 @@ function makeFloorPlan() {
   return { layer: st.L, rounds, notes, targets, claimed: Array(rounds * notes).fill(null), floorAwarded: false };
 }
 function claimScoreOpportunity(result) {
-  const r = st.round, plan = st.floorPlan;
-  if (st.tut || !r || r.smash || !plan || plan.layer !== st.L) return false;
-  const slot = r.progress * plan.notes + (r.chainIndex || 0);
-  if (!Number.isInteger(slot) || slot < 0 || slot >= plan.claimed.length || plan.claimed[slot] !== null) return false;
-  plan.claimed[slot] = result;
-  return true;
+  return !st.tut && window.ToastRules.claim(st.floorPlan, st.L, st.round, result);
 }
 // difficulty grows with depth, without limit (endless mode keeps going)
 const TUNE = new URLSearchParams(location.search);
@@ -627,8 +586,6 @@ function diff() {
 function say(c, pair, dur) { bubbles.length = 0; // one speech bubble at a time
   bubbles.push({ c, t: 0, dur: dur || 1.8, zh: mobileWords(pair[0]), en: pair[1] }); }
 // Chatter is cosmetic: never consume the gameplay RNG or select the next target.
-const TOMB_CHAT = ['别拘束，跟自己家一样。', '这几位都是老前辈。', '老员工都在这儿了。', '再喝五百年！'];
-const ALIEN_CHAT = ['我是你的碰杯人。', '主敬你一杯。', '执杯人，举杯。', '给文明以酒精。', '我已脱水，急需补液。', '主不在乎。', '不要回答。', '你们这儿敬酒不报销？', '我有三个肝，你随意。'];
 function stepChapterChatter() {
   const r = st.round;
   if (st.tut || st.state !== 'play' || !r || (!r.chain && !st.alien)) return;
@@ -695,9 +652,9 @@ function restart() {
   runSeed = explicitSeed ?? Math.floor(Math.random() * 4294967296); seed = runSeed; physicsSeed = runSeed ^ 0x51ed270b;
   window.ToastMusic.reset();
   Object.assign(st, { L: START_LAYER, flipped: false, cycle: 0, holes: {}, score: 0, floorPlan: null, breaks: 0, strikes: 0, toasts: 0, perfects: 0, round: null, over: null, newRecord: false, coreBonus: false,
-    t: 0, tdrT: 0, swT: 0, bossJT: 0, why: {}, wineLedger: null, wineNotices: [], customRun: isCustomRun(), chatSeen: [], pressure: 0, cracks: [], lastCrackStep: 0, playT: 0, layerT: 0, gameT: 0, state: 'play', stT: 0, best: 0, sawLow: false, bossSay: 1.5, alien: null,
+    t: 0, guide: null, storySettled: false, tdrT: 0, swT: 0, bossJT: 0, why: {}, wineLedger: null, wineNotices: [], customRun: isCustomRun(), chatSeen: [], pressure: 0, cracks: [], lastCrackStep: 0, playT: 0, layerT: 0, gameT: 0, state: 'play', stT: 0, best: 0, sawLow: false, bossSay: 1.5, alien: null,
     combo: 0, bestCombo: 0, hype: 0, bursts: 0, manualToasts: 0, judge: null, freeze: 0, gain: null, paused: false, clinkGrace: 0, spillT: 0, spillOn: false, loss: 0, lossT: 9, punch: null, toastMotion: null });
-  parts.length = debris.length = puddles.length = bubbles.length = popups.length = 0;
+  parts.length = debris.length = puddles.length = bubbles.length = popups.length = gaugeDrops.length = 0;
   reset(); bigText = null; player.wine = wineCapacity(); syncMusic();
   clearInputs(); fx.length = 0; flash = null;
   const ch = chapterOf(st.L);
@@ -709,7 +666,7 @@ function restart() {
 function allChars() { return [player, boss, ...followers]; }
 
 // ---------------------------------------------------------------- input
-const KEYMAP = { KeyQ: 'Q', KeyW: 'W', KeyO: 'O', KeyP: 'P', ArrowLeft: 'Q', ArrowRight: 'W', ArrowDown: 'O', ArrowUp: 'P' };
+const KEYMAP = window.ToastUI.KEYMAP;
 const heldKeys = new Set();
 function clearInputs() { heldKeys.clear(); pointers.clear(); resetStick(); for (const k in keys) keys[k] = 0; }
 function runActive() { return ['play', 'fall', 'standup'].includes(st.state); }
@@ -718,7 +675,7 @@ function rearmRoundClock() {
   if (!r || r.smash || r.phase !== 'aim' || st.tut) return;
   // Keep already judged notes and the target; restart only the pending cue sequence.
   r.t = 0; r.T = (st.alien ? CFG.alienCountdown : Math.max(CFG.minWait, 2 * 60 / CFG.musicBpm)) + reachTime() - 0.5;
-  r.musicAnchor = null; r.cue = null; r.clockWaiting = false;
+  window.ToastClock.reset(r);
   r.attacking = !!r.waitForBeat; r.attackT = 0; r.mh = []; player.reach = player.reachV = 0;
 }
 function setPaused(value) { if (!value && st.rearmAfterPause) { rearmRoundClock(); st.rearmAfterPause = false; } st.paused = value; debugMenuOpen = false; clearInputs(); syncMusic(); }
@@ -726,9 +683,9 @@ function returnToTitle() {
   saveBest();
   clearInputs(); debugMenuOpen = false;
   Object.assign(st, { state: 'title', stT: 0, L: START_LAYER, tut: null, paused: false, round: null, over: null,
-    freeze: 0, punch: null, judge: null, gain: null, shake: 0, pressure: 0, flipped: false, holes: {} });
+    guide: null, freeze: 0, punch: null, judge: null, gain: null, shake: 0, pressure: 0, flipped: false, holes: {} });
   reset(); bigText = null; flash = null; st.toastMotion = null;
-  parts.length = debris.length = puddles.length = bubbles.length = popups.length = fx.length = 0;
+  parts.length = debris.length = puddles.length = bubbles.length = popups.length = fx.length = gaugeDrops.length = 0;
   window.ToastMusic.reset(); syncMusic();
 }
 function startFromTitle(forceTut) { debugMenuOpen = false; if (forceTut || st.tut) { startTutorial(); return; } restart(); }
@@ -740,12 +697,12 @@ addEventListener('keydown', e => {
   if ((st.state === 'title' || st.paused) && e.code === 'KeyD' && e.shiftKey) { if (debugMenuOpen) debugMenuOpen = false; else openDebugMenu(); return; }
   if (debugMenuOpen && e.code === 'Escape') { debugMenuOpen = false; return; }
   if (st.state === 'title' && !debugMenuOpen && /^Digit[123]$/.test(e.code)) { selectDifficulty(DIFFICULTIES[+e.code.slice(-1) - 1].id); return; }
-  if (e.code === 'KeyC' && (st.state === 'title' || st.paused)) {  return; }
   if (debugMenuOpen) return;
   if (e.code === 'Escape' && runActive()) { setPaused(!st.paused); return; }
   if (e.code === 'KeyM') { setMute(!muted); if (!muted) sfx('ding'); return; }
   if (st.paused) { if (e.code === 'Space' || e.code === 'Enter') setPaused(false); return; }
   if (st.state === 'title') { if (['Space', 'Enter', 'KeyT'].includes(e.code)) startFromTitle(e.code === 'KeyT'); return; }
+  if (st.state === 'clear') { if (e.code === 'Enter' || e.code === 'Space') continueEndless(); else if (e.code === 'Escape') returnToTitle(); return; }
   if (e.code === 'KeyS' && st.tut) { endTutorial(); return; }
   if (e.code === 'Space' && !BOT && st.state === 'play') { heldKeys.add(e.code); refreshKeys(); requestToast(); return; }
   if (KEYMAP[e.code] && !BOT && st.state === 'play') { heldKeys.add(e.code); refreshKeys(); }
@@ -791,28 +748,10 @@ function stickRect() { return { x: LAY === 'land' ? 240 : 260, y: H - 240, r: 14
 function resetStick() { stick.id = null; stick.x = stick.y = stick.rawX = stick.rawY = 0; }
 function updateStick(p) {
   const r = stickRect(), dx = (p.x - r.x) / r.r, dy = (p.y - r.y) / r.r;
-  const length = Math.max(1, Math.hypot(dx, dy));
-  stick.rawX = dx / length; stick.rawY = dy / length;
-  const axis = v => Math.sign(v) * Math.pow(clamp((Math.abs(v) - CFG.stickDeadzone) / (1 - CFG.stickDeadzone), 0, 1), CFG.stickCurve);
-  stick.x = axis(stick.rawX); stick.y = axis(stick.rawY);
+  Object.assign(stick, window.ToastUI.stickAxes(dx, dy, CFG.stickDeadzone, CFG.stickCurve));
 }
-function mobileWords(value) {
-  if (!TOUCH || typeof value !== 'string') return value;
-  return value.replace('Q 往后仰，W 往前倾，扶平它', '摇杆左右推，把杯子扶平')
-    .replace('点按 Q / W，把杯子扶平', '左右轻推摇杆，把杯子扶平')
-    .replace('酒往前涌按 Q，往后涌按 W', '酒往前涌向左扶，往后涌向右扶')
-    .replace('好！P 是起身', '好！摇杆向上推，起身')
-    .replace('慢慢按 O 往下，边走边扶杯', '摇杆斜着轻推，边弯腰边扶杯')
-    .replace('Q/W 继续扶杯', '左手继续扶杯')
-    .replace('那就按住 O 趴到底，继续按住，砸穿地板！', '摇杆向下推住，趴到底后继续推，砸穿地板！')
-    .replace('按住 O：趴下，再继续砸', '摇杆向下推住：趴下，再继续砸')
-    .replaceAll('按住 O', '摇杆向下推住').replaceAll('按住 P', '摇杆向上推')
-    .replaceAll('按空格', '点「敬酒」');
-}
-function canvasPt(e) {
-  const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
-  return rotated ? { x: y * W, y: (1 - x) * H } : { x: x * W, y: y * H };
-}
+function mobileWords(value) { return window.ToastUI.mobileWords(value, TOUCH); }
+function canvasPt(e) { return window.ToastUI.canvasPoint(e, cv.getBoundingClientRect(), W, H, rotated); }
 // multi-touch: every finger is tracked by pointerId, so Q+W+O+P can all be held at once.
 // A finger that slides from one button onto another switches keys (like a real gamepad).
 function btnAt(p) { if (st.state === 'play' && (!st.tut || st.tut.step === 5) && hitR(p, toastButtonRect())) return 'Space'; for (let i = 0; i < 4; i++) { const r = btnRect(i), m = 8; if (p.x > r.x - m && p.x < r.x + r.w + m && p.y > r.y - m && p.y < r.y + r.h + m) return BTN[i][0]; } return null; }
@@ -825,11 +764,14 @@ function refreshKeys() { if (BOT) return; for (const k in keys) keys[k] = 0; if 
 cv.addEventListener('pointerdown', e => {
   e.preventDefault(); gestured = true; window.ToastMusic.gesture(); syncMusic();
   { const q0 = canvasPt(e), pb = pauseBtnRect();
+    if (st.state !== 'title' && !st.paused && hitR(q0, playerSettingsRect())) { openPlayerSettings(); return; }
+    if (st.state === 'clear') { const q = overlayPt(q0); if (hitR(q, clearActionRect())) { continueEndless(); return; } if (hitR(q, clearActionRect(true))) { returnToTitle(); return; } }
     if (st.state !== 'title' && hitR(q0, homeBtnRect())) { returnToTitle(); return; }
     if (runActive() && !st.paused && q0.x > pb.x && q0.x < pb.x + pb.w && q0.y > pb.y && q0.y < pb.y + pb.h) { setPaused(true); return; }
     if (st.state === 'title' || st.paused) {
       const q = overlayPt(q0);
       if (debugMenuOpen) return;
+      if (hitR(q, playerSettingsRect())) { openPlayerSettings(); return; }
       if (hitR(q, debugEntryRect())) { openDebugMenu(); return; }
       if (st.state === 'title') {
         const i = DIFFICULTIES.findIndex((d, i) => hitR(q, difficultyRect(i)));
@@ -843,6 +785,7 @@ cv.addEventListener('pointerdown', e => {
     }
   }
   if (st.tut) { const q = canvasPt(e); if (q.y < hudBottom() && q.x > W * 0.7) { endTutorial(); return; } }
+  else if (st.state === 'clear') return;
   else if (st.state === 'over') { if (st.stT > 1.2) restart(); return; }
   try { cv.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
   const pt = canvasPt(e);
@@ -932,7 +875,6 @@ function noSpill() {
   if (st.state === 'fall' || st.state === 'standup') return true;
   if (st.state === 'play' && r && r.smash && (r.phase === 'tie' || r.phase === 'aim')) return true;
   // 空档 between alien cups — setup only, never judged / never drained
-  if (r && r.phase === 'gap') return true;
   // brief recovery after a good clink (react juice while you stand back up)
   if (r && r.phase === 'react' && roundSucceeded(r)) return true;
   if (st.clinkGrace && st.t < st.clinkGrace) return true;
@@ -960,20 +902,6 @@ function updateCup(c, dt, gentle) {
 
 // ---------------------------------------------------------------- floor break
 // One impact line for each story floor, ordered by the room we fall into.
-const STORY_SMASH_LINES = [
-  '说好的上升空间呢？！',
-  '我说低调！不是地窖！！',
-  '地板也被优化了！',
-  '八！十！！',
-  '打通底层逻辑！！',
-  '下面还有高手？！',
-  '我这一杯，二十年功力！！',
-  '从天而降的杯法！！',
-  '向下兼容！！',
-  '面子碎了！！',
-  '降层打击！！',
-  '还有谁！！',
-];
 function breakFloor() {
   if (st.state !== 'play' || st.tut) return;
   const L = st.L, fl = floorY(L);
@@ -1083,8 +1011,8 @@ function stepDisturb(dt, d) {
 // It also rocks the cup (see moveCup). Off in smash rounds, falls, stand-ups and the first tutorial steps.
 const SWAY = { om: 2 * PI / 1.7, grow: 0.10, brace: 11 };
 function swayFade(p) { return clamp(p.h / 0.12, 0, 1); }
-// v20f_feel: ~1/3 of the clink window — readable bob, easy to brace against
-function swayAmp() { return (st.tut ? 16 : (CTL === 'vel' ? 0.18 : 0.42) * winSpan() * Math.min(1, 0.45 + instab()) * difficulty().hand) / 288; }
+// Preserve v68 preset sway; changing judgement width no longer changes body physics.
+function swayAmp() { return (st.tut ? 16 : (CTL === 'vel' ? 0.18 : 0.42) * physicalCupSpan() * ({ easy: 1, normal: 0.85, hard: 0.65 }[difficulty().id]) * Math.min(1, 0.45 + instab()) * difficulty().hand) / 288; }
 function swayOn() { const r = st.round; if (st.tut) return !!st.tut.sway && st.state === 'play'; return disturbLive() && !['chain', 'alien'].includes(activeMech()); }
 function stepSway(p, dt, d) {
   if (!swayOn()) { const f = Math.exp(-4 * dt); p.sw = (p.sw || 0) * f; p.swv = (p.swv || 0) * f; return; }
@@ -1235,13 +1163,6 @@ function pressCheck(dt, d) {
 // The horizontal punch and recoil are feedback, never a second judgement window.
 // After a good clink he politely goes lower next time. Once his target is below what a cup can
 // reach on this floor, the round becomes a SMASH round: break the floor before the countdown ends.
-const POLITE_LINES = [['你的腰，比我前途还灵活'], ['别卷了，我腰有工伤'], ['这份敬意，承重墙收到了'], ['嘴上说随意，膝盖很诚实']];
-const RUDE_LINES = [['你敬的是天花板？'], ['杯子挺高，情商挺低'], ['这杯里装的是辞职信？'], ['你小子想坐我这个位置？']];
-const ROUND_EVENTS = {
-  feint: { title: '假客气', hint: '他说随意，杯子还会再降！', col: '#b8a0ff' },
-  rush: { title: '领导赶下一场', hint: '这一杯节奏更快 · 听拍子', col: '#ffad72' },
-  steady: { title: '全桌都看着你', hint: '卡准那一拍 · 碰杯时也要扶稳', col: '#79dfcd' },
-};
 function toastButtonRect() {
   if (TOUCH) return { x: W - 380, y: H - 360, w: 280, h: 240 };
   if (LAY === 'port') return { x: W / 2 - 225, y: btnTop() - 136, w: 450, h: 116 };
@@ -1325,6 +1246,7 @@ function newRound(fresh) {
   else if (smash) say(boss, ['再来！砸！'], 1.2);
   else if (st.round.chain || st.alien) { /* Chatter belongs to the gaps after successful rounds. */ }
   else if (rnd() < 0.5) { const ln = pick(BOSS_LINES); if (!st.judge) say(boss, ln, 1.4); }
+  if (fresh) firstGuide();
 }
 // ---- feedback (sound / sparks / flashes): visual + audio only, never the seeded rng, never the rules
 const fx = []; let flash = null;
@@ -1539,8 +1461,7 @@ function judgeClink() {
     else { st.combo = combo; st.bestCombo = Math.max(st.bestCombo, st.combo); }
     const close = clamp(1 - margin / 90, 0, 1);
     const quick = r.manual ? CFG.timingScore * clamp(1 - Math.abs(r.timing) / timingWindow(), 0, 1) : 0;
-    const quality = perfect ? CFG.perfectScore : close * close * CFG.heightScore;
-    const points = (CFG.toastScore + quality + player.wine * CFG.wineScore + quick + CFG.comboScore * Math.min(combo, CFG.comboCap)) * (L + 1) / divisor;
+    const points = window.ToastRules.toastPoints(CFG, { perfect, close, quick, wine: player.wine, combo, layer: L, notes: divisor });
     addScore(points);
     if (perfect) st.perfects++;
     if (!r.chain) { awardHype(perfect ? CFG.hypePerfect : CFG.hypeHit); if (perfect) refillWine(CFG.perfectRefill / 100); }
@@ -1552,11 +1473,11 @@ function judgeClink() {
 }
 // Snap each new toast to the song's actual playback grid, then drive its
 // countdown from that same clock. Hit stops between rounds cannot cause drift.
-function syncToastClock() {
+function syncToastClock(dt = 0) {
   const r = st.round;
   if (!r || r.phase !== 'aim' || r.smash) return;
-  const clock = window.ToastMusic.clock();
-  if (clock == null) return; // blocked/unavailable audio: keep the silent simulation playable
+  const clock = window.ToastClock.sample(r, window.ToastMusic.clock(), dt);
+  if (clock == null) { if (r.musicDetached) r.clockWaiting = false; return; } // continue silently until the next round
   if (r.musicAnchor == null) {
     if (r.cue && r.cue.next > 0) return; // never move a beat after its first audible cue
     const beat = 60 / CFG.musicBpm;
@@ -1575,7 +1496,7 @@ function syncToastClock() {
     const target = Math.ceil((r.musicAnchor + earliest) / beat - 1e-9) * beat - r.musicAnchor;
     r.T = target + reachTime() - 0.5;
     r.cue = { next: 0, target, gap: beat };
-  } else { r.t = Math.max(0, clock - r.musicAnchor); r.clockWaiting = clock < r.musicAnchor; }
+  } else { r.clockWaiting = clock < r.musicAnchor; r.t = r.clockWaiting ? 0 : Math.max(r.t, clock - r.musicAnchor, 0); }
 }
 // Use the same clock as the visible 0s and the input judgement.
 // No wall-clock timers: pausing or leaving the tab cannot advance the sequence.
@@ -1595,17 +1516,9 @@ function stepToastCue() {
 }
 function stepRound(dt) {
   const r = st.round; if (!r || st.state !== 'play') return;
-  r.t += dt; syncToastClock(); revealAlienTarget();
+  r.t += dt; syncToastClock(dt); revealAlienTarget();
   if (r.phase === 'tie') {
     if (r.t > (st.breaks > 0 && !st.tut ? CFG.repeatSmashPause : 1.8)) { r.phase = 'aim'; r.t = 0; r.beep = 4; banner('砸穿地板！', '', 1.1, '#ff9a3d'); st.pressure = Math.max(st.pressure, 0); }
-  } else if (r.phase === 'gap') {
-    // fixed beat between alien cups — setup only, never judged / never timeout-strike
-    const gT = (st.alien && st.alien.gap) || 0.8;
-    if (r.t >= gT) {
-      r.phase = 'aim'; r.t = 0; r.beep = 4; r.mh = [];
-      juiceFlash('#9d7dff', 0.22); buzz(12);
-      if (st.alien) st.alien.flash = 0.7;
-    }
   } else if (r.phase === 'aim') {
     if (r.event === 'feint' && !r.eventDone && r.t > 0.65) {
       r.eventDone = true;
@@ -1634,7 +1547,7 @@ function stepRound(dt) {
     if (st.alien && st.alien.on && tc === boss) tx = alienRimX(st.alien.cup);
     if (r.tut && (Math.abs(tx - (player.P.rim.x + 24 * SC)) < 14 || r.t > 0.25)) judgeClink();
   } else if (r.phase === 'react') {
-    // keep the 1→2→3 beat tight: short juice then gap/aim for next cup
+    // keep the 1→2→3 beat tight: short feedback then aim for the next cup
     if (r.t > (roundSucceeded(r) ? CFG.successPause : CFG.missPause) && st.state === 'play') newRound(false);
   }
 }
@@ -1642,8 +1555,6 @@ function stepRound(dt) {
 // ---------------------------------------------------------------- tutorial level: 妈妈教你酒桌规矩
 // Mom plays the boss at home with a cup of juice. One mechanic per step; each step waits for the
 // player to actually do it. Nothing can fail here: spills get topped up, wobbles are caught.
-const TUT_KEY = 'toastLower.tutDone';
-let tutDone = false; try { tutDone = localStorage.getItem(TUT_KEY) === '1'; } catch (e) { /* no storage */ }
 const MOM_SPEC = { kind: 'guest', mom: true, shirt: '#e2577a', pants: '#5a4a6a', skin: '#f3c7a0', hair: '#3a2418', apron: '#fff3d6', scale: SC * 0.98, drink: '#ff9a2e' };
 function wantTutorial() { return params.get('tut') === '1'; }
 function tutLevel(dy) { return st.stand + dy * SC / 1.45; } // a target height relative to standing
@@ -1657,7 +1568,6 @@ function startTutorial() {
   st.L = 0; reset(); tutHold(20); bigText = null;
 }
 function endTutorial() {
-  tutDone = true; try { localStorage.setItem(TUT_KEY, '1'); } catch (e) { /* ignore */ }
   st.tut = null; restart();
 }
 function tutHoldStep(dy, line, msg, keysArr, again) { // shared: get your rim under Mom's line, she clinks
@@ -1724,7 +1634,7 @@ function stepTutorial(dt) {
   const S = TUT_STEPS[tu.step];
   if (tu.enter) { tu.enter = false; tu.t = 0; S.enter(); }
   const r = st.round;
-  if (r) { r.t += dt; if (tu.step === 5) { syncToastClock(); stepToastCue(); } if (r.phase === 'clink' && (Math.abs(boss.P.rim.x - (player.P.rim.x + 24 * SC)) < 14 || r.t > 0.45)) judgeClink(); }
+  if (r) { r.t += dt; if (tu.step === 5) { syncToastClock(dt); stepToastCue(); } if (r.phase === 'clink' && (Math.abs(boss.P.rim.x - (player.P.rim.x + 24 * SC)) < 14 || r.t > 0.45)) judgeClink(); }
   if (st.tut === tu) S.step(tu.t, dt);
   // forgiving: keep a little juice in the cup
   if (player.wine < 0.25) { player.wine = 0.7; say(boss, ['妈给你满上'], 1.4); }
@@ -1798,8 +1708,17 @@ function stepFall(dt) {
 }
 
 let su = null;
-function beginStandup() {
-  st.L++; changeWine('capacity', Math.max(0, player.wine - wineCapacity())); st.state = 'standup'; st.stT = 0;
+function beginStandup(continuing = false) {
+  if (!continuing) st.L++;
+  if (st.L === STORY_N && !st.storySettled) {
+    st.storySettled = true; st.state = 'clear'; st.stT = 1.4;
+    st.over = { reason: 'clear', difficulty: difficultyId, cleared: START_LAYER === 0 && st.breaks >= STORY_N,
+      score: st.score, layer: STORY_N - 1, depth: layerDef(STORY_N - 1).depth, t: st.gameT,
+      wine: { ...wineLedger() }, custom: !!(st.customRun || isCustomRun()) };
+    clearInputs(); saveBest(); syncMusic(); bigText = null; st.guide = null; bubbles.length = 0;
+    return;
+  }
+  changeWine('capacity', Math.max(0, player.wine - wineCapacity())); st.state = 'standup'; st.stT = 0;
   const joiners = pending; pending = [];
   for (const j of joiners) j.face = -1;
   followers.unshift(...joiners);
@@ -1827,6 +1746,18 @@ function beginStandup() {
   else banner(layerLabel(st.L), '', 1.7);
   bigText.arrival = true;
   joiners.forEach((j, i) => say(j, JOIN_LINES[(i + st.L) % JOIN_LINES.length], 2));
+}
+function continueEndless() {
+  if (st.state !== 'clear') return;
+  st.over = null; clearInputs(); beginStandup(true); syncMusic();
+}
+function clearActionRect(home = false) { return { x: home ? 560 : 180, y: TOUCH ? 954 : 930, w: 340, h: TOUCH ? 104 : 84 }; }
+function drawClearActions() {
+  for (const home of [false, true]) {
+    const r = clearActionRect(home);
+    ctx.fillStyle = home ? '#382a33' : '#ffd34d'; rr(r.x, r.y, r.w, r.h, 18); ctx.fill();
+    text(home ? '回主页' : '继续无尽', r.x + r.w / 2, r.y + r.h / 2, TOUCH ? 38 : 32, home ? '#fff1da' : '#63251f', 'center', 900);
+  }
 }
 function stepStandup(dt) {
   const tt = clamp(st.stT / (st.breaks > 1 ? CFG.repeatStandup : 0.7), 0, 1), e = ease(tt);
@@ -1886,7 +1817,7 @@ function step(dt0) {
   else if (st.state === 'over') stepOver(dt);
   stepChapterChatter();
   stepVis(dt);
-  stepParticles(dt);
+  stepParticles(dt); stepGaugeDrops(dt);
   for (let i = bubbles.length - 1; i >= 0; i--) { bubbles[i].t += dt; if (bubbles[i].t > bubbles[i].dur) bubbles.splice(i, 1); }
   if (bigText) { bigText.t += dt; if (bigText.t > bigText.dur) bigText = null; }
   st.shake *= Math.exp(-5 * dt);
@@ -2153,7 +2084,7 @@ const ART_CELLAR = { floorTop: '#5a4030', slab: '#3a2a1e', draw(top, fl, l, r, t
   for (let i = 0; i < 6; i++) for (let j = 0; j < 4; j++) circ(-260 + i * 34, top + 380 + j * 34, 13, j % 2 ? '#3a0d12' : '#5a1a22', '#111', 3);
   for (let i = 0; i < 5; i++) barrel(560 + i * 150, fl - 76, 74); for (let i = 0; i < 4; i++) barrel(635 + i * 150, fl - 214, 74);
   for (const bx of [150, 900]) { ctx.strokeStyle = '#222'; ctx.lineWidth = 3; line({ x: bx, y: top }, { x: bx, y: top + 200 }); circ(bx, top + 215, 18, `rgba(255,${200 + 30 * Math.sin(t * 9 + bx)},120,1)`); ctx.fillStyle = 'rgba(255,200,120,0.08)'; ctx.beginPath(); ctx.moveTo(bx, top + 215); ctx.lineTo(bx - 260, fl); ctx.lineTo(bx + 260, fl); ctx.fill(); }
-  sign(300, top + 300, '地下酒窖', 'LAFITE 1982 (PROBABLY FAKE)', '#3a0d12', '#f2d7a0');
+  sign(300, top + 300, '地下酒窖', 'LOWER ESTATE 2082', '#3a0d12', '#f2d7a0');
 } };
 const ART_SEWER = { floorTop: '#3d4a3d', slab: '#26302a', draw(top, fl, l, r, t) {
   ctx.fillStyle = '#22322a'; ctx.fillRect(l, top, r - l, fl - top);
@@ -2167,19 +2098,6 @@ const ART_SEWER = { floorTop: '#3d4a3d', slab: '#26302a', draw(top, fl, l, r, t)
   ctx.strokeStyle = 'rgba(200,230,140,0.5)'; ctx.lineWidth = 4; for (let x = Math.floor(l / 90) * 90; x < r; x += 90) { const o = (t * 80) % 90; ctx.beginPath(); ctx.arc(x + o, fl - 26, 18, PI * 1.1, PI * 1.9); ctx.stroke(); }
   for (let i = 0; i < 6; i++) { const dx = -200 + i * 230, dy = top + ((t * 300 + i * 140) % (fl - top)); circ(dx, dy, 6, 'rgba(160,200,120,0.8)'); }
   sign(520, top + 300, '下水道 · 禁止敬酒', 'SEWER · NO TOASTING', '#e8e2a0', '#22322a');
-} };
-const ART_SERVER = { floorTop: '#3a4152', slab: '#22262f', draw(top, fl, l, r, t) {
-  ctx.fillStyle = '#0f1626'; ctx.fillRect(l, top, r - l, fl - top);
-  for (let x = Math.floor(l / 190) * 190; x < r; x += 190) {
-    if (x > 300 && x < 760) continue;
-    ctx.fillStyle = '#1d2433'; rr(x + 10, top + 180, 170, fl - top - 180, 8); ctx.fill(); ctx.strokeStyle = '#2f3a52'; ctx.lineWidth = 4; ctx.stroke();
-    for (let y = top + 200; y < fl - 20; y += 30) { ctx.fillStyle = '#28324a'; ctx.fillRect(x + 22, y, 146, 22); for (let k = 0; k < 4; k++) { const on = Math.sin(t * (3 + k) + x * 0.13 + y * 0.07) > 0.2; circ(x + 120 + k * 12, y + 11, 4, on ? ['#3f6', '#3cf', '#fc3', '#3f6'][k] : '#223'); } }
-  }
-  ctx.fillStyle = '#111'; rr(360, top + 330, 380, 250, 12); ctx.fill(); ctx.fillStyle = '#0a1a10'; rr(376, top + 346, 348, 218, 6); ctx.fill();
-  const lines = ['while (boss.cup < you.cup) {', '  you.bow();  // TODO', '}', 'ERROR: 敬酒超时 TOAST TIMEOUT'];
-  lines.forEach((s, i) => text(s, 392, top + 378 + i * 44, i === 3 ? 20 : 22, i === 3 ? '#ff5050' : '#5f5', 'left', 700));
-  if (Math.floor(t * 2) % 2) ctx.fillStyle = '#5f5', ctx.fillRect(392, top + 530, 14, 24);
-  sign(880, top + 330, '机房 · 禁止饮水', 'SERVER ROOM · NO DRINKS ALLOWED', '#2f6bff', '#fff');
 } };
 const ART_TOMB = { floorTop: '#4a3f33', slab: '#2e261e', draw(top, fl, l, r, t) {
   ctx.fillStyle = '#1d1a16'; ctx.fillRect(l, top, r - l, fl - top);
@@ -2765,13 +2683,28 @@ function gaugeRect() {
   return { x: 22, y: 140, w: 118, h: 200 };
 }
 const gaugeDrops = [];
+function stepGaugeDrops(dt) {
+  const g = gaugeRect(), tilt = clamp(player.tilt, -0.9, 0.9) * 0.55, cx = g.x + g.w / 2, by = g.y + g.h;
+  const G0 = cupGeom(player), wt = G0.wt * g.w * 0.5 / 17, top = by - (G0.rimOff + G0.foot) * (g.h - 14) / 60;
+  // spill: drops leave the low side of the rim
+  if (st.gaugeSplash > 0 && st.state === 'play') {
+    st.gaugeSplash = 0;
+    const sx = (tilt >= 0 ? 1 : -1) * wt, sy = top - by;
+    const wx = cx + Math.cos(tilt) * sx - Math.sin(tilt) * sy, wy = by + Math.sin(tilt) * sx + Math.cos(tilt) * sy;
+    for (let i = 0; i < 3; i++) gaugeDrops.push({ x: wx, y: wy, vx: (tilt >= 0 ? 1 : -1) * (60 + Math.random() * 140), vy: (-120 + Math.random() * 160), life: 0.9 });
+  }
+  for (let i = gaugeDrops.length - 1; i >= 0; i--) {
+    const d = gaugeDrops[i]; d.life -= dt; d.vy += 900 * dt; d.x += d.vx * dt; d.y += d.vy * dt;
+    if (d.life <= 0 || d.y > H) gaugeDrops.splice(i, 1);
+  }
+}
 function drawMobileResult(o) {
   const [rank, remark] = rankFor(o.score), mode = DIFFICULTIES.find(d => d.id === o.difficulty) || difficulty();
   const fit = Math.min(1, (W - 80) / 1920);
   ctx.save(); ctx.translate(540, 540); ctx.scale(fit, fit); ctx.translate(-540, -540);
   const l = o.wine || wineLedger(), left = 70, right = 1000;
   ctx.fillStyle = '#211a24'; rr(-390, 160, 1860, 690, 36); ctx.fill();
-  text('失败', 540, 90, 50, '#ff796b', 'center', 900);
+  text(o.reason === 'clear' ? '十二关通关' : '失败', 540, 90, 50, o.reason === 'clear' ? '#ffd34d' : '#ff796b', 'center', 900);
   ctx.fillStyle = '#ffd34d'; rr(left - 360, 235, 720, 122, 24); ctx.fill();
   text(rank, left, 296, 72, '#7a1019', 'center', 900);
   text(remark, left, 420, 40, '#e5d2c4', 'center', 800);
@@ -2788,7 +2721,7 @@ function drawMobileResult(o) {
   if (l.capacity > .0005) text(`换小杯 −${winePercent(l.capacity)}%`, right, 770, 30, '#bfaeb9', 'center', 700);
   text(`${o.cleared ? '十二关已通关 · ' : ''}第 ${o.layer + 1} 层`, left, 795, 34, '#bfaeb9', 'center', 800);
   text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}${st.bestDifficulty ? ' · ' + DIFFICULTIES.find(d => d.id === st.bestDifficulty).level : ''}${st.newRecord ? ' · 新纪录！' : ''}`, 540, 910, 34, '#7fd0ff', 'center', 800);
-  text('点一下重来', 540, 1000, 38, '#fff', 'center', 900);
+  if (o.reason !== 'clear') text('点一下重来', 540, 1000, 38, '#fff', 'center', 900);
   ctx.restore();
 }
 function drawGauge(t) {
@@ -2831,13 +2764,6 @@ function drawGauge(t) {
   glass(); ctx.lineWidth = 5; ctx.strokeStyle = nq > 1 ? (Math.floor(t * 8) % 2 ? '#ff4d4d' : '#fff') : '#fff'; ctx.stroke();
   if (nq > 0.72 && nq <= 1) { ctx.save(); ctx.shadowColor = '#ffb347'; ctx.shadowBlur = 16; ctx.strokeStyle = `rgba(255,179,71,${(nq - 0.72) / 0.28})`; ctx.lineWidth = 7; glass(); ctx.stroke(); ctx.restore(); } // nearly over the rim: warm glow first
   ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 4; line({ x: -wt + 10, y: top - by + 10 }, { x: -wb + 6, y: bb - by - 10 });
-  // spill: drops leave the low side of the rim
-  if (st.gaugeSplash > 0 && st.state === 'play') {
-    st.gaugeSplash = 0;
-    const sx = (tilt >= 0 ? 1 : -1) * wt, sy = top - by;
-    const wx = cx + Math.cos(tilt) * sx - Math.sin(tilt) * sy, wy = by + Math.sin(tilt) * sx + Math.cos(tilt) * sy;
-    for (let i = 0; i < 3; i++) gaugeDrops.push({ x: wx, y: wy, vx: (tilt >= 0 ? 1 : -1) * (60 + Math.random() * 140), vy: (-120 + Math.random() * 160), life: 0.9 });
-  }
   ctx.restore();
   // Resource feedback has its own lane, outside the cup clocks and beat judgment.
   const notices = (st.state === 'over' ? [] : st.wineNotices || []).filter(n => st.t - n.at < 1.8 && n.amount >= 0.001);
@@ -2854,7 +2780,7 @@ function drawGauge(t) {
     text(`${label} ${n.kind === 'refill' ? '+' : '−'}${winePercent(n.amount)}%`, x + w / 2, y + h / 2, 30 * u, color, 'center', 900);
     ctx.restore();
   });
-  for (let i = gaugeDrops.length - 1; i >= 0; i--) { const d = gaugeDrops[i]; d.life -= 1 / 60; d.vy += 900 / 60; d.x += d.vx / 60; d.y += d.vy / 60; if (d.life <= 0 || d.y > H) { gaugeDrops.splice(i, 1); continue; } ctx.globalAlpha = clamp(d.life * 2, 0, 1); circ(d.x, d.y, 6, col); ctx.globalAlpha = 1; }
+  for (const d of gaugeDrops) { ctx.globalAlpha = clamp(d.life * 2, 0, 1); circ(d.x, d.y, 6, col); } ctx.globalAlpha = 1;
 }
 
 // ---------------------------------------------------------------- render
@@ -2878,6 +2804,7 @@ function homeBtnRect() {
 }
 function drawGameNavigation() {
   if (st.state === 'title' || CAPTURE) return;
+  if (!st.paused) drawPlayerSettings();
   const r = homeBtnRect(), unit = TOUCH ? 1.75 : 1;
   ctx.save();
   ctx.fillStyle = 'rgba(20,14,23,.62)'; rr(r.x, r.y, r.w, r.h, 14 * unit); ctx.fill();
@@ -2927,9 +2854,8 @@ function drawDifficultyPicker() {
   });
 }
 function titleStartRect() { if (mobileTitle()) return { x: W / 2 - 360, y: 755, w: 720, h: 155 }; return { x: 260, y: 700, w: 560, h: 126 }; }
-function titleTutRect() { if (mobileTitle()) return { x: W / 2 - 270, y: 940, w: 540, h: 112 }; return { x: 310, y: 868, w: 460, h: 96 }; }
+function titleTutRect() { if (mobileTitle()) return { x: W / 2 - 270, y: 924, w: 540, h: 90 }; return { x: 310, y: 868, w: 460, h: 96 }; }
 function debugEntryRect() { if (mobileTitle()) return { x: W - 180, y: 930, w: 120, h: 120 }; return { x: 950, y: 900, w: 64, h: 50 }; }
-function debugCloseRect() { return { x: 850, y: 140, w: 140, h: 60 }; }
 function drawDesktopTitle() {
   ctx.save(); overlayBox();
   ctx.fillStyle = '#891d25'; ctx.fillRect(0, 0, 1080, 1080);
@@ -2955,7 +2881,7 @@ function drawDesktopTitle() {
   ctx.fillStyle = gold; rr(start.x, start.y, start.w, start.h, 26); ctx.fill(); ctx.strokeStyle = '#fff1c7'; ctx.lineWidth = 4; ctx.stroke();
   text('开席！', 540, start.y + start.h / 2, 58, '#63251f', 'center', 900);
   const tut = titleTutRect(); text('妈妈教你玩', 540, tut.y + tut.h / 2, 32, '#ffe4bc', 'center', 800, '#4a2021');
-  drawDebugEntry(); ctx.restore();
+  drawPlayerSettings(); drawHomeNotice(); drawDebugEntry(); ctx.restore();
 }
 function drawMobileTitle() {
   const cx = W / 2, bg = HOME_ART.background, logo = HOME_ART.logo;
@@ -2980,7 +2906,24 @@ function drawMobileTitle() {
   text('开席！', cx, start.y + start.h / 2, 68, '#63251f', 'center', 900);
   const tut = titleTutRect();
   text('妈妈教你玩', cx, tut.y + tut.h / 2, 40, '#ffe4bc', 'center', 800, '#4a2021');
-  drawDebugEntry();
+  drawPlayerSettings(); drawHomeNotice(); drawDebugEntry();
+}
+function playerSettingsRect() {
+  if (mobileTitle()) return { x: 60, y: 930, w: 200, h: 112 };
+  if (st.state === 'title') return { x: 54, y: 884, w: 180, h: 80 };
+  if (st.paused) return { x: 380, y: 630, w: 320, h: 82 };
+  const home = homeBtnRect(); return { x: TOUCH ? home.x - home.w - 12 : home.x, y: TOUCH ? home.y : home.y - home.h - 14, w: home.w, h: home.h };
+}
+function drawPlayerSettings() {
+  const r = playerSettingsRect();
+  ctx.fillStyle = 'rgba(20,14,23,.72)'; rr(r.x, r.y, r.w, r.h, 16); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,236,207,.4)'; ctx.lineWidth = 2; ctx.stroke();
+  text('设置', r.x + r.w / 2, r.y + r.h / 2, TOUCH ? 40 : 28, '#ffe4bc', 'center', 800);
+}
+function drawHomeNotice() {
+  const x = mobileTitle() ? W / 2 : 540;
+  ctx.fillStyle = 'rgba(20,10,17,.8)'; rr(x - 440, 1024, 880, 46, 12); ctx.fill();
+  text('未成年人禁止饮酒 · 请勿模仿游戏中的饮酒行为', x, 1047, mobileTitle() ? 30 : 26, '#f2ddc5', 'center', 700);
 }
 function drawDebugEntry() { const r = debugEntryRect(); text('···', r.x + r.w / 2, r.y + r.h / 2, 32, '#8d7b88', 'center', 900); }
 function hitR(q, r) { return q.x > r.x && q.x < r.x + r.w && q.y > r.y && q.y < r.y + r.h; }
@@ -2992,7 +2935,7 @@ function overlayBox() {
 }
 
 function drawArcadeUI() {
-  if (st.tut || st.state === 'title' || st.state === 'over') return;
+  if (st.tut || st.state === 'title' || st.state === 'over' || st.state === 'clear') return;
   const u = LAY === 'port' ? 1.25 : 1, width = Math.min(530 * u, W - 410), x = (W - width) / 2, y = hudBottom() + 8;
   const r = st.round, color = st.hype >= 68 ? '#ffb84d' : '#ffd85d';
   ctx.save();
@@ -3286,7 +3229,7 @@ function render() {
   const lay = st.tut ? { name: '家 · 妈妈教你酒桌规矩' } : layerDef(shownL), dm = st.depth;
   const hk = PORT ? 1.45 : LAY === 'land' ? 1.25 : 1, hx = PORT ? 0 : Math.round((W - 1080 * hk) / 2);
   ctx.save(); ctx.translate(Math.max(0, hx), 0); ctx.scale(hk, hk);
-  if (st.state === 'over') ctx.globalAlpha = 0; // game-over screen has its own score
+  if (st.state === 'over' || st.state === 'clear') ctx.globalAlpha = 0; // game-over screen has its own score
   const hudW = PORT ? 1080 / hk : 1080;
   text(st.tut ? lay.name : layerLabel(shownL), 22, 34, 24, '#fff', 'left', 900, 'rgba(0,0,0,0.7)');
   if (!st.tut) text((dm < 0.05 ? '' : '−') + fmtDepth(dm), 22, 66, 22, '#ffd34d', 'left', 900, 'rgba(0,0,0,0.7)');
@@ -3309,7 +3252,6 @@ function render() {
     else if (Math.abs(p.tilt + p.w) > spillLim() && !noSpill()) { const f = p.tilt + p.w > 0, wave = Math.abs(p.w) > Math.abs(p.tilt);
       hint = [wave ? (f ? '酒往前涌！往后扶' : '酒往后涌！往前扶') : (f ? '杯子前倾了！' : '杯子后仰了！'), [f ? 'Q' : 'W']]; }
     else if (rd && rd.smash && rd.phase === 'aim' && !st.tut) hint = [st.pressure > 0.05 ? '继续按住 O 砸！' : '按住 O 趴到底，砸地板', ['O']];
-    else if (rd && rd.phase === 'gap' && st.alien && st.alien.on) hint = ['空档：对准下一杯', []];
     else if (rd && rd.phase === 'aim' && !st.tut && !(st.alien && !st.alien.revealed) && p.P.rim.y < toastRimY() && roundLeft() < rd.T) hint = ['比领导高！', ['O']];
     else if (rd && rd.phase === 'aim' && !rd.smash && p.P.rim.y - toastRimY() > winSpan()) hint = ['太低了！', ['P']];
 
@@ -3367,7 +3309,7 @@ function render() {
   // --- tutorial fade to the office
   if (st.tut && st.tut.fade) { const a = clamp(st.tut.fade / 0.8, 0, 1); ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.fillRect(0, 0, W, H); if (a > 0.6) text('第二天 · 单位饭局', W / 2, H / 2, 56 * UI, '#fff', 'center', 900); }
   // game over
-  if (st.state === 'over' && st.over) {
+  if (['over', 'clear'].includes(st.state) && st.over) {
     const o = st.over, a = clamp((st.stT - 1.0) * 2.5, 0, 1);
     if (a > 0) {
       ctx.globalAlpha = a;
@@ -3376,8 +3318,8 @@ function render() {
       if (TOUCH && LAY === 'land') drawMobileResult(o);
       else {
       const [rz, remark] = rankFor(o.score);
-      const [tz] = OVER_TEXT[o.reason] || OVER_TEXT.beer;
-      text(tz, 540, 120, 48, '#ff796b', 'center', 900);
+      const [tz] = o.reason === 'clear' ? ['十二关通关'] : OVER_TEXT[o.reason] || OVER_TEXT.beer;
+      text(tz, 540, 120, 48, o.reason === 'clear' ? '#ffd34d' : '#ff796b', 'center', 900);
       const mode = DIFFICULTIES.find(d => d.id === o.difficulty) || difficulty();
       ctx.font = `900 66px ${FONT}`;
       const rankWidth = Math.max(460, ctx.measureText(rz).width + 80);
@@ -3396,8 +3338,9 @@ function render() {
       text(`本局累计 · 按标准大杯容量${capacity}`, 540, 738, 23, '#bfaeb9', 'center', 700);
       text(`${o.cleared ? '十二关已通关 · ' : ''}第 ${o.layer + 1} 层 · ${o.depth < 0.05 ? '0 米' : '−' + fmtDepth(o.depth)}`, 540, 815, 28, '#e5d2c4', 'center', 800);
       text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}${st.bestDifficulty ? ' · ' + DIFFICULTIES.find(d => d.id === st.bestDifficulty).level : ''}${st.newRecord ? ' · 新纪录！' : ''}`, 540, 867, 28, '#7fd0ff', 'center', 900);
-      text(TOUCH ? '点一下重来' : '按 R 重来', 540, 930, 34, '#fff', 'center', 900);
+      if (o.reason !== 'clear') text(TOUCH ? '点一下重来' : '按 R 重来', 540, 930, 34, '#fff', 'center', 900);
       }
+      if (o.reason === 'clear') drawClearActions();
       ctx.restore(); ctx.globalAlpha = 1;
     }
   }
@@ -3406,9 +3349,16 @@ function render() {
     ctx.fillStyle = 'rgba(8,8,12,0.82)'; ctx.fillRect(0, 0, W, H);
     ctx.save(); overlayBox();
     text('暂停', 540, 170, 72, '#ffd34d', 'center', 900, '#7a1019');
-    drawMute(); drawDebugEntry();
+    drawMute(); drawPlayerSettings(); drawDebugEntry();
     text(TOUCH ? '点空白处继续' : 'Esc / 空格 继续', 540, 860, 28, '#fff', 'center', 900);
     ctx.restore();
+  }
+  if (st.guide && guidesEnabled && st.state === 'play' && !st.paused && st.t < st.guide.until) {
+    const y = H - (TOUCH ? 370 : 245), size = TOUCH ? 38 : 28;
+    ctx.font = `800 ${size}px ${FONT}`;
+    const width = ctx.measureText(st.guide.text).width + 52;
+    ctx.fillStyle = 'rgba(24,17,27,.9)'; rr(W / 2 - width / 2, y - 30, width, 60, 16); ctx.fill();
+    text(st.guide.text, W / 2, y, size, '#ffe4a0', 'center', 800);
   }
   drawGameNavigation();
   if (st.state === 'title') {
@@ -3442,7 +3392,7 @@ window.__toast = {
   advance(n, noRender) { for (let i = 0; i < n; i++) step(DT); if (!noRender) render(); return this.state(); },
   ctl(m) { if (m && m !== CTL) toggleCtl(); return CTL; },
   rimCurve() { const c = mkChar(P_SPEC, 1), out = []; for (let i = 0; i <= 20; i++) { poseFromS(c, h2s(i / 20)); c.tilt = 0; c.x = 300; c.y = 0; settle(c, floorY(st.L)); out.push(Math.round(floorY(st.L) - c.P.rim.y)); } return { rim: out, lim: Math.round(floorY(st.L) - floorLimit()), stand: Math.round(floorY(st.L) - st.stand) }; },
-  state() { const ld = layerDef(st.L); return { rank: rankFor(st.score), difficulty: { id: difficultyId, level: difficulty().level, name: difficulty().name }, storyRooms: STORY_N, chain: st.round && st.round.chain ? { index: st.round.chainIndex, total: st.round.chain, hits: st.round.chainHits } : null, keys: { ...keys }, reach: +(player.reach || 0).toFixed(3), combo: st.combo, hype: st.hype, manualToasts: st.manualToasts, lay: LAY, W, H, state: st.state, layer: st.L, ch: ld.ch, mech: ld.mech, depth: +st.depth.toFixed(1), score: Math.round(st.score), beer: +player.wine.toFixed(2), strikes: st.strikes, toasts: st.toasts, perfects: st.perfects, round: st.round ? st.round.n : 0, phase: st.round ? st.round.phase : null, left: st.round && st.round.phase === 'aim' ? +roundLeft().toFixed(2) : null, smash: st.round ? st.round.smash : false, pressure: +st.pressure.toFixed(2), breaks: st.breaks, flipped: st.flipped, gameT: +st.gameT.toFixed(2), why: st.why || {}, over: st.over, tilt: +player.tilt.toFixed(2), startL: START_LAYER, alien: st.alien && st.alien.on ? { revealed: st.alien.revealed, cup: st.alien.cup|0, n: st.alien.n|3, step: +st.alien.step.toFixed(1), gap: +st.alien.gap.toFixed(2), phase: st.round ? st.round.phase : null } : null, qw: st.qw ? { presses: st.qw.n, sw: st.qw.sw || 0, held: +st.qw.held.toFixed(1), t: +st.qw.t.toFixed(1), rms: +Math.sqrt((st.qw.m2 || 0) / Math.max(1e-6, st.qw.mt || 0)).toFixed(3) } : null }; },
+  state() { const ld = layerDef(st.L); return { rank: rankFor(st.score), difficulty: { id: difficultyId, level: difficulty().level, name: difficulty().name }, storyRooms: STORY_N, chain: st.round && st.round.chain ? { index: st.round.chainIndex, total: st.round.chain, hits: st.round.chainHits } : null, keys: { ...keys }, reach: +(player.reach || 0).toFixed(3), combo: st.combo, hype: st.hype, manualToasts: st.manualToasts, lay: LAY, W, H, state: st.state, layer: st.L, ch: ld.ch, mech: ld.mech, depth: +st.depth.toFixed(1), score: Math.round(st.score), beer: +player.wine.toFixed(2), strikes: st.strikes, toasts: st.toasts, perfects: st.perfects, round: st.round ? st.round.n : 0, phase: st.round ? st.round.phase : null, left: st.round && st.round.phase === 'aim' ? +roundLeft().toFixed(2) : null, smash: st.round ? st.round.smash : false, pressure: +st.pressure.toFixed(2), breaks: st.breaks, flipped: st.flipped, gameT: +st.gameT.toFixed(2), why: st.why || {}, over: st.over, tilt: +player.tilt.toFixed(2), startL: START_LAYER, alien: st.alien && st.alien.on ? { revealed: st.alien.revealed, cup: st.alien.cup|0, n: st.alien.n|3, step: +st.alien.step.toFixed(1), phase: st.round ? st.round.phase : null } : null, qw: st.qw ? { presses: st.qw.n, sw: st.qw.sw || 0, held: +st.qw.held.toFixed(1), t: +st.qw.t.toFixed(1), rms: +Math.sqrt((st.qw.m2 || 0) / Math.max(1e-6, st.qw.mt || 0)).toFixed(3) } : null }; },
   restart() { restart(); },
   tut() { return st.tut ? { step: st.tut.step, sub: st.tut.sub, t: +st.tut.t.toFixed(1) } : null; },
   dbg() { const r = st.round; return { reach: player.reach || 0, reachV: player.reachV || 0, beatReady: toastBeatReady(), inputLeft: toastInputLeft(), attacking: !!(r && r.attacking), timingWindow: timingWindow(), cupRate: player.cupRate || 0, vh: player.vh, margin: r && r.margin, result: r && r.result, smash: r && r.smash, target: r && Math.round(floorY(st.L) - r.target), windowSpan: Math.round(winSpan()), lim: +spillLim().toFixed(3), cap: +cupGeom(player).cap.toFixed(2), wineCapacity: wineCapacity(), rimH: player.P ? Math.round(floorY(st.L) - player.P.rim.y) : 0, bossH: boss.P ? Math.round(floorY(st.L) - boss.P.rim.y) : 0, h: +(player.h || 0).toFixed(2), wine: +player.wine.toFixed(2), tilt: +player.tilt.toFixed(2), ctl: CTL, difficulty: difficultyId, pressure: +st.pressure.toFixed(2) , w: player.w, wv: player.wv, bump: !!(st.bump && !st.bump.done && st.t > st.bump.at), paused: st.paused, judge: !!st.judge, jword: st.judge && st.judge.word, jt: st.judge && st.judge.t, fx: fx.length, loss: st.loss || 0, lossT: st.lossT || 0, move: r && r.move, rt: r && +r.t.toFixed(2), sw: +(player.sw || 0).toFixed(3), vis: player.vis ? { l: +player.vis.lean.toFixed(2), b: +player.vis.bend.toFixed(2), k: +player.vis.knee.toFixed(2), a: +player.vis.arm.toFixed(2), h: +player.vis.head.toFixed(2) } : null }; },

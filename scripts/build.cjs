@@ -5,7 +5,7 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const out = path.join(root, 'dist');
 const files = [
-  'index.html', 'game.js', 'config.js', 'settings.js', 'settings.css', 'music.js',
+  'index.html', 'rules.js', 'chapters.js', 'audio-clock.js', 'input-ui.js', 'game.js', 'config.js', 'settings.js', 'settings.css', 'music.js',
   'assets/home/favicon.svg', 'assets/home/banquet-v46.png', 'assets/home/logo-v46.png',
   'assets/audio/banquet-shuffle.mp3',
   'replay.html', 'docs/media/hard-clear.jpg', 'docs/media/hard-clear.mp4',

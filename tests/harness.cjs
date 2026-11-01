@@ -82,7 +82,7 @@ function createGame(options = {}) {
   const storage = new Map(Object.entries(options.storage || { 'toastLower.tutDone': '1', toast_mute: '1' }));
   const timers = [];
   const sandbox = {
-    console, URLSearchParams, Math, Float32Array,
+    console, URLSearchParams, Math, Float32Array, Image: options.Image,
     location: { search: options.search || '?tut=0&seed=20261022' },
     document: { ...eventTarget(), getElementById(id) { if (id !== 'c') throw new Error(`Unexpected DOM lookup ${id}`); return canvas; }, hidden: false },
     localStorage: { getItem(key) { return storage.has(key) ? storage.get(key) : null; }, setItem(key, value) { storage.set(key, String(value)); } },
@@ -119,7 +119,7 @@ function createGame(options = {}) {
   window.__test = {
     get bubbles() { return bubbles; }, get st() { return st; }, get player() { return player; }, get boss() { return boss; },
     get pointers() { return pointers; }, get stick() { return { ...stick, ...stickRect() }; }, get stickGeometry() { return stickRect(); }, get buttons() { return BTN.map((b, i) => ({ key: b[0], ...btnRect(i) })); },
-    get canvasSize() { return { W, H }; }, toastClockVisual, toastPose, toastMotionWeight, stepToastMotion, visPose, cupGeom, spillLim, sfx, render, breakFloor, gameOver, changeWine, saveBest, isCustomRun, roundSucceeded, stepDisturb, stepSway, stepNPCs, toastRimY, alienRimX, alienRimY, stepNPCs, winSpan, strike, judgeClink, perfBand, moveCup, diff, wineCapacity, refillWine, stepRound, stepChapterChatter, finishToastAttempt, newRound, reachTime, revealAlienTarget, spillSoundSuppressed, stepToastCue, stepTutorial, pressCheck, get config() { return CFG; }, applySettings, get settings() { return window.__settings; },
+    get canvasSize() { return { W, H }; }, toastClockVisual, toastPose, toastMotionWeight, stepToastMotion, visPose, cupGeom, spillLim, sfx, render, breakFloor, gameOver, changeWine, saveBest, isCustomRun, roundSucceeded, stepDisturb, stepSway, stepNPCs, toastRimY, alienRimX, alienRimY, stepNPCs, winSpan, strike, judgeClink, perfBand, moveCup, diff, wineCapacity, refillWine, stepRound, stepChapterChatter, finishToastAttempt, newRound, reachTime, revealAlienTarget, spillSoundSuppressed, stepToastCue, stepTutorial, pressCheck, get config() { return CFG; }, applySettings, openPlayerSettings, continueEndless, beginStandup, swayAmp, firstGuide, get playerSettingsButton() { return playerSettingsRect(); }, get clearButton() { return clearActionRect(); }, get settings() { return window.__settings; },
     get canToast() { return typeof canToast === 'function' ? canToast : null; },
     get requestToast() { return typeof requestToast === 'function' ? requestToast : null; },
     get contacts() { return window.__contacts; },
@@ -128,6 +128,7 @@ function createGame(options = {}) {
   };\n${marker}`);
   vm.createContext(sandbox);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'config.js'), 'utf8'), sandbox);
+  for (const file of ['rules.js', 'chapters.js', 'audio-clock.js', 'input-ui.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), sandbox);
   vm.runInContext(instrumented, sandbox, { filename: sourcePath, timeout: 10000 });
   return {
     api: sandbox.__toast, inspect: sandbox.__test, storage, sandbox,

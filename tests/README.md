@@ -91,3 +91,15 @@ thresholds or rates, unchanged standard-glass penalties/refills, tutorial isolat
 and independent music/effects routing. Music tests simulate an ignored media-element
 volume setter, shared gain buses, cue ducking, mute and audio-context recovery.
 These verify routing and state; phone speaker balance still needs device playtesting.
+
+Maintenance checks (`node tests/maintenance.test.cjs`) cover exact wine depletion,
+stalled/unavailable audio, preserved preset sway after decoupling height windows,
+non-restarting audio preferences and their migration, one-time hints, and explicit
+twelve-stage settlement with a single continuation into endless. Settings checks
+(`node tests/settings.test.cjs`) execute the real modal code against a small DOM
+stub to verify live controls and separation from test parameters. They do not
+replace mobile Safari/Android touch or speaker testing.
+
+The gradual split keeps physics and canvas rendering in `game.js`, with pure
+accounting in `rules.js`, stage/dialogue data in `chapters.js`, audio synchronization
+in `audio-clock.js`, and device input helpers in `input-ui.js`.
