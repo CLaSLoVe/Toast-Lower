@@ -30,3 +30,16 @@
 [data-game-rotated] .user-settings{width:min(600px,calc(100dvh - 24px))}
 [data-game-rotated] .player-settings .setting-row{padding:6px 0}
 @media(max-height:450px){.player-settings header{padding:8px 20px}.player-settings .setting-row{padding:5px 0}.player-settings .settings-content{padding-bottom:8px}}
+
+/* Warm paper controls match the banquet's comic palette. Test tools stay dark. */
+.user-settings{background:#f6e7c8;color:#65392d;border:3px solid #8d4c35;border-radius:22px;box-shadow:0 8px 0 #55242c,0 24px 90px #0008;font-size:17px}
+.user-settings::backdrop{background:#210f18c9}
+.user-settings header{border-bottom:2px solid #ddbe92;padding:14px 22px}
+.user-settings h1{color:#713b2d;font-weight:900;letter-spacing:2px}
+.user-settings .setting-row{border-color:#ddc8a6}
+.user-settings .setting-row label{font-weight:750}
+.user-settings .volume-row output{color:#975135;font-weight:800}
+.user-settings input[type=range],.user-settings input[type=checkbox]{accent-color:#ad3937}
+.user-settings button{background:#a83a38;color:#fff0cb;border:2px solid #822d31;border-radius:12px;font-weight:800;box-shadow:0 3px 0 #722a30}
+.user-settings button:hover{background:#bd4840}
+.user-settings :focus-visible{outline-color:#873b2b}

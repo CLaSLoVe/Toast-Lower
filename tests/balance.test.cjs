@@ -58,8 +58,8 @@ test('retry cannot generate score or combo/hype; mixed groups recover consistent
  for(const pattern of [[true,false],[false,true]]) {
   const g=game(6);g.inspect.player.wine=.5;
   pattern.forEach(ok=>ok?hit(g):miss(g));const r=g.inspect.st.round;
-  assert.equal(r.groupOutcome,'partial');assert.ok(g.inspect.roundSucceeded(r));
-  g.inspect.stepRound(.53);assert.notEqual(g.inspect.st.round,r);
+  assert.equal(r.groupOutcome,'partial');assert.equal(g.inspect.roundSucceeded(r),false);
+  g.inspect.stepRound(.79);assert.notEqual(g.inspect.st.round,r);
  }
  const g=game(8);g.inspect.player.wine=.5;for(let i=0;i<4;i++)miss(g);g.inspect.newRound(false);
  for(let i=0;i<4;i++)hit(g);assert.equal(g.inspect.st.score,0);assert.equal(g.inspect.st.combo,0);assert.equal(g.inspect.st.hype,0);
@@ -75,12 +75,12 @@ test('successful contact has no physical wine impulse and accounting uses actual
 });
 test('story clear saves immediately, home saves progress, custom and bot runs cannot replace standard records',()=>{
  const g=game();g.inspect.st.L=11;g.inspect.st.breaks=11;g.inspect.st.score=555000;g.inspect.breakFloor();
- const best=JSON.parse(g.storage.get('toastLower.best.v3'));assert.equal(best.score,g.inspect.st.score);
- const p=game();hit(p);const h=p.inspect.homeButton;p.point('pointerdown',h.x+h.w/2,h.y+h.h/2);assert.equal(JSON.parse(p.storage.get('toastLower.best.v3')).score,p.inspect.st.score);
+ const best=JSON.parse(g.storage.get('toastLower.best.v4'));assert.equal(best.score,g.inspect.st.score);
+ const p=game();hit(p);const h=p.inspect.homeButton;p.point('pointerdown',h.x+h.w/2,h.y+h.h/2);assert.equal(JSON.parse(p.storage.get('toastLower.best.v4')).score,p.inspect.st.score);
  for(const extra of ['&bot=expert','&ctl=vel','&debug=1']) {
-  const c=game(0,'normal',extra);c.inspect.st.score=999999;c.inspect.saveBest();assert.equal(c.storage.has('toastLower.best.v3'),false);
+  const c=game(0,'normal',extra);c.inspect.st.score=999999;c.inspect.saveBest();assert.equal(c.storage.has('toastLower.best.v4'),false);
  }
- const c=game();c.inspect.config.toastScore=1000;hit(c);c.inspect.gameOver('beer');assert.equal(c.inspect.st.over.custom,true);assert.equal(c.storage.has('toastLower.best.v3'),false);
+ const c=game();c.inspect.config.toastScore=1000;hit(c);c.inspect.gameOver('beer');assert.equal(c.inspect.st.over.custom,true);assert.equal(c.storage.has('toastLower.best.v4'),false);
 });
 test('all active states pause on focus loss, tab hide, Escape and the pause button',()=>{
  for(const state of ['play','fall','standup']) for(const method of ['blur','hidden','escape','button']) {

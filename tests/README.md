@@ -103,3 +103,10 @@ replace mobile Safari/Android touch or speaker testing.
 The gradual split keeps physics and canvas rendering in `game.js`, with pure
 accounting in `rules.js`, stage/dialogue data in `chapters.js`, audio synchronization
 in `audio-clock.js`, and device input helpers in `input-ui.js`.
+
+`node tests/progression.test.cjs` checks that partial chains repeat until a full
+phrase succeeds, that retries cannot restore lost scoring opportunities, and that
+perfect/ordinary/miss-heavy play produces clearly different scores with controlled
+wine amounts. It also loads the real music module together with the game (rather
+than substituting its API), covering music across settlement/endless and stale
+play-promise rejection after pause/resume. Media and AudioContext remain CPU stubs.

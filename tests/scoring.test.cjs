@@ -73,8 +73,11 @@ test('a missed middle chain note loses only that opportunity, never replays earn
   miss(g); assert.equal(g.inspect.st.score, score);
   hit(g); hit(g); next(g);
   assert.deepEqual(Array.from(plan.claimed.slice(0, 4)), ['hit', 'miss', 'hit', 'hit']);
-  assert.equal(g.inspect.st.round.progress, 1);
+  assert.equal(g.inspect.st.round.progress, 0, 'partial phrase must be retried');
   assert.equal(g.inspect.st.round.chainIndex, 0);
+  const earned = g.inspect.st.score; for (let i=0;i<4;i++) hit(g);
+  assert.equal(g.inspect.st.score, earned, 'full retry cannot score again'); next(g);
+  assert.equal(g.inspect.st.round.progress, 1);
 });
 
 test('duplicate judgments and floor awards cannot score twice; restart clears claims', () => {
@@ -98,10 +101,10 @@ test('story clear award occurs only at twelve completed floors from the first st
 });
 
 test('honors follow score thresholds regardless of difficulty or campaign completion', () => {
-  const ranks = [[0, '成年香蕉'], [1, '卧龙凤雏'], [4500, '小孩那桌'],
-    [12000, '夹菜我转桌'], [30000, '乌鸦哥'], [65000, '端水大师'],
-    [130000, '懂事长'], [230000, '敬酒悍匪'], [360000, '国家一级陪酒员'],
-    [450000, '先天敬酒圣体'], [540000, '铁血山东 👍'], [600000, 'DeepDrink']];
+  const ranks = [[0, '成年香蕉'], [1, '卧龙凤雏'], [2500, '小孩那桌'],
+    [6500, '夹菜我转桌'], [14000, '乌鸦哥'], [30000, '端水大师'],
+    [70000, '懂事长'], [140000, '敬酒悍匪'], [230000, '国家一级陪酒员'],
+    [290000, '先天敬酒圣体'], [340000, '铁血山东 👍'], [380000, 'DeepDrink']];
   for (const mode of ['easy', 'normal', 'hard']) for (const layer of [0, 11, 12]) {
     const g = game(layer, mode);
     for (let i = 0; i < ranks.length; i++) {

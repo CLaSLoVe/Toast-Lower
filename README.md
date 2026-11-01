@@ -19,7 +19,7 @@ Automated playthrough.
 | Toast | Space | Tap the right-hand toast button |
 | Smash through the floor | Hold O / ↓ during the floor-break phase | Hold the stick down |
 | Pause | Esc / pause button | Top-right pause button |
-| Return home | Top-right home button | Top-right home button |
+| Return home | Top-right house icon | Top-right house icon |
 
 On desktop, R restarts and M mutes. Open Settings from the home screen or during play to adjust audio; closing it resumes an active game. Choose a difficulty or open the tutorial from the home screen. On mobile, diagonal stick input controls both axes; releasing it preserves momentum. The game always uses landscape: with portrait rotation lock enabled, the display and touch controls rotate automatically inside the page.
 
@@ -36,11 +36,11 @@ Easy keeps forgiving timing. Normal and Hard tighten timing, increase cup drift 
 | Ancient tomb | Hold a fixed height and hit 2, 3, then 4 consecutive beats |
 | Aliens | Three cups count down from 2 seconds. Only the target’s circle and height guide remain in the final second; the leader steps forward at 0s. The same leader can be picked again |
 
-After stage twelve, the results screen shows your rank, score, difficulty, perfects, misses and wine totals. Choose Continue Endless to keep playing with the same score and resources, or return home.
+After stage twelve, the results screen shows your rank, score, difficulty, perfects, misses and wine totals. Choose Continue Endless to keep playing with the same score and resources, or return home. Music continues through the results screen into endless mode.
 
-Each stage has a fixed set of scoring opportunities. Each beat scores only on its first attempt, with a chain sharing one group’s score budget; retries can advance the stage but award no points or hype. Combos and hype settle once per group. Perfect toasts, combos and completed stages earn bonuses, with an extra bonus for clearing all twelve stages from the beginning. One high score is shared across difficulties and records the difficulty used. It saves on clearing stages and returning home. Custom rules, practice controls, stage skips and automated runs do not replace standard records. The new scoring rules use a separate record; legacy records remain in local storage.
+Each stage has a fixed set of scoring opportunities. Each beat scores only on its first attempt, with a chain sharing one group’s score budget; retries can advance the stage but award no points or hype. Combos and hype settle once per group. Performance drives the score: a perfect toast adds 1,000 points before stage/group scaling, compared with up to 200 height-quality points for an ordinary hit. Stage base rewards are 500 × stage number, and the twelve-stage clear bonus is 5,000. High ranks require accurate play, not just reaching the end. One high score is shared across difficulties and records the difficulty used. It saves on clearing stages and returning home. Custom rules, practice controls, stage skips and automated runs do not replace standard records. This performance-focused scoring version uses a separate record; earlier records remain in local storage.
 
-Successful contact itself consumes no wine. For 2/3/4-note chains, cumulative penalties are 12%/20%, 12%/16%/20%, and 12%/16%/18%/20%. A group with at least one successful note gets one refill (3% by default); an all-miss group gets none. Percentages use the standard full-glass capacity, including when Hard starts with a smaller glass. Results show actual spills, penalties and refills.
+Successful contact itself consumes no wine. For 2/3/4-note chains, cumulative penalties are 12%/20%, 12%/16%/20%, and 12%/16%/18%/20%. A group with at least one successful note gets one refill (3% by default); an all-miss group gets none. Only a completely successful phrase advances. A partial phrase repeats at the same height, without awarding points for already attempted notes. Percentages use the standard full-glass capacity, including when Hard starts with a smaller glass. Results show actual spills, penalties and refills.
 
 ## Ranks
 
@@ -50,16 +50,16 @@ Your final score determines your title. Scores below are entry thresholds; the f
 | --- | --- | --- |
 | 0 | 成年香蕉 | You grew hands. Almost. |
 | 1 | 卧龙凤雏 | Two legendary strategists. One on each wrist. |
-| 4,500 | 小孩那桌 | Back to the kids' table. |
-| 12,000 | 夹菜我转桌 | Table manners were never the plan. |
-| 30,000 | 乌鸦哥 | Can't toast the table? Flip it. |
-| 65,000 | 端水大师 | Keep the glass level and everyone happy. |
-| 130,000 | 懂事长 | Toasted your way into management. |
-| 230,000 | 敬酒悍匪 | Taking the offensive. |
-| 360,000 | 国家一级陪酒员 | Practically licensed for this. |
-| 450,000 | 先天敬酒圣体 | Born for this banquet. |
-| 540,000 | 铁血山东 👍 | Social etiquette: maxed out. |
-| 600,000 | DeepDrink | A large toasting model. |
+| 2,500 | 小孩那桌 | Back to the kids' table. |
+| 6,500 | 夹菜我转桌 | Table manners were never the plan. |
+| 14,000 | 乌鸦哥 | Can't toast the table? Flip it. |
+| 30,000 | 端水大师 | Keep the glass level and everyone happy. |
+| 70,000 | 懂事长 | Toasted your way into management. |
+| 140,000 | 敬酒悍匪 | Taking the offensive. |
+| 230,000 | 国家一级陪酒员 | Practically licensed for this. |
+| 290,000 | 先天敬酒圣体 | Born for this banquet. |
+| 340,000 | 铁血山东 👍 | Social etiquette: maxed out. |
+| 380,000 | DeepDrink | A large toasting model. |
 
 ## Run locally
 

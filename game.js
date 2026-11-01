@@ -70,7 +70,7 @@ function hudBottom() { return LAY === 'port' ? 170 : LAY === 'land' ? 140 : 120;
 // ---------------------------------------------------------------- sound (quiet)
 let AC = null, muted = false, gestured = false;
 try { muted = localStorage.getItem('toast_mute') === '1'; } catch (e) { /* private mode */ }
-function syncMusic() { window.ToastMusic.update(gestured && !CAPTURE && !BOT && !document.hidden && !st.paused && ['play', 'fall', 'standup'].includes(st.state), muted ? 0 : CFG.musicVolume / 100, CFG.musicBpm, muted ? 0 : CFG.sfxVolume / 100, spillSoundSuppressed()); }
+function syncMusic() { window.ToastMusic.update(gestured && !CAPTURE && !BOT && !document.hidden && !st.paused && ['play', 'fall', 'standup', 'clear'].includes(st.state), muted ? 0 : CFG.musicVolume / 100, CFG.musicBpm, muted ? 0 : CFG.sfxVolume / 100, spillSoundSuppressed()); }
 function setMute(v) { muted = v; syncMusic(); try { localStorage.setItem('toast_mute', v ? '1' : '0'); } catch (e) { /* ignore */ } }
 // a short buzz on phones (follows the sound switch); never in bot / capture runs
 function buzz(pat) { if (muted || CAPTURE || BOT || !gestured) return; try { if (navigator.vibrate) navigator.vibrate(pat); } catch (e) { /* ignore */ } }
@@ -298,7 +298,8 @@ function changeWine(kind, amount) {
   return actual;
 }
 function refillWine(amount) { return changeWine('refill', amount); }
-function roundSucceeded(r) { return r && (r.chain ? r.chainHits > 0 : r.result === 'ok'); }
+function roundSucceeded(r) { return r && (r.chain ? r.chainHits === r.chain : r.result === 'ok'); }
+function roundEarnsRefill(r) { return r && (r.chain ? r.chainHits > 0 : r.result === 'ok'); }
 function chainPenaltyRatio(r, misses) {
   return window.ToastRules.chainPenaltyRatio(CFG, r.chain, misses);
 }
@@ -518,7 +519,7 @@ const st = { state: (AUTO || CAPTURE) ? 'play' : 'title', L: START_LAYER, t: 0, 
   score: 0, strikes: 0, toasts: 0, perfects: 0, combo: 0, bestCombo: 0, hype: 0, bursts: 0, manualToasts: 0, round: null, tut: null, judge: null, freeze: 0, gain: null, stand: 0, perfect: false, perfT: 0, notPerfT: 1, hist: [], trick: 0, trickT: 0, over: null, gameT: 0,
   floorPlan: null, hiscore: 0, bestDifficulty: null, newRecord: false, botT: 0, coreBonus: false, warnT: 0, paused: false, bump: null, bossOff: 0, bossJ: 0, bossJT: 0, tdrT: 0 };
 // New scoring has its own versioned record; the old score remains in storage, untouched.
-const BEST_KEY = 'toastLower.best.v3';
+const BEST_KEY = 'toastLower.best.v4';
 try {
   const best = JSON.parse(localStorage.getItem(BEST_KEY));
   if (best && Number.isFinite(best.score) && best.score >= 0 && DIFFICULTIES.some(d => d.id === best.difficulty)) {
@@ -876,7 +877,7 @@ function noSpill() {
   if (st.state === 'play' && r && r.smash && (r.phase === 'tie' || r.phase === 'aim')) return true;
   // 空档 between alien cups — setup only, never judged / never drained
   // brief recovery after a good clink (react juice while you stand back up)
-  if (r && r.phase === 'react' && roundSucceeded(r)) return true;
+  if (r && r.phase === 'react' && roundEarnsRefill(r)) return true;
   if (st.clinkGrace && st.t < st.clinkGrace) return true;
   return false;
 }
@@ -1207,7 +1208,7 @@ function floorLimit() { return floorY(st.L) - 83 * SC; } // lower than this and 
 function roundLeft() { const r = st.round; return r ? 0.5 + r.T - r.t : 9; }
 function newRound(fresh) {
   const d = diff(), fl = floorY(st.L), prev = st.round;
-  if (!fresh && prev && roundSucceeded(prev) && !prev.refilled && !st.tut && st.state === 'play' && player.wine > 0) {
+  if (!fresh && prev && roundEarnsRefill(prev) && !prev.refilled && !st.tut && st.state === 'play' && player.wine > 0) {
     refillWine(CFG.roundRefill / 100); prev.refilled = true;
   }
   ensureAlien();
@@ -1394,6 +1395,7 @@ function finishToastAttempt() {
   if (st.state !== 'play') { r.phase = 'react'; r.t = 0; return; }
   if (r.chain) {
     r.groupOutcome = r.chainHits === r.chain ? 'all-hit' : r.chainHits > 0 ? 'partial' : 'miss';
+    if (r.chainHits < r.chain && st.judge) st.judge.bonus = '这一组，再来！';
     if (r.scoredHits > 0) {
       st.combo = r.chainHits === r.chain && !r.chainMisses ? r.comboStart + 1 : 0;
       st.bestCombo = Math.max(st.bestCombo, st.combo);
@@ -2795,31 +2797,40 @@ function fmtDepth(m) {
   return `${Math.round(m / 1000).toLocaleString('en-US')} 公里`;
 }
 function pauseBtnRect() {
-  if (TOUCH) return { x: W - 160, y: 34, w: 112, h: 116 };
-  return { x: W - 78, y: hudBottom() + 14, w: 58, h: 58 };
+  const size = TOUCH ? 116 : 60;
+  return { x: W - (TOUCH ? 48 : 24) - size, y: TOUCH ? 34 : 24, w: size, h: size };
 }
 function homeBtnRect() {
-  const p = pauseBtnRect(), w = TOUCH ? 174 : 126;
-  return { x: p.x - w - (TOUCH ? 22 : 12), y: p.y, w, h: p.h };
+  const p = pauseBtnRect(); return { ...p, x: p.x - p.w - (TOUCH ? 18 : 12) };
+}
+function navIcon(kind, x, y, size, ink) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(size / 48, size / 48);
+  ctx.strokeStyle = ink; ctx.fillStyle = ink; ctx.lineWidth = 3.5; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (kind === 'home') {
+    ctx.beginPath(); ctx.moveTo(-17, -2); ctx.lineTo(0, -17); ctx.lineTo(17, -2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-12, -4); ctx.lineTo(-12, 16); ctx.lineTo(-4, 16); ctx.lineTo(-4, 5); ctx.lineTo(4, 5); ctx.lineTo(4, 16); ctx.lineTo(12, 16); ctx.lineTo(12, -4); ctx.stroke();
+  } else if (kind === 'settings') {
+    for (let i = 0; i < 8; i++) { ctx.save(); ctx.rotate(i * PI / 4); ctx.fillRect(-3.5, -21, 7, 8); ctx.restore(); }
+    ctx.beginPath(); ctx.arc(0, 0, 14, 0, 2 * PI); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, 5, 0, 2 * PI); ctx.stroke();
+  } else { rr(-11, -15, 7, 30, 2); ctx.fill(); rr(4, -15, 7, 30, 2); ctx.fill(); }
+  ctx.restore();
+}
+function navButton(r, kind, label = '') {
+  ctx.save();
+  const radius = Math.min(20, r.h * .24), shadow = TOUCH ? 6 : 4;
+  ctx.fillStyle = '#57232a'; rr(r.x, r.y + shadow, r.w, r.h, radius); ctx.fill();
+  ctx.fillStyle = '#f7e4bb'; rr(r.x, r.y, r.w, r.h, radius); ctx.fill();
+  ctx.strokeStyle = '#ad6a47'; ctx.lineWidth = TOUCH ? 3 : 2; ctx.stroke();
+  const size = Math.min(r.h * .55, TOUCH ? 52 : 32);
+  navIcon(kind, label ? r.x + r.h * .55 : r.x + r.w / 2, r.y + r.h / 2, size, '#75382c');
+  if (label) text(label, r.x + r.w * .67, r.y + r.h / 2, TOUCH ? 36 : 28, '#75382c', 'center', 900);
+  ctx.restore();
 }
 function drawGameNavigation() {
   if (st.state === 'title' || CAPTURE) return;
   if (!st.paused) drawPlayerSettings();
-  const r = homeBtnRect(), unit = TOUCH ? 1.75 : 1;
-  ctx.save();
-  ctx.fillStyle = 'rgba(20,14,23,.62)'; rr(r.x, r.y, r.w, r.h, 14 * unit); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,236,207,.4)'; ctx.lineWidth = 2; ctx.stroke();
-  const cx = r.x + 25 * unit, cy = r.y + r.h / 2;
-  ctx.strokeStyle = '#fff0d8'; ctx.lineWidth = 3 * unit; ctx.lineJoin = 'round';
-  ctx.beginPath(); ctx.moveTo(cx - 11 * unit, cy); ctx.lineTo(cx, cy - 10 * unit); ctx.lineTo(cx + 11 * unit, cy);
-  ctx.moveTo(cx - 8 * unit, cy - 2 * unit); ctx.lineTo(cx - 8 * unit, cy + 10 * unit); ctx.lineTo(cx + 8 * unit, cy + 10 * unit); ctx.lineTo(cx + 8 * unit, cy - 2 * unit); ctx.stroke();
-  text('主页', r.x + r.w - 15 * unit, cy, TOUCH ? 34 : 27, '#fff0d8', 'right', 800);
-  if (runActive() && !st.paused) {
-    const p = pauseBtnRect(); ctx.fillStyle = 'rgba(20,14,23,.62)'; rr(p.x, p.y, p.w, p.h, 14 * unit); ctx.fill();
-    const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
-    ctx.fillStyle = '#fff0d8'; ctx.fillRect(cx - 12 * unit, cy - 14 * unit, 8 * unit, 28 * unit); ctx.fillRect(cx + 4 * unit, cy - 14 * unit, 8 * unit, 28 * unit);
-  }
-  ctx.restore();
+  navButton(homeBtnRect(), 'home');
+  if (runActive() && !st.paused) navButton(pauseBtnRect(), 'pause');
 }
 const btnPrev = {}, btnPing = {};
 function muteRect() { return { x: 540 - 160, y: 760, w: 320, h: 52 }; }
@@ -2912,14 +2923,9 @@ function playerSettingsRect() {
   if (mobileTitle()) return { x: 60, y: 930, w: 200, h: 112 };
   if (st.state === 'title') return { x: 54, y: 884, w: 180, h: 80 };
   if (st.paused) return { x: 380, y: 630, w: 320, h: 82 };
-  const home = homeBtnRect(); return { x: TOUCH ? home.x - home.w - 12 : home.x, y: TOUCH ? home.y : home.y - home.h - 14, w: home.w, h: home.h };
+  const home = homeBtnRect(); return { ...home, x: home.x - home.w - (TOUCH ? 18 : 12) };
 }
-function drawPlayerSettings() {
-  const r = playerSettingsRect();
-  ctx.fillStyle = 'rgba(20,14,23,.72)'; rr(r.x, r.y, r.w, r.h, 16); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,236,207,.4)'; ctx.lineWidth = 2; ctx.stroke();
-  text('设置', r.x + r.w / 2, r.y + r.h / 2, TOUCH ? 40 : 28, '#ffe4bc', 'center', 800);
-}
+function drawPlayerSettings() { navButton(playerSettingsRect(), 'settings', st.state === 'title' || st.paused ? '设置' : ''); }
 function drawHomeNotice() {
   const x = mobileTitle() ? W / 2 : 540;
   ctx.fillStyle = 'rgba(20,10,17,.8)'; rr(x - 440, 1024, 880, 46, 12); ctx.fill();

@@ -7,6 +7,7 @@
   track.loop = true; track.preload = 'auto';
   const SOURCE_BPM = 126, LOOP_SECONDS = 64 * 60 / SOURCE_BPM;
   let wanted = false, pending = false, blocked = false, loops = 0, lastTime = 0;
+  let playGeneration = 0;
   let audioFailed = false;
   let graph = null, musicVolume = 0, effectsVolume = 1, ducked = false;
   const clampVolume = v => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
@@ -54,7 +55,7 @@
   window.ToastMusic = {
     audio,
     gesture() { blocked = false; audioFailed = false; audio(); },
-    reset() { wanted = false; track.pause(); track.currentTime = 0; loops = 0; lastTime = 0; ducked = false; mix(); },
+    reset() { wanted = false; playGeneration++; pending = false; blocked = false; track.pause(); track.currentTime = 0; loops = 0; lastTime = 0; ducked = false; mix(); },
     clock() {
       if (!wanted || track.paused || blocked || track.error || graph && graph.context.state !== 'running') return null;
       const t = track.currentTime;
@@ -67,14 +68,19 @@
       wanted = !!playing; musicVolume = clampVolume(volume); effectsVolume = clampVolume(sfxVolume); ducked = !!duck;
       if (wanted && !audio()) { track.pause(); return; }
       mix();
-      if (!wanted) { if (!track.paused) track.pause(); return; }
+      if (!wanted) { if (pending) { playGeneration++; pending = false; } if (!track.paused) track.pause(); return; }
       if (!track.paused || pending || blocked) return;
       pending = true;
+      const generation = ++playGeneration;
       try {
         Promise.resolve(track.play()).then(() => {
+          if (generation !== playGeneration) { if (!wanted) track.pause(); return; }
           pending = false;
           if (!wanted) track.pause();
-        }).catch(() => { pending = false; blocked = true; });
+        }).catch(error => {
+          if (generation !== playGeneration) return;
+          pending = false; blocked = error?.name !== 'AbortError';
+        });
       } catch (_) { pending = false; blocked = true; }
     }
   };

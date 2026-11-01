@@ -24,13 +24,14 @@ function eventTarget() {
 
 function makeAudio() {
   const param = () => ({ value: 0, setValueAtTime() {},
-    exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {} });
+    exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {}, cancelScheduledValues() {}, setTargetAtTime() {} });
   const node = () => ({ connections: [], connect(to) { this.connections.push(to); }, start() {}, stop() {},
     gain: param(), frequency: param(), Q: param() });
   return class AudioContext {
     constructor() { this.state = 'running'; this.currentTime = 0; this.sampleRate = 8000; this.destination = {}; }
     resume() { return Promise.resolve(); }
     createGain() { return node(); }
+    createMediaElementSource() { return node(); }
     createOscillator() { return node(); }
     createBufferSource() { return node(); }
     createBiquadFilter() { return node(); }
@@ -82,9 +83,9 @@ function createGame(options = {}) {
   const storage = new Map(Object.entries(options.storage || { 'toastLower.tutDone': '1', toast_mute: '1' }));
   const timers = [];
   const sandbox = {
-    console, URLSearchParams, Math, Float32Array, Image: options.Image,
+    console, URLSearchParams, Math, Float32Array, Image: options.Image, Audio: options.Audio,
     location: { search: options.search || '?tut=0&seed=20261022' },
-    document: { ...eventTarget(), getElementById(id) { if (id !== 'c') throw new Error(`Unexpected DOM lookup ${id}`); return canvas; }, hidden: false },
+    document: { body: { append() {} }, ...eventTarget(), getElementById(id) { if (id !== 'c') throw new Error(`Unexpected DOM lookup ${id}`); return canvas; }, hidden: false },
     localStorage: { getItem(key) { return storage.has(key) ? storage.get(key) : null; }, setItem(key, value) { storage.set(key, String(value)); } },
     navigator: { maxTouchPoints: options.touch ? 2 : 0, vibrate() {} },
     innerWidth: options.width || 1080, innerHeight: options.height || 1080,
@@ -129,6 +130,7 @@ function createGame(options = {}) {
   vm.createContext(sandbox);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'config.js'), 'utf8'), sandbox);
   for (const file of ['rules.js', 'chapters.js', 'audio-clock.js', 'input-ui.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), sandbox);
+  if (options.realMusic) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'music.js'), 'utf8'), sandbox);
   vm.runInContext(instrumented, sandbox, { filename: sourcePath, timeout: 10000 });
   return {
     api: sandbox.__toast, inspect: sandbox.__test, storage, sandbox,
