@@ -25,7 +25,7 @@ On desktop, R restarts and M mutes. Choose a difficulty or open the tutorial fro
 
 The red **0s** marks the ideal toast timing. Run out of wine and the game ends. Missed toasts cost wine; successful rounds restore a little. Perfect toasts require both precise timing and a steady glass. Later glasses are smaller and hold less wine.
 
-Easy keeps forgiving timing. Normal and Hard tighten timing, increase cup drift in the tomb and alien chapters, and spread alien cups farther apart. Stage refills are 10% / 7% / 4%; successful-round refills and grouped penalties stay the same.
+Easy keeps forgiving timing. Normal and Hard tighten timing, increase cup drift in the tomb and alien chapters, and spread alien cups farther apart. The height window is 100% / 85% / 65%; Hard starts with a smaller glass holding 80% of the standard full glass, reaching the same 60% minimum later. Stage refills are 10% / 7% / 4%; successful-round refills and grouped penalties stay the same.
 
 ## Four chapters, twelve stages
 

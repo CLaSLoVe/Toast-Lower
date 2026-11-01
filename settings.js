@@ -10,14 +10,14 @@
   };
   const groups = {
     common: ['roundWait', 'missPenalty', 'roundRefill', 'spillMultiplier', 'spillMax', 'minCapacity'],
-    difficulty: ['Time', 'Taper', 'Setup', 'BodyCupCoupling', 'Hand', 'ChainWindow', 'FocusDrift', 'FloorRefill', 'AlienHeight'],
+    difficulty: ['Time', 'Taper', 'Setup', 'BodyCupCoupling', 'Hand', 'ChainWindow', 'FocusDrift', 'FloorRefill', 'AlienHeight', 'HeightWindow'],
     feel: ['stickDeadzone', 'stickCurve', 'cupTiltLimit', 'bodyBrakeCoupling', 'bodyAccel', 'bodyBrake', 'cupAccel', 'cupBrake', 'releaseCup', 'releaseBody'],
-    advanced: ['openingRounds', 'regularRounds', 'chainRounds', 'toastScore', 'comboScore', 'comboCap', 'hypeScore', 'floorScore', 'clearScore', 'chainReach', 'chainPenaltyFirst', 'chainPenaltySecond', 'chainPenaltyThird', 'successPause', 'missPause', 'smashCharge', 'stallPause', 'timingScore', 'heightScore', 'wineScore', 'floorWineScore', 'hypeHit', 'hypePerfect', 'hypeMiss', 'alienRounds', 'alienCountdown', 'alienReveal', 'alienStep1', 'alienStep2', 'alienStep3', 'musicVolume', 'musicBpm', 'spillSoundVolume', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'spillGrace', 'spillRamp']
+    advanced: ['openingRounds', 'regularRounds', 'chainRounds', 'toastScore', 'comboScore', 'comboCap', 'hypeScore', 'floorScore', 'clearScore', 'chainReach', 'chainPenaltyFirst', 'chainPenaltySecond', 'chainPenaltyThird', 'successPause', 'missPause', 'smashCharge', 'stallPause', 'timingScore', 'heightScore', 'wineScore', 'floorWineScore', 'hypeHit', 'hypePerfect', 'hypeMiss', 'alienRounds', 'alienCountdown', 'alienReveal', 'alienStep1', 'alienStep2', 'alienStep3', 'musicVolume', 'sfxVolume', 'musicBpm', 'hardStartCapacity', 'spillSoundVolume', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'spillGrace', 'spillRamp']
   };
   const tips = {
     openingRounds: '职场前两关各有几次固定敬酒机会；失败补敬不会增加计分机会。',
     regularRounds: '其余普通与晃动关卡的固定敬酒轮数。',
-    chainPenaltyFirst: '一组第一次失误罚标准额度的60%；默认即12%初始杯容量。',
+    chainPenaltyFirst: '一组第一次失误罚标准额度的60%；默认即12%标准大杯容量。',
     chainPenaltySecond: '三连／四连第二次失误后的累计额度；80%标准罚酒默认即累计16%。',
     chainPenaltyThird: '四连第三次失误后的累计额度；最后一次全错固定达到100%。',
     smashCharge: '首次砸楼所需蓄力，后续乘重复倍率，不再随楼层增加。',
@@ -44,8 +44,11 @@
     spillSoundVolume: '只调漏酒声；设为 0 可关闭。敬酒三声期间自动静音漏酒声。',
     spillSoundInterval: '连续漏酒时的声音间隔；越大越安静，不影响实际漏酒速度。',
     musicBpm: '音乐和敬酒三拍共用速度；数值越大越快，第三声始终对齐红色 0s。',
-    musicVolume: '酒局循环小曲的音量；设为 0 只关闭音乐，静音开关会关闭所有声音。',
-    minCapacity: '后期最小杯子的酒量上限，以初始大杯为 100%。扣酒和补酒仍按初始大杯计算。',
+    musicVolume: '音乐音量，手机也通过独立音量通道调节；提示拍期间自动压低。设为0保留音效。',
+    sfxVolume: '提示拍、碰杯、罚酒和砸楼等音效的总音量；漏酒声仍可另外调低。',
+    HeightWindow: '可成功碰杯的高度带宽度；辅助带同步变化，不改拍点容错。',
+    hardStartCapacity: '高难开局的杯容量，以标准大杯为100%；后期仍降到最小杯容量，不额外收紧洒酒角度。',
+    minCapacity: '后期最小杯子的酒量上限，以标准大杯为 100%。扣酒和补酒仍按标准大杯计算。',
     cupTiltLimit: '限制前后倾斜，最多 45°；到边缘后仍能反向扶正。',
     BodyCupCoupling: '这一档上下移动时带动杯子的强度；也受扶杯干扰倍率影响，越小越容易稳住。',
     bodyBrakeCoupling: '加速和刹车时的短促晃动，方向随身体速度变化。',
@@ -56,7 +59,7 @@
     repeatSmashPause: '第一次之后，砸楼前的停顿时间。',
     repeatStandup: '第二次落地开始，起身动画的时长。',
     roundWait: '越小，领导越快碰杯。难度和特殊回合会在此基础上调整。',
-    missPenalty: '没敬上时扣掉多少酒。20% 指初始大杯的五分之一。',
+    missPenalty: '没敬上时扣掉多少酒。20% 指标准大杯的五分之一。',
     roundRefill: '成功回合结束后添酒；连敬一组至少碰上一次才添一次，最多到满杯。',
     spillMultiplier: '越大漏得越快；1 是正常速度，0 关闭持续漏酒。',
     spillMax: '大幅倾斜时，每秒最多扣多少酒。',
@@ -70,7 +73,7 @@
     reachTime: '保留原有倒计时节奏的拍点偏移，不是操作延迟。', minWait: '后期倒计时的下限，不超过普通倒计时。',
     depthSpeedup: '深入后最多缩短多少秒。', retargetBonus: '杯口高度变化大时，额外给出的调整时间上限。',
     practiceBonus: '练习手感额外增加的碰杯容错。', perfectRefill: '完美碰杯额外补酒。',
-    hypeRefill: '气势满格时额外补酒。', FloorRefill: '进入下一层时添酒，按初始大杯容量计算；实际添酒不超过当前杯容量。',
+    hypeRefill: '气势满格时额外补酒。', FloorRefill: '进入下一层时添酒，按标准大杯容量计算；实际添酒不超过当前杯容量。',
     spillGrace: '开始倾斜后，多久才逐渐扣酒。', spillRamp: '从缓冲结束到正常漏酒速度所需的时间。'
   };
   let dialog, options, draft, tab, difficulty, selectedCtl, selectedLayer, selectedMute, status;

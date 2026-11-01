@@ -25,7 +25,7 @@ function eventTarget() {
 function makeAudio() {
   const param = () => ({ value: 0, setValueAtTime() {},
     exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {} });
-  const node = () => ({ connect() {}, start() {}, stop() {},
+  const node = () => ({ connections: [], connect(to) { this.connections.push(to); }, start() {}, stop() {},
     gain: param(), frequency: param(), Q: param() });
   return class AudioContext {
     constructor() { this.state = 'running'; this.currentTime = 0; this.sampleRate = 8000; this.destination = {}; }
@@ -96,7 +96,7 @@ function createGame(options = {}) {
     AudioContext: makeAudio(), ...windowEvents,
   };
   sandbox.window = sandbox;
-  sandbox.ToastMusic = { clock() { return sandbox.__musicClock ?? null; }, reset() {}, gesture() {}, update(playing, volume) { sandbox.__music = { playing, volume }; } };
+  sandbox.ToastMusic = { clock() { return sandbox.__musicClock ?? null; }, reset() {}, gesture() {}, update(playing, volume, bpm, sfxVolume, duck) { sandbox.__music = { playing, volume, bpm, sfxVolume, duck }; } };
   sandbox.ToastSettings = { isOpen() { return false; }, open(options) { sandbox.__settings = options; } };
   // Test ports exist only in the VM copy. The shipped game is never modified.
   const marker = 'window.__toast = {';
@@ -119,7 +119,7 @@ function createGame(options = {}) {
   window.__test = {
     get bubbles() { return bubbles; }, get st() { return st; }, get player() { return player; }, get boss() { return boss; },
     get pointers() { return pointers; }, get stick() { return { ...stick, ...stickRect() }; }, get stickGeometry() { return stickRect(); }, get buttons() { return BTN.map((b, i) => ({ key: b[0], ...btnRect(i) })); },
-    get canvasSize() { return { W, H }; }, toastClockVisual, toastPose, toastMotionWeight, stepToastMotion, visPose, render, breakFloor, gameOver, changeWine, saveBest, isCustomRun, roundSucceeded, stepDisturb, stepSway, stepNPCs, toastRimY, alienRimX, alienRimY, stepNPCs, winSpan, strike, judgeClink, perfBand, moveCup, diff, wineCapacity, refillWine, stepRound, stepChapterChatter, finishToastAttempt, newRound, reachTime, revealAlienTarget, spillSoundSuppressed, stepToastCue, stepTutorial, pressCheck, get config() { return CFG; }, applySettings, get settings() { return window.__settings; },
+    get canvasSize() { return { W, H }; }, toastClockVisual, toastPose, toastMotionWeight, stepToastMotion, visPose, cupGeom, spillLim, sfx, render, breakFloor, gameOver, changeWine, saveBest, isCustomRun, roundSucceeded, stepDisturb, stepSway, stepNPCs, toastRimY, alienRimX, alienRimY, stepNPCs, winSpan, strike, judgeClink, perfBand, moveCup, diff, wineCapacity, refillWine, stepRound, stepChapterChatter, finishToastAttempt, newRound, reachTime, revealAlienTarget, spillSoundSuppressed, stepToastCue, stepTutorial, pressCheck, get config() { return CFG; }, applySettings, get settings() { return window.__settings; },
     get canToast() { return typeof canToast === 'function' ? canToast : null; },
     get requestToast() { return typeof requestToast === 'function' ? requestToast : null; },
     get contacts() { return window.__contacts; },

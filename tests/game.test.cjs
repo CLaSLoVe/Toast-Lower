@@ -51,7 +51,7 @@ if (!matrixOnly) {
     const g = game('?tut=0', { storage: { toast_mute: '0' } });
     assert.equal(g.sandbox.__music, undefined, 'no playback before interaction');
     g.tap('Enter'); assert.equal(g.sandbox.__music.playing, true);
-    assert.equal(g.sandbox.__music.volume, 0.28);
+    assert.equal(g.sandbox.__music.volume, 0.18);
     g.tap('KeyM'); assert.equal(g.sandbox.__music.volume, 0); assert.equal(g.sandbox.__music.playing, true, 'silent clock keeps its phase');
     g.tap('KeyM'); assert.equal(g.sandbox.__music.playing, true);
     g.tap('Escape'); assert.equal(g.sandbox.__music.playing, false);

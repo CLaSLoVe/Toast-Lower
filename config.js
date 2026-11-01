@@ -1,6 +1,6 @@
 'use strict';
 // 游戏调参入口。每行依次是：键名、显示名、默认值、最小值、最大值、步长、单位。
-// 百分比直接写 20 表示 20%（按初始大杯容量计算），时间单位为秒。
+// 百分比直接写 20 表示 20%（按标准大杯容量计算），时间单位为秒。
 // 游戏内「···」使用同一张表。修改本文件后刷新，旧的本机覆盖自动失效。
 (() => {
   const fields = [
@@ -42,7 +42,8 @@
     ['musicBpm', '音乐与敬酒速度', 126, 90, 160, 1, 'BPM'],
     ['spillSoundVolume', '漏酒音效音量', 30, 0, 100, 5, '%'],
     ['spillSoundInterval', '漏酒音效间隔', 0.32, 0.15, 1, 0.01, '秒'],
-    ['musicVolume', '背景音乐音量', 28, 0, 100, 5, '%'],
+    ['sfxVolume', '游戏音效音量', 100, 0, 100, 5, '%'],
+    ['musicVolume', '背景音乐音量', 18, 0, 100, 5, '%'],
     ['roundWait', '普通回合总倒计时', 2.0, 1.2, 6, 0.1, '秒'],
     ['missPenalty', '单次／整组全错罚酒', 20, 0, 100, 1, '%'],
     ['roundRefill', '成功回合／组添酒', 3, 0, 30, 1, '%'],
@@ -68,6 +69,7 @@
     ['easyFocusDrift', '简单 · 古墓外星扶杯漂移', 0.35, 0, 1, 0.05, '倍'],
     ['easyFloorRefill', '简单 · 过层添酒', 10, 0, 30, 1, '%'],
     ['easyAlienHeight', '简单 · 外星杯距倍率', 1, 0.8, 1.3, 0.05, '倍'],
+    ['easyHeightWindow', '简单 · 高度范围', 100, 40, 100, 5, '%'],
     ['easyTime', '简单 · 碰杯容错', 0.7, 0.1, 1, 0.05, '秒'],
     ['easyTaper', '简单 · 后期收紧', 0.05, 0, 0.3, 0.01, '秒'],
     ['easySetup', '简单 · 额外准备时间', 0.5, -0.5, 2, 0.1, '秒'],
@@ -76,6 +78,7 @@
     ['normalFocusDrift', '中等 · 古墓外星扶杯漂移', 0.5, 0, 1, 0.05, '倍'],
     ['normalFloorRefill', '中等 · 过层添酒', 7, 0, 30, 1, '%'],
     ['normalAlienHeight', '中等 · 外星杯距倍率', 1.1, 0.8, 1.3, 0.05, '倍'],
+    ['normalHeightWindow', '中等 · 高度范围', 85, 40, 100, 5, '%'],
     ['normalTime', '中等 · 碰杯容错', 0.34, 0.1, 1, 0.05, '秒'],
     ['normalTaper', '中等 · 后期收紧', 0.04, 0, 0.3, 0.01, '秒'],
     ['normalSetup', '中等 · 额外准备时间', 0.15, -0.5, 2, 0.05, '秒'],
@@ -84,6 +87,8 @@
     ['hardFocusDrift', '高难 · 古墓外星扶杯漂移', 0.7, 0, 1, 0.05, '倍'],
     ['hardFloorRefill', '高难 · 过层添酒', 4, 0, 30, 1, '%'],
     ['hardAlienHeight', '高难 · 外星杯距倍率', 1.2, 0.8, 1.3, 0.05, '倍'],
+    ['hardHeightWindow', '高难 · 高度范围', 65, 40, 100, 5, '%'],
+    ['hardStartCapacity', '高难 · 开局杯容量', 80, 60, 100, 5, '%'],
     ['hardTime', '高难 · 碰杯容错', 0.22, 0.1, 1, 0.02, '秒'],
     ['hardTaper', '高难 · 后期收紧', 0.03, 0, 0.3, 0.01, '秒'],
     ['hardSetup', '高难 · 额外准备时间', 0, -0.5, 2, 0.1, '秒'],
@@ -111,6 +116,7 @@
     out.chainPenaltySecond = Math.max(out.chainPenaltyFirst, out.chainPenaltySecond);
     out.chainPenaltyThird = Math.max(out.chainPenaltySecond, out.chainPenaltyThird);
     out.hypePerfect = Math.max(out.hypeHit, out.hypePerfect);
+    out.hardStartCapacity = Math.max(out.minCapacity, out.hardStartCapacity);
     out.minWait = Math.min(out.minWait, out.roundWait);
     out.alienReveal = Math.min(out.alienReveal, out.alienCountdown - 0.5);
     for (const id of ['easy', 'normal', 'hard']) out[id + 'Taper'] = Math.min(out[id + 'Taper'], out[id + 'Time'] - 0.05);

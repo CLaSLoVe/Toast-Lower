@@ -70,7 +70,7 @@ function hudBottom() { return LAY === 'port' ? 170 : LAY === 'land' ? 140 : 120;
 // ---------------------------------------------------------------- sound (quiet)
 let AC = null, muted = false, gestured = false;
 try { muted = localStorage.getItem('toast_mute') === '1'; } catch (e) { /* private mode */ }
-function syncMusic() { window.ToastMusic.update(gestured && !CAPTURE && !BOT && !document.hidden && !st.paused && ['play', 'fall', 'standup'].includes(st.state), muted ? 0 : CFG.musicVolume / 100, CFG.musicBpm); }
+function syncMusic() { window.ToastMusic.update(gestured && !CAPTURE && !BOT && !document.hidden && !st.paused && ['play', 'fall', 'standup'].includes(st.state), muted ? 0 : CFG.musicVolume / 100, CFG.musicBpm, muted ? 0 : CFG.sfxVolume / 100, spillSoundSuppressed()); }
 function setMute(v) { muted = v; syncMusic(); try { localStorage.setItem('toast_mute', v ? '1' : '0'); } catch (e) { /* ignore */ } }
 // a short buzz on phones (follows the sound switch); never in bot / capture runs
 function buzz(pat) { if (muted || CAPTURE || BOT || !gestured) return; try { if (navigator.vibrate) navigator.vibrate(pat); } catch (e) { /* ignore */ } }
@@ -91,9 +91,11 @@ function sfx(type) {
   if ((type === 'drip' || type === 'splash') && (CFG.spillSoundVolume <= 0 || spillSoundSuppressed())) return;
   if (muted || CAPTURE || !gestured) return;
   try {
-    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    const audio = window.ToastMusic.audio?.();
+    if (!AC) AC = audio ? audio.context : new (window.AudioContext || window.webkitAudioContext)();
+    const output = audio ? audio.effects : AC.destination;
     if (AC.state === 'suspended') AC.resume();
-    const now = AC.currentTime, g = AC.createGain(); g.connect(AC.destination);
+    const now = AC.currentTime, g = AC.createGain(); g.connect(output);
     if (type === 'boing') {
       // A rubbery downward glissando under the collapsing-floor impact.
       const o = AC.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(170, now);
@@ -104,7 +106,7 @@ function sfx(type) {
       for (const [m, a] of [[1, 1], [2.32, 0.5], [3.9, 0.25], [5.4, 0.12]]) { const gg = AC.createGain(); gg.connect(g); gg.gain.setValueAtTime(a, now); gg.gain.exponentialRampToValueAtTime(0.001, now + (pf ? 0.9 : 0.55) / m); tone(gg, base * m, 'sine', now, (pf ? 0.9 : 0.55) / m); }
       const ns = AC.createBufferSource(); ns.buffer = noiseBuf(0.02, 3); const hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 5000; ns.connect(hp); hp.connect(g); ns.start(now);
       g.gain.setValueAtTime(pf ? 0.11 : 0.08, now);
-      if (pf) { const g2 = AC.createGain(); g2.connect(AC.destination); g2.gain.setValueAtTime(0.0001, now + 0.08); g2.gain.exponentialRampToValueAtTime(0.05, now + 0.1); g2.gain.exponentialRampToValueAtTime(0.0005, now + 0.7); tone(g2, base * 1.5, 'sine', now + 0.08, 0.65); }
+      if (pf) { const g2 = AC.createGain(); g2.connect(output); g2.gain.setValueAtTime(0.0001, now + 0.08); g2.gain.exponentialRampToValueAtTime(0.05, now + 0.1); g2.gain.exponentialRampToValueAtTime(0.0005, now + 0.7); tone(g2, base * 1.5, 'sine', now + 0.08, 0.65); }
     } else if (type === 'drip' || type === 'splash') {
       // Soft, unpitched liquid rustle: no high "plip" that resembles the cues.
       const sp = type === 'splash', len = sp ? 0.13 : 0.07;
@@ -269,7 +271,8 @@ function cupGeom(c) {
   const sp = c.spec;
   if (sp.mom) return CUP_MOM;
   if (sp.kind !== 'player' && sp.kind !== 'boss') return CUP_STD;
-  const k = st.tut ? 0 : shapeK(st.L), key = sp.kind + k + (st.tut ? 't' : st.L < 3 ? '_' + st.L : '');
+  const baseK = st.tut ? 0 : shapeK(st.L);
+  const k = sp.kind === 'player' ? playerCupK() : baseK, key = sp.kind + k + ':' + baseK + (st.tut ? 't' : st.L < 3 ? '_' + st.L : '');
   if (geomCache.has(key)) return geomCache.get(key);
   let g;
   // you: the stem grows (rim further above your hand: bow lower), the bowl gets small and shallow and is filled closer to the rim
@@ -287,8 +290,11 @@ function cupGeom(c) {
     }
     g = { rimOff: 32, bowlH: Math.max(14, lerp(39, 20, k) + bonus), wt: lerp(17, 10, k), wb: lerp(13, 6.5, k), free: 5, foot: 14, footW: lerp(13, 9, k) };
   }
+  if (sp.kind === 'player' && !st.tut && difficulty().id === 'hard') g.free = g.wt * lerp(5.2, 2.6, baseK) / lerp(17, 13, baseK);
   g.lim = Math.atan(g.free / g.wt);                                            // spill angle: the drink's surface reaches the rim
   g.cap = (g.bowlH * (g.wt + g.wb)) / (46 * 30);                               // bowl size vs the layer-1 glass
+  // A smaller opening glass changes capacity/appearance, not the existing leak rate.
+  g.spillCap = sp.kind === 'player' ? lerp(44, 26, baseK) * (lerp(17, 13, baseK) + lerp(13, 5, baseK)) / (46 * 30) : g.cap;
   geomCache.set(key, g); return g;
 }
 // how strong the drunk instability is (sway, self-tipping cup, beer drain), relative to v18's layer 1:
@@ -303,9 +309,20 @@ function beerK() {
   if (st.alien && st.alien.on) k *= 0.72;
   return k;
 }
-// Absolute wine units: the starting glass holds 1; smaller glasses have a lower ceiling.
-function wineCapacity() { return st.tut ? 1 : lerp(1, CFG.minCapacity / 100, clamp(shapeK(st.L), 0, 1)); }
-// All resource changes use starting-glass units; totals contain actual changes, never nominal costs.
+// Wine units always refer to the standard full glass, including hard-mode penalties/refills.
+function playerCupK() {
+  if (st.tut) return 0;
+  const k = shapeK(st.L);
+  if (difficulty().id !== 'hard') return k;
+  const start = CFG.minCapacity < 100 ? (100 - Math.max(CFG.minCapacity, CFG.hardStartCapacity)) / (100 - CFG.minCapacity) : 0;
+  return start + (1 - start) * k;
+}
+function wineCapacity() {
+  if (st.tut) return 1;
+  const start = difficulty().id === 'hard' ? Math.max(CFG.minCapacity, CFG.hardStartCapacity) / 100 : 1;
+  return lerp(start, CFG.minCapacity / 100, clamp(shapeK(st.L), 0, 1));
+}
+// All resource changes use standard-glass units; totals contain actual changes, never nominal costs.
 function wineLedger() { return st.wineLedger || (st.wineLedger = { spill: 0, penalty: 0, refill: 0, capacity: 0 }); }
 function winePercent(amount) { return String(Math.round(amount * 1000) / 10); }
 function changeWine(kind, amount) {
@@ -345,7 +362,7 @@ function toastRimY() {
   }
   return c.P ? c.P.rim.y : 0;
 }
-function winSpan() { return cupGeom(toastChar()).bowlH * toastChar().spec.scale; } // clink window: target rim .. bowl bottom
+function winSpan() { return cupGeom(toastChar()).bowlH * toastChar().spec.scale * (st.tut ? 1 : CFG[difficulty().id + 'HeightWindow'] / 100); } // clink window: target rim .. bowl bottom
 function perfBand() { return Math.max(12, 0.36 * winSpan()); }
 function contactPts(c, P) {
   const s = P.sc;
@@ -533,7 +550,7 @@ let bigText = null;
 
 // Music/volume and touch ergonomics do not change score eligibility.
 function isCustomRun() {
-  const presentation = new Set(['musicVolume', 'spillSoundVolume', 'spillSoundInterval', 'stickDeadzone', 'stickCurve']);
+  const presentation = new Set(['sfxVolume', 'musicVolume', 'spillSoundVolume', 'spillSoundInterval', 'stickDeadzone', 'stickCurve']);
   return START_LAYER !== 0 || CTL !== 'accel' || (BOT && BOT !== 'none') ||
     ['wob', 'slx', 'drf', 'bmp', 'spm', 'feel', 'debug', 'frame'].some(k => params.has(k)) ||
     Object.keys(CONFIG.defaults).some(k => !presentation.has(k) && CFG[k] !== CONFIG.defaults[k]);
@@ -1185,7 +1202,7 @@ function stepBeer(dt, d) {
     st.spillT = (st.spillT || 0) + dt;
     const gr = st.tut ? 1 : clamp(1 - st.L / 10, 0.28, 1);
     const ramp = clamp((st.spillT - CFG.spillGrace * gr) / (CFG.spillRamp * (1 / 3 + 2 / 3 * gr)), 0, 1);
-    const rate = over * 0.34 * SPM * CFG.spillMultiplier / Math.sqrt(g.cap) * beerK() * ramp;
+    const rate = over * 0.34 * SPM * CFG.spillMultiplier / Math.sqrt(g.spillCap) * beerK() * ramp;
     const lost = Math.min(p.wine, Math.min(CFG.spillMax / 100, rate) * dt); // hard cap ~11%/s even wide open
     changeWine('spill', lost);
     if (rnd() < 0.22 + over * 0.7) spill(p, 1 + Math.floor(over * 2));
@@ -2767,7 +2784,7 @@ function drawMobileResult(o) {
     text(name, right - 290, 440 + i * 82, 46, color, 'left', 900);
     text(`${sign}${winePercent(amount)}%`, right + 290, 440 + i * 82, 50, color, 'right', 900);
   });
-  text('本局累计 · 按初始杯容量', right, 710, 30, '#bfaeb9', 'center', 700);
+  text('本局累计 · 按标准大杯容量', right, 710, 30, '#bfaeb9', 'center', 700);
   if (l.capacity > .0005) text(`换小杯 −${winePercent(l.capacity)}%`, right, 770, 30, '#bfaeb9', 'center', 700);
   text(`${o.cleared ? '十二关已通关 · ' : ''}第 ${o.layer + 1} 层`, left, 795, 34, '#bfaeb9', 'center', 800);
   text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}${st.bestDifficulty ? ' · ' + DIFFICULTIES.find(d => d.id === st.bestDifficulty).level : ''}${st.newRecord ? ' · 新纪录！' : ''}`, 540, 910, 34, '#7fd0ff', 'center', 800);
@@ -3376,7 +3393,7 @@ function render() {
       text(`罚酒 −${winePercent(ledger.penalty)}%`, 540, 678, 32, '#ff796b', 'center', 900);
       text(`添酒 +${winePercent(ledger.refill)}%`, 910, 678, 32, '#91e0a4', 'right', 900);
       const capacity = ledger.capacity > 0.0005 ? ` · 换小杯 −${winePercent(ledger.capacity)}%` : '';
-      text(`本局累计 · 按初始杯容量${capacity}`, 540, 738, 23, '#bfaeb9', 'center', 700);
+      text(`本局累计 · 按标准大杯容量${capacity}`, 540, 738, 23, '#bfaeb9', 'center', 700);
       text(`${o.cleared ? '十二关已通关 · ' : ''}第 ${o.layer + 1} 层 · ${o.depth < 0.05 ? '0 米' : '−' + fmtDepth(o.depth)}`, 540, 815, 28, '#e5d2c4', 'center', 800);
       text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}${st.bestDifficulty ? ' · ' + DIFFICULTIES.find(d => d.id === st.bestDifficulty).level : ''}${st.newRecord ? ' · 新纪录！' : ''}`, 540, 867, 28, '#7fd0ff', 'center', 900);
       text(TOUCH ? '点一下重来' : '按 R 重来', 540, 930, 34, '#fff', 'center', 900);

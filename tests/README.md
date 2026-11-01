@@ -84,3 +84,10 @@ Run `node tests/gesture.test.cjs` for continuous 70 ms reaches, local perfect ho
 planted feet, drawing/physics isolation, collision-synchronized sound, pause/home
 cleanup, uninterrupted steering and 160 BPM phrases, and all-hit group finishers.
 No gesture can change an already resolved score, penalty, or wine amount.
+
+Run `node tests/height-audio.test.cjs` for actual 100/85/65% height boundaries
+across chapters, the hard glass shrinking from 80% to 60% without changing spill
+thresholds or rates, unchanged standard-glass penalties/refills, tutorial isolation,
+and independent music/effects routing. Music tests simulate an ignored media-element
+volume setter, shared gain buses, cue ducking, mute and audio-context recovery.
+These verify routing and state; phone speaker balance still needs device playtesting.
