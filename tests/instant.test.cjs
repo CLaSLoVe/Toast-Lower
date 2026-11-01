@@ -16,16 +16,20 @@ function pose(g, offset = 0) {
   r.mh = Array.from({ length: 10 }, (_, i) => [g.inspect.st.t - i / 60, margin, 0, 0]);
   r.cue = { next: 2, target: r.T + .5 - g.inspect.reachTime(), gap: 60 / g.inspect.config.musicBpm };
 }
-test('zero tap gives same-event judgement, sound and horizontal contact without changing height or wine', () => {
+test('zero tap gives same-event judgement and a visual gesture without changing height or wine', () => {
   for (const layer of [0, 3, 6, 7, 8, 9, 10, 11]) for (const mode of ['easy', 'normal', 'hard']) {
     const g = game(layer, mode); pose(g);
     const r = g.inspect.st.round, p = g.inspect.player, beforeY = p.P.rim.y, wine = p.wine;
     const tc = r.partner, others = g.inspect.st.alien?.leaders.filter(c => c !== tc).map(c => [c, c.x]);
+    const beforeX = tc.x;
     g.tap('Space');
     assert.equal(g.inspect.contacts.length, 1); assert.equal(g.inspect.st.toasts, 1);
     assert.ok(Math.abs(g.inspect.contacts[0].timing) < 1e-9);
     assert.equal(p.P.rim.y, beforeY); assert.equal(p.wine, wine);
-    assert.ok(Math.abs(tc.P.rim.x - p.P.rim.x - 24 * p.spec.scale) < 1e-8);
+    assert.equal(tc.x, beforeX, 'the immediate judgement cannot teleport the leader');
+    const m = g.inspect.st.toastMotion; g.inspect.stepToastMotion(m.contact);
+    const pp = g.inspect.toastPose(p, p.P), bp = g.inspect.toastPose(tc, tc.P);
+    assert.ok(Math.abs(bp.rim.x - pp.rim.x - 24 * p.spec.scale) < 1e-8);
     for (const [c, x] of others || []) assert.equal(c.x, x);
     const sounds = g.sandbox.__sounds.map(s => s.type);
     assert.ok(sounds.includes('countGo')); assert.ok(sounds.includes('perfect'));

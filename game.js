@@ -78,6 +78,7 @@ function noiseBuf(len, pow) { const buf = AC.createBuffer(1, Math.floor(AC.sampl
   for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, pow); return buf; }
 function tone(g, f, type, t0, dur, f2) { const o = AC.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + dur); o.connect(g); o.start(t0); o.stop(t0 + dur + 0.02); return o; }
 function spillSoundSuppressed() {
+  if (st.toastMotion && st.toastMotion.t < st.toastMotion.contact + 0.15) return true;
   const r = st.round;
   if (!r || r.phase !== 'aim' || r.smash) return false;
   const target = r.cue ? r.cue.target : Math.max(0, 0.5 + r.T - reachTime());
@@ -241,9 +242,7 @@ function fk(c) {
   const belly = d(toA + 0.55, L.to * 0.45, hip);
   const elbow = d(c.arm, L.ua, shoulder);
   const hand = d(c.arm - 0.5, L.fa, elbow);
-  const reach = c.spec.kind === 'player' ? (c.reach || 0) : 0;
-  elbow.x += 12 * sc * f * reach; hand.x += 30 * sc * f * reach;
-  // Reaching is horizontal feedback only; it never changes the judged height.
+  // Toast gestures are applied to a drawing copy, never to this physical pose.
   const a2 = toA + PI * 0.82 + Math.sin(c.sway) * 0.15;
   const elbow2 = d(a2, L.ua, shoulder);
   const hand2 = d(a2 + 0.5, L.fa * 0.9, elbow2);
@@ -438,17 +437,10 @@ function stepAlienLeaders(dt) {
     const y = r.base + i * a.step;
     c.s = r.smash ? 1 : sForRim(c.spec, y - floorY(st.L));
     c.tilt = c.vtilt = 0; poseFromS(c, c.s);
-    const selected = !r.smash && !r.result && a.revealed && i === a.cup && r.phase === 'aim' && toastInputLeft() <= 0;
-    const homeX = player.x + 340 + i * 235 - tableAt(c.spec, c.s).cupDX;
-    if ((c.toastContactUntil || 0) > st.t) {
-      c.x = player.P.rim.x + 24 * SC - tableAt(c.spec, c.s).cupDX;
-    } else if (selected) {
-      // Reveal at one second; the brief lunge starts at zero. A valid tap snaps contact immediately.
-      if (r.alienApproachX == null) r.alienApproachX = c.x;
-      const contactX = Math.max(player.P.cupB.x, player.P.rim.x) + 24 * SC - tableAt(c.spec, c.s).cupDX;
-      const duration = 0.08;
-      c.x = lerp(r.alienApproachX, contactX, ease(clamp(-toastInputLeft() / duration, 0, 1)));
-    } else c.x += (homeX - c.x) * Math.min(1, 7 * dt);
+    // Compact fan around the table; reveal/contact never changes anyone's footing.
+    const rimX = Math.max(player.x + 240, player.P.rim.x + 100) + i * 170;
+    const homeX = rimX - tableAt(c.spec, c.s).cupDX;
+    c.x += (homeX - c.x) * Math.min(1, 7 * dt);
     settle(c, fl);
     if (!r.smash) { c.y += y - c.P.rim.y; c.P = fk(c); }
     updateCup(c, dt, true);
@@ -687,7 +679,7 @@ function restart() {
   window.ToastMusic.reset();
   Object.assign(st, { L: START_LAYER, flipped: false, cycle: 0, holes: {}, score: 0, floorPlan: null, breaks: 0, strikes: 0, toasts: 0, perfects: 0, round: null, over: null, newRecord: false, coreBonus: false,
     t: 0, tdrT: 0, swT: 0, bossJT: 0, why: {}, wineLedger: null, wineNotices: [], customRun: isCustomRun(), chatSeen: [], pressure: 0, cracks: [], lastCrackStep: 0, playT: 0, layerT: 0, gameT: 0, state: 'play', stT: 0, best: 0, sawLow: false, bossSay: 1.5, alien: null,
-    combo: 0, bestCombo: 0, hype: 0, bursts: 0, manualToasts: 0, judge: null, freeze: 0, gain: null, paused: false, clinkGrace: 0, spillT: 0, spillOn: false, loss: 0, lossT: 9, punch: null });
+    combo: 0, bestCombo: 0, hype: 0, bursts: 0, manualToasts: 0, judge: null, freeze: 0, gain: null, paused: false, clinkGrace: 0, spillT: 0, spillOn: false, loss: 0, lossT: 9, punch: null, toastMotion: null });
   parts.length = debris.length = puddles.length = bubbles.length = popups.length = 0;
   reset(); bigText = null; player.wine = wineCapacity(); syncMusic();
   clearInputs(); fx.length = 0; flash = null;
@@ -718,7 +710,7 @@ function returnToTitle() {
   clearInputs(); debugMenuOpen = false;
   Object.assign(st, { state: 'title', stT: 0, L: START_LAYER, tut: null, paused: false, round: null, over: null,
     freeze: 0, punch: null, judge: null, gain: null, shake: 0, pressure: 0, flipped: false, holes: {} });
-  reset(); bigText = null; flash = null;
+  reset(); bigText = null; flash = null; st.toastMotion = null;
   parts.length = debris.length = puddles.length = bubbles.length = popups.length = fx.length = 0;
   window.ToastMusic.reset(); syncMusic();
 }
@@ -1320,17 +1312,90 @@ function newRound(fresh) {
 // ---- feedback (sound / sparks / flashes): visual + audio only, never the seeded rng, never the rules
 const fx = []; let flash = null;
 function juiceFlash(col, a) { flash = { col, a, a0: a }; }
+function copyPose(P) {
+  return Object.fromEntries(Object.entries(P).map(([k, v]) => [k, v && typeof v === 'object' ? { ...v } : v]));
+}
 function juiceClink(kind, tut) {
-  const tc0 = toastChar(), x = (player.P.rim.x + (tc0.P ? tc0.P.rim.x : boss.P.rim.x)) / 2, y = (player.P.rim.y + toastRimY()) / 2;
-  if (kind === 'bad') { if (tut) { sfx('thud'); juiceFlash('#ff3030', 0.25); buzz(40); } return; }
-  const pf = kind === 'perfect'; sfx(pf ? 'perfect' : 'ding'); buzz(pf ? [18, 40, 28] : 14);
-  if (pf) juiceFlash('#ffd34d', 0.42);
-  const n = pf ? 16 : 10;
-  for (let i = 0; i < n; i++) { const a = (i / n) * 2 * PI + Math.random() * 0.3, v = (pf ? 520 : 380) * (0.6 + Math.random() * 0.6);
-    fx.push({ k: 'spark', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.42, l0: 0.42, col: pf ? '#ffe680' : '#ffffff' }); }
-  fx.push({ k: 'ring', x, y, life: 0.4, l0: 0.4, r: pf ? 110 : 70, col: pf ? '#ffd34d' : '#ffffff' });
+  const r = st.round, partner = toastChar(), chain = r.chain || 0;
+  const finish = chain > 0 && r.chainIndex === chain - 1 && r.chainHits === chain - 1 && kind !== 'bad';
+  const m = { t: 0, layer: st.L, partner, kind, tut, chain, finish, fired: false, drops: [],
+    p: copyPose(player.P), b: copyPose(partner.P), contact: 0.07,
+    hold: kind === 'perfect' ? 0.04 : finish ? 0.025 : 0,
+    duration: chain ? 0.28 : 0.38 };
+  m.x = (m.p.rim.x + m.b.rim.x) / 2; m.y = (m.p.rim.y + m.b.rim.y) / 2;
+  if (r.inputJudged) { st.toastMotion = m; player.reach = 1; player.reachV = 0; }
+  else emitToastImpact(m); // Automatic tutorial demonstrations have no input gesture.
+}
+function emitToastImpact(m) {
+  m.fired = true;
+  if (m.kind === 'bad') { if (m.tut) { sfx('thud'); buzz(18); } return; }
+  const pf = m.kind === 'perfect', strong = m.finish || pf && !m.chain;
+  sfx(pf ? 'perfect' : 'ding'); buzz(m.finish ? [16, 25, 12] : pf ? 16 : 8);
+  if (strong) juiceFlash('#ffd34d', m.finish ? 0.14 : 0.08);
+  const n = m.finish ? 18 : strong ? 12 : m.chain ? 4 : 7, size = m.finish ? 72 : strong ? 52 : 30;
+  for (let i = 0; i < n; i++) {
+    const a = i / n * 2 * PI + Math.random() * 0.2, v = (strong ? 370 : 230) * (0.6 + Math.random() * 0.6);
+    fx.push({ k: 'spark', x: m.x, y: m.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+      life: 0.24, l0: 0.24, col: pf || m.finish ? '#ffe680' : '#ffffff' });
+  }
+  fx.push({ k: 'ring', x: m.x, y: m.y, life: 0.22, l0: 0.22, r: size, col: pf || m.finish ? '#ffd34d' : '#ffffff' });
+  parts.push(...m.drops);
+}
+function stepToastMotion(dt) {
+  const m = st.toastMotion;
+  if (!m) return;
+  if (m.layer !== st.L || !['play', 'over'].includes(st.state)) { st.toastMotion = null; return; }
+  m.t += dt;
+  if (!m.fired && m.t >= m.contact) emitToastImpact(m);
+  if (m.t >= m.duration) st.toastMotion = null;
+}
+function toastMotionWeight(m) {
+  if (m.t < m.contact) return ease(clamp(m.t / m.contact, 0, 1));
+  if (m.t < m.contact + m.hold) return 1;
+  return 1 - ease(clamp((m.t - m.contact - m.hold) / (m.duration - m.contact - m.hold), 0, 1));
+}
+// This pulse only deforms drawing copies (face, tie and antennae).
+function toastAccent(c) {
+  const m = st.toastMotion;
+  if (!m || c !== player && c !== m.partner || m.t < m.contact) return 0;
+  const t = Math.max(0, m.t - m.contact - m.hold);
+  return Math.cos(t * 36) * Math.exp(-t * 12) * (m.finish ? 1.25 : m.kind === 'perfect' ? 1 : 0.45);
+}
+function toastPose(c, base) {
+  const m = st.toastMotion, active = m && (c === player || c === m.partner);
+  const r = st.round, prepare = r && r.phase === 'aim' && !r.smash && !r.result &&
+    (!st.alien || st.alien.revealed) && (c === player || c === toastChar()) ?
+    Math.sin(PI * clamp(1 - toastInputLeft() / 0.20, 0, 1)) : 0;
+  if (!active && !prepare) return base;
+  const out = copyPose(base), sc = base.sc;
+  if (!active) {
+    // Small wind-up in the shoulder/free hand; cup and countdown stay on their true height.
+    out.shoulder.x -= c.face * 3 * sc * prepare;
+    out.elbow.x -= c.face * 6 * sc * prepare;
+    out.hand2.y -= 7 * sc * prepare; out.head.y -= 2 * sc * prepare;
+    return out;
+  }
+  const isP = c === player, from = isP ? m.p : m.b, weight = toastMotionWeight(m), bad = m.kind === 'bad';
+  const targetX = bad ? from.rim.x + (isP ? 42 * sc : 0) : m.x + (isP ? -12 : 12) * SC;
+  const move = (targetX - from.rim.x) * weight;
+  for (const key of ['hand', 'rim', 'cupB']) {
+    out[key].x = lerp(base[key].x, from[key].x, weight) + move;
+    out[key].y = lerp(base[key].y, from[key].y, weight);
+  }
+  const direction = isP ? 1 : -1;
+  const lean = direction * (bad ? (isP ? 10 : -3) * sc : Math.min(Math.abs(targetX - from.rim.x) * 0.32, 32 * sc)) * weight;
+  for (const key of ['shoulder', 'neck', 'belly']) out[key].x += lean;
+  const accent = toastAccent(c);
+  out.head.x += lean * 0.65 + direction * accent * 4 * sc;
+  out.head.y += accent * 3 * sc;
+  // Bend the arm into a readable comic arc; feet and hip remain planted.
+  out.elbow.x = lerp(out.shoulder.x, out.hand.x, 0.52);
+  out.elbow.y = lerp(out.shoulder.y, out.hand.y, 0.52) + (14 + 8 * weight) * sc;
+  out.hand2.x -= lean * 1.4; out.hand2.y -= (weight * 7 + accent * 5) * sc;
+  return out;
 }
 function stepFx(dt) {
+  stepToastMotion(dt);
   for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.life -= dt; if (f.life <= 0) { fx.splice(i, 1); continue; }
     if (f.k === 'spark') { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= Math.exp(-6 * dt); f.vy = f.vy * Math.exp(-6 * dt) + 600 * dt; } }
   if (flash) { flash.a -= flash.a0 * dt / 0.3; if (flash.a <= 0) flash = null; }
@@ -1405,19 +1470,7 @@ function awardHype(amount) {
   st.hype = 0; st.bursts++; addScore(CFG.hypeScore * (st.L + 1));
   refillWine(CFG.hypeRefill / 100);
   if (st.judge) { st.judge.word = '全桌服气！！'; st.judge.col = '#ffdf62'; }
-  if (!st.round.chain) { st.freeze = Math.max(st.freeze, 0.17); st.shake = Math.max(st.shake, 12); }
-}
-function toastImpact(ok) {
-  const p = player, dx = 30 * p.P.sc * p.face * (1 - (p.reach || 0));
-  p.P.elbow.x += dx * 0.4;
-  for (const key of ['hand', 'cupB', 'rim']) p.P[key].x += dx;
-  p.reach = 1; p.reachV = 0;
-  if (!ok) return;
-  const c = toastChar(), shift = p.P.rim.x + 24 * SC - c.P.rim.x;
-  c.x += shift;
-  // Preserve the sampled height/tilt; the other leaders stay in place.
-  for (const point of Object.values(c.P)) if (point && typeof point === 'object' && 'x' in point) point.x += shift;
-  c.toastContactUntil = st.t + 0.10;
+  // Hype changes rewards, never pauses the beat or physics.
 }
 function judgeClink() {
   const r = st.round, d = diff(), L = d.L;
@@ -1432,15 +1485,14 @@ function judgeClink() {
   const mh = (r.mh || []).filter(m => st.t - m[0] <= 0.18), avg = (mh.reduce((a, m) => a + m[1], 0) + margin) / (mh.length + 1);
   r.avg = avg;
   const far = margin > winSpan(); // too low: your rim is under his bowl, the cups don't meet
-  st.shake = Math.max(st.shake, 6); bigText = null;
+  bigText = null;
   const PERF = perfBand(), level = Math.abs(player.tilt + player.w);
   const ok = margin >= 0 && !far && !offBeat;
   const stable = level < spillLim() * 0.9 && Math.abs(player.cupRate || 0) <= CFG.perfectRate &&
     mh.length >= 5 && mh.every(m => m[2] < spillLim() * 0.9 && m[3] <= CFG.perfectRate);
   const perfect = ok && margin < PERF && avg >= 0 && avg < PERF &&
     Math.abs(r.timing) <= Math.min(CFG.perfectTime, timingWindow()) && (r.tut || stable);
-  st.freeze = perfect ? 0.13 : 0.065;
-  if (r.inputJudged) toastImpact(ok);
+  st.freeze = 0; // The gesture owns its 40 ms visual hold; gameplay keeps running.
   juiceClink(ok ? (perfect ? 'perfect' : 'ok') : 'bad', r.tut);
   const tc = toastChar();
   let jbx = tc.P ? tc.P.rim.x : boss.P.rim.x;
@@ -1454,7 +1506,11 @@ function judgeClink() {
   if (offBeat) { judgeSay(r.timing > 0 ? ['急什么？我还没伸手呢！'] : ['这杯我举了一个世纪！']); strike(null, null, r.timing > 0 ? 'early' : 'late'); finishToastAttempt(); return; }
   if (far) { judgeSay(['接地气，不是接地府！']); strike(null, null, 'far'); finishToastAttempt(); return; }
   if (!ok) { strike(null); finishToastAttempt(); return; }
-  for (let i = 0; i < 18; i++) parts.push({ x: cx + R(-12, 12), y: cy + R(-6, 6), vx: R(-260, 260), vy: R(-520, -120), life: 2, r: R(4, 9), col: rnd() < 0.3 ? '#fffbe8' : '#f2b51d', type: 'drop' });
+  for (let i = 0; i < 18; i++) {
+    const m = st.toastMotion, x = m ? m.x : cx, y = m ? m.y : cy;
+    const drop = { x: x + R(-12, 12), y: y + R(-6, 6), vx: R(-260, 260), vy: R(-520, -120), life: 0.3, r: R(4, 9), col: rnd() < 0.3 ? '#fffbe8' : '#f2b51d', type: 'drop' };
+    if (i < (m && m.finish ? 8 : r.chain ? 2 : 4)) { if (m && !m.fired) m.drops.push(drop); else parts.push(drop); }
+  }
   if (ok) {
     r.result = 'ok'; st.toasts++;
     const scoring = claimScoreOpportunity('hit');
@@ -1683,8 +1739,8 @@ function stepNPCs(dt) {
   const q = player.P, qs = q.sc;
   const pFront = Math.max(q.head.x + q.hr, q.knee.x + 14 * qs, q.shoulder.x + 22 * qs, q.hip.x + 22 * qs, q.toe.x);
   const minX = pFront + 12 + 60 * boss.s - e.frontDX;
-  const clinking = r && r.phase === 'clink' || (boss.toastContactUntil || 0) > st.t, approach = r && r.phase === 'aim' && !r.smash && !r.result ? clamp(-toastInputLeft() / 0.08, 0, 1) : 0, away = r && r.phase === 'aim' ? 110 + 40 * Math.sin(st.t * 2) * 0.2 : 140;
-  const wantX = clinking ? Math.max(touchX, minX) : Math.max(touchX + away * (1 - approach), minX + 40 * (1 - approach));
+  const clinking = r && r.phase === 'clink', away = 110;
+  const wantX = clinking ? Math.max(touchX, minX) : Math.max(touchX + away, minX + 40);
   boss.x += (clamp(wantX, player.x + 90, 2000) - boss.x) * Math.min(1, (clinking ? 16 : 6) * dt);
   settle(boss, fl);
   if (r && r.chain && !r.smash) { const dy = r.target - boss.P.rim.y; boss.y += dy; boss.P = fk(boss); }
@@ -2289,7 +2345,8 @@ function drawCup(c) {
 // All expression cues are derived from play state; decorative animation never moves the cup.
 function charMood(c) {
   const j = st.judge, isP = c === player, r = st.round;
-  const pulse = j ? clamp(1 - j.t / 1.4, 0, 1) : 0;
+  const waiting = st.toastMotion && !st.toastMotion.fired;
+  const pulse = j && !waiting ? clamp(1 - j.t / 1.4, 0, 1) : 0;
   const burstBoss = c === boss && r && r.burst && j;
   const good = !!j && !burstBoss && j.col !== '#ff4d4d' && j.col !== '#ff9a3d';
   const danger = isP && st.state === 'play' && !noSpill() ? clamp((Math.abs(c.tilt + (c.w || 0)) / spillLim() - 0.55) / 0.6, 0, 1) : 0;
@@ -2306,7 +2363,7 @@ function comicSpark(x, y, r, color) {
 function drawFace(c) {
   const P = c.P, sp = c.spec, s = P.sc, mood = charMood(c), t = st.t;
   const r = P.hr * (sp.kind === 'player' ? 1.08 : sp.kind === 'boss' ? 1.12 : 1.02);
-  const react = Math.max(mood.good, mood.bad), squash = Math.sin((st.judge ? st.judge.t : 0) * 19) * react * 0.08;
+  const accent = toastAccent(c), react = Math.max(mood.good, mood.bad), squash = Math.sin((st.judge ? st.judge.t : 0) * 19) * react * 0.04 + accent * 0.09;
   ctx.save(); ctx.translate(P.head.x, P.head.y); ctx.scale(c.face, 1); ctx.rotate(P.toA + PI / 2 - clamp(c.mode === 'play' ? c.phi + c.b - 0.6 : 0, 0, 1.1) * 0.8);
   ctx.scale(1 + squash, 1 - squash);
   const skin = sp.imp || sp.alien || sp.rat || sp.jiangshi || sp.yanwang || sp.ox || sp.horse ? sp.skin : sp.terracotta ? '#b36a46' : sp.skeleton ? '#f3ecd8' : sp.lava ? '#2a1410' : sp.skin;
@@ -2354,15 +2411,16 @@ function drawFace(c) {
     ctx.strokeStyle = OL; ctx.lineWidth = 4;
     if (sp.planet === 'sprout') {
       for (const ex of [-0.25, 0.63]) {
+        ctx.save(); ctx.translate(accent * r * (ex < 0 ? -0.12 : 0.12), -accent * r * 0.16);
         line({ x: r * ex, y: -r * 0.6 }, { x: r * ex, y: -r * 1.15 });
         circ(r * ex, -r * 1.2, r * 0.3, skin, OL, 4);
         circ(r * (ex + 0.06), -r * 1.2, r * 0.2, '#fff9dc', OL, 2);
-        circ(r * (ex + 0.12), -r * 1.18, r * 0.09, OL);
+        circ(r * (ex + 0.12), -r * 1.18, r * 0.09, OL); ctx.restore();
       }
       ctx.beginPath(); ctx.moveTo(-r * 0.3, r * 0.26); ctx.quadraticCurveTo(r * 0.3, r * (0.8 + mood.good * 0.2), r * 0.9, r * 0.16); ctx.stroke();
       ctx.fillStyle = '#fff9dc'; ctx.fillRect(r * 0.1, r * 0.41, r * 0.19, r * 0.16);
     } else {
-      ctx.save(); ctx.rotate(-0.22); ctx.strokeStyle = '#eac77f'; ctx.lineWidth = 9;
+      ctx.save(); ctx.rotate(-0.22 + accent * 0.18); ctx.strokeStyle = '#eac77f'; ctx.lineWidth = 9;
       ctx.beginPath(); ctx.ellipse(0, -r * 0.65, r * 1.35, r * 0.25, 0, 0, 2 * PI); ctx.stroke(); ctx.restore();
       circ(r * 0.35, -r * 0.05, r * 0.46, '#fff9dc', OL, 4);
       circ(r * 0.47, -r * 0.01, r * 0.23, '#50b5aa', OL, 3);
@@ -2377,7 +2435,7 @@ function drawFace(c) {
     for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(-r * 0.76, -r * 0.38 - i * 5); ctx.quadraticCurveTo(-r * 0.08, -r * 1.11 - i * 2, r * 0.57, -r * 0.63 + i * 3); ctx.stroke(); }
     ctx.globalAlpha = 0.26 + anger * 0.32; circ(r * 0.56, r * 0.24, r * 0.29, '#ef574f'); ctx.globalAlpha = 1;
     // Thick glasses slide up the forehead when the boss is offended.
-    const gy = -anger * r * 0.14;
+    const gy = -anger * r * 0.14 - accent * r * 0.06;
     if (anger > 0.2) {
       circ(r * 0.3, -r * 0.13, r * 0.18, '#fff', OL, 3); circ(r * 0.75, -r * 0.13, r * 0.17, '#fff', OL, 3);
       circ(r * 0.34, -r * 0.1, r * 0.045, OL); circ(r * 0.79, -r * 0.1, r * 0.045, OL);
@@ -2509,7 +2567,7 @@ function stepVis(dt) {
     // a bump: stagger the player
     if (isP && st.bump && st.bump.done && v.bump !== st.bump) { v.bump = st.bump; const sg = Math.sin(st.t * 7.3) > 0 ? 1 : -1; v.vl += 9 * sg; v.vb += 5; v.vk += 6; v.va += 22 * sg; v.vhd += 12; }
     // a clink: both jolt; a good one gets a little happy bounce, a bad one a flinch
-    if (st.judge && v.judge !== st.judge) { v.judge = st.judge; const good = st.judge.col !== '#ff4d4d' && st.judge.col !== '#ff9a3d';
+    if (st.judge && (!st.toastMotion || st.toastMotion.fired) && v.judge !== st.judge) { v.judge = st.judge; const good = st.judge.col !== '#ff4d4d' && st.judge.col !== '#ff9a3d';
       v.vl += (good ? 4 : -7) * mine; v.vb += (good ? -3.5 : 5) * mine; v.va += (good ? 22 : -26) * mine; v.vhd += (good ? 14 : -9) * mine; v.vk += (good ? 4 : 1) * mine; }
     // each key press gives the body a small visible jolt (look only)
     if (isP && live) for (const k of 'QWOP') { if (keys[k] && !v['k' + k]) {
@@ -2583,8 +2641,21 @@ function drawReachStrain(c) {
   ctx.restore();
 }
 function drawChar(c) {
-  const P0 = c.P; if (!P0) return; const P = visPose(c); c.P = P;
-  try { drawCharAt(c); drawReachStrain(c); } finally { c.P = P0; }
+  const P0 = c.P; if (!P0) return; const P = toastPose(c, visPose(c)); c.P = P;
+  try { drawCharAt(c); drawReachStrain(c); drawToastStroke(c); } finally { c.P = P0; }
+}
+function drawToastStroke(c) {
+  const m = st.toastMotion;
+  if (!m || c !== player && c !== m.partner || m.t < 0.012 || m.t > m.contact + 0.11) return;
+  const p = c.P, sc = p.sc, f = c === player ? 1 : -1;
+  const a = m.t < m.contact ? Math.sin(PI * m.t / m.contact) : Math.max(0, 1 - (m.t - m.contact) / 0.11);
+  ctx.save(); ctx.lineCap = 'round'; ctx.globalAlpha = a * 0.65;
+  for (let i = 0; i < 3; i++) {
+    const x = p.elbow.x - f * (14 + i * 8) * sc, y = p.elbow.y + (10 + i * 6) * sc;
+    ctx.strokeStyle = i === 1 ? '#fff0b2' : OL; ctx.lineWidth = (i === 1 ? 3 : 2) * sc;
+    line({ x, y }, { x: x - f * (12 + i * 3) * sc, y: y + 2 * sc });
+  }
+  ctx.restore();
 }
 // Comic reactions stay behind the head, on the side away from the cups.
 function drawCharReaction(c, mood) {
@@ -2641,7 +2712,7 @@ function drawCharAt(c) {
   if (sp.tie) {
     const fx = Math.cos(P.toA + PI / 2) * -c.face, fy = Math.sin(P.toA + PI / 2) * -1;
     const T1 = { x: lerp(P.neck.x, P.hip.x, 0.05) - fx * 12 * s, y: lerp(P.neck.y, P.hip.y, 0.05) - fy * 12 * s };
-    const flutter = balancePoseActive(c) ? clamp(-(c.tilt + (c.w || 0)) * 20 - (c.reachV || 0) * 4, -20, 20) : VIS_ON && c.vis ? clamp(c.vis.arm * 16 + c.vis.vb * 1.8, -25, 25) : 0;
+    const flutter = toastAccent(c) * 18 + (balancePoseActive(c) ? clamp(-(c.tilt + (c.w || 0)) * 20 - (c.reachV || 0) * 4, -20, 20) : VIS_ON && c.vis ? clamp(c.vis.arm * 16 + c.vis.vb * 1.8, -25, 25) : 0);
     const T2 = { x: lerp(P.neck.x, P.hip.x, 0.67) - fx * (14 + flutter) * s, y: lerp(P.neck.y, P.hip.y, 0.67) - fy * (14 + flutter) * s };
     const tx = T2.x - T1.x, ty = T2.y - T1.y, tl = Math.max(1, Math.hypot(tx, ty)), nx = -ty / tl, ny = tx / tl;
     ctx.fillStyle = '#fff8e9'; ctx.strokeStyle = OL; ctx.lineWidth = 2 * s;
@@ -2759,6 +2830,8 @@ function drawGauge(t) {
     const u = TOUCH ? 1.3 : LAY === 'port' ? 1.2 : 1, w = 218 * u, h = 48 * u;
     const x = Math.max(12, g.x + g.w / 2 - w / 2), y = g.y + g.h + 18 + i * (h + 7);
     ctx.save(); ctx.globalAlpha = clamp((1.8 - (st.t - n.at)) * 3, 0, 1);
+    const age = st.t - n.at, pop = n.kind === 'penalty' ? 1 + 0.10 * Math.sin(Math.min(1, age / 0.22) * PI) : 1;
+    ctx.translate(x + w / 2, y + h / 2); ctx.scale(pop, pop); ctx.translate(-x - w / 2, -y - h / 2);
     ctx.fillStyle = '#211b22'; rr(x, y, w, h, 12); ctx.fill();
     ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
     text(`${label} ${n.kind === 'refill' ? '+' : '−'}${winePercent(n.amount)}%`, x + w / 2, y + h / 2, 30 * u, color, 'center', 900);
@@ -3072,7 +3145,8 @@ function render() {
     for (let i = 0; i < 3; i++) {
       if (st.alien.revealed && i !== st.alien.cup) continue;
       const leader = st.alien.leaders[i], cup = cupGeom(leader);
-      const { x, y } = S(alienRimX(i), alienRimY(i) + cup.bowlH * leader.P.sc / 2);
+      const rim = toastPose(leader, leader.P).rim;
+      const { x, y } = S(rim.x, rim.y + cup.bowlH * leader.P.sc / 2);
       const clock = toastClockVisual(), col = clock.color;
       if (!clock.alpha) continue;
       ctx.save(); ctx.globalAlpha *= clock.alpha;
@@ -3101,7 +3175,7 @@ function render() {
   // --- clink path + countdown ring around his cup
   if (playing && rd && (rd.phase === 'aim' || rd.phase === 'clink' || rd.phase === 'hold') && !rd.smash && !st.alien) {
     const tc = toastChar(), tRimY = toastRimY();
-    let tcx = tc.P ? tc.P.rim.x : boss.P.rim.x;
+    let tcx = tc.P ? toastPose(tc, tc.P).rim.x : boss.P.rim.x;
     if (st.alien && st.alien.on && tc === boss) tcx = alienRimX(st.alien.cup);
     const bc = S(tcx, tRimY + 16 * SC);
     if (rd.phase === 'aim') {

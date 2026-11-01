@@ -76,6 +76,11 @@ bot's intended tap time; physics, movement and contact still run normally. Alien
 reachability tests cover all three difficulties, targets and supported test tempos.
 
 Run `node tests/instant.test.cjs` for synchronous keyboard/touch contact, input-time
-height and stability, same-event sound and cup placement, preserved early-tap cues,
+height and stability, same-event judgement and visual-only cup motion, preserved early-tap cues,
 live music-clock sampling, disappearing zero labels, and single timeout penalties.
 The reaction animation cannot change a resolved judgement.
+
+Run `node tests/gesture.test.cjs` for continuous 70 ms reaches, local perfect holds,
+planted feet, drawing/physics isolation, collision-synchronized sound, pause/home
+cleanup, uninterrupted steering and 160 BPM phrases, and all-hit group finishers.
+No gesture can change an already resolved score, penalty, or wine amount.

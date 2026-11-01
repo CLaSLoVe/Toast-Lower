@@ -48,7 +48,7 @@ test('alien targets are concealed, revealed one second before zero, then remain 
   r.alienChoice=(choice+1)%3;r.t+=.1;g.inspect.revealAlienTarget();assert.equal(r.target,picked);
  }
 });
-test('three independent leaders hold distinct heights and only the chosen leader approaches',()=>{
+test('three independent leaders hold distinct heights and stay planted through reveal and zero',()=>{
  for(const layer of [9,10,11]) for(const choice of [0,1,2]) {
   const labels=[];
   const g=createGame({search:`?capture=1&tut=0&seed=7&layer=${layer}`,onDraw(key,args){if(key==='fillText')labels.push(args[0]);}}),r=g.inspect.st.round,a=g.inspect.st.alien;
@@ -69,7 +69,7 @@ test('three independent leaders hold distinct heights and only the chosen leader
   r.t=r.T+.5-g.inspect.reachTime();g.inspect.stepNPCs(1/60);
   a.leaders.forEach((c,i)=>assert.ok(Math.abs(c.P.rim.x-before[i])<.1,'movement begins at zero'));
   r.t+=.3;g.inspect.stepNPCs(1/60);
-  a.leaders.forEach((c,i)=>{if(i===choice)assert.ok(c.P.rim.x<before[i]-30);else assert.ok(Math.abs(c.P.rim.x-before[i])<.1);assert.ok(Math.abs(c.P.rim.y-r.base-i*a.step)<1e-7);});
+  a.leaders.forEach((c,i)=>{assert.ok(Math.abs(c.P.rim.x-before[i])<.1,'no countdown-driven rush');assert.ok(Math.abs(c.P.rim.y-r.base-i*a.step)<1e-7);});
   labels.length=0;g.render();assert.equal(labels.filter(s=>/^\d+\.\d+s$/.test(s)).length,0,'expired numeric countdown disappears');
  }
 });
