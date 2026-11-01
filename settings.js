@@ -6,7 +6,7 @@
     cupAccel: '越大，左右推摇杆时杯子转动越快。',
     releaseCup: '越小，松开摇杆时杯子刹得越快。',
     releaseBody: '越小，松开摇杆时身体刹得越快。',
-    reachTime: '点「敬酒」到杯子接触所需的时间。'
+    reachTime: '倒计时内部的拍点偏移；按下敬酒仍立即判定。'
   };
   const groups = {
     common: ['roundWait', 'missPenalty', 'roundRefill', 'spillMultiplier', 'spillMax', 'minCapacity'],
@@ -32,7 +32,7 @@
     clearScore: '从第一关完整打完十二关时，一次性追加的奖励。',
     stickDeadzone: '手机摇杆靠近中心时不输入，避免手指微晃。电脑键盘不受影响。',
     stickCurve: '越大，小幅推杆越细腻；推到底仍保持原来的最大力度。',
-    chainReach: '古墓连敬使用的短伸手动作；最多占一拍的 38%，给下一拍留出回收时间。',
+    chainReach: '连敬倒计时的拍点偏移，最多占一拍的 38%；碰杯立即反馈。',
     AlienHeight: '放大三个候选杯的高度差；倒计时仍为2秒、最后1秒揭晓，操作速度不变。',
     ChainWindow: '连敬每拍的前后误差，以音乐拍长计算；普通单杯不受影响。',
     alienCountdown: '从三杯同时亮圈到红色 0 秒；独立于普通回合、深度和难度的时间调整。',
@@ -67,7 +67,7 @@
     bodyAccel: '越大，按住 O/P 时身体加速越快。', bodyBrake: '越大，身体惯性越小。',
     cupAccel: '越大，按住 Q/W 时杯子转动越快。', cupBrake: '越大，杯子惯性越小。',
     releaseCup: '越小，松开 Q/W 时刹得越快。', releaseBody: '越小，松开 O/P 时刹得越快。',
-    reachTime: '按下空格到杯子接触所需的时间。', minWait: '后期倒计时的下限，不超过普通倒计时。',
+    reachTime: '保留原有倒计时节奏的拍点偏移，不是操作延迟。', minWait: '后期倒计时的下限，不超过普通倒计时。',
     depthSpeedup: '深入后最多缩短多少秒。', retargetBonus: '杯口高度变化大时，额外给出的调整时间上限。',
     practiceBonus: '练习手感额外增加的碰杯容错。', perfectRefill: '完美碰杯额外补酒。',
     hypeRefill: '气势满格时额外补酒。', FloorRefill: '进入下一层时添酒，按初始大杯容量计算；实际添酒不超过当前杯容量。',

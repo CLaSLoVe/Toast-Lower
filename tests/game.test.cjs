@@ -251,59 +251,45 @@ if (!matrixOnly) {
     const g = game(); g.tap('Enter'); g.tap('BracketRight');
     assert.equal(g.api.state().state, 'play'); assert.equal(g.api.state().layer, 0);
   });
-  test('Space starts one physical reach; release and repeats do not change the committed beat', () => {
+  test('Space judges immediately once; release and repeats cannot change the result', () => {
     const g = game(); g.tap('Enter'); g.advance(24);
-    g.key('Space'); const r = g.inspect.st.round, deadline = r.T + 0.5;
-    assert.equal(g.api.state().reach, 0); assert.equal(g.api.state().manualToasts, 0);
-    assert.equal(r.attacking, true); assert.equal(r.attempts, 1);
+    const r = g.inspect.st.round, deadline = r.T + 0.5, margin = g.inspect.player.P.rim.y - g.inspect.toastRimY();
+    g.key('Space');
+    assert.equal(g.inspect.contacts.length, 1); assert.equal(g.api.state().manualToasts, 1);
+    assert.equal(r.attacking, true); assert.equal(r.attempts, 1); assert.equal(r.margin, margin);
+    assert.equal(g.inspect.player.reach, 1);
     for (let i = 0; i < 12; i++) g.key('Space', true, { repeat: true });
-    assert.equal(r.attempts, 1); g.advance(8); const reach = g.inspect.player.reach;
-    assert.ok(reach > 0 && reach < 0.8); assert.equal(g.api.state().manualToasts, 0);
-    assert.equal(g.api.dbg().reach, g.inspect.player.reach, 'debug reports actual reach, not cup window');
-    g.key('Space', false); g.advance(6); assert.ok(g.inspect.player.reach > reach, 'the tap commits to a complete swing');
-    assert.equal(r.T + 0.5, deadline, 'pressing never moves the leader deadline');
-    until(g, () => g.inspect.contacts.length > 0, 60);
-    assert.equal(g.inspect.contacts.length, 1); assert.equal(g.api.state().manualToasts, 1); g.render();
+    g.key('Space', false); g.advance(24);
+    assert.equal(g.inspect.contacts.length, 1); assert.equal(r.attempts, 1);
+    assert.ok(g.inspect.player.reach < 1, 'the arm recoils after immediate feedback');
+    assert.equal(r.T + 0.5, deadline); g.render();
   });
-  test('touch taps start a physical reach in desktop and landscape layouts', () => {
+  test('touch judges immediately in desktop and landscape layouts', () => {
     for (const view of ['desktop', 'landscape']) {
-      const g = game(`?tut=0&seed=20261022&view=${view}`, { width: view === 'portrait' ? 390 : view === 'landscape' ? 844 : 1080, height: view === 'portrait' ? 844 : view === 'landscape' ? 390 : 1080 });
+      const g = game(`?tut=0&seed=20261022&view=${view}`, { width: view === 'landscape' ? 844 : 1080, height: view === 'landscape' ? 390 : 1080 });
       g.tap('Enter'); g.advance(24); g.pressAction();
-      assert.equal(g.inspect.st.round.attacking, true); g.advance(8); const reach = g.inspect.player.reach;
-      assert.ok(reach > 0 && reach < 1); assert.equal(g.api.state().manualToasts, 0);
-      g.actionPointer('pointercancel'); g.advance(6); assert.ok(g.inspect.player.reach > reach);
-      until(g, () => g.inspect.contacts.length === 1, 60);
-      assert.ok(Object.values(g.api.state().keys).every(v => !v));
+      assert.equal(g.inspect.contacts.length, 1); assert.equal(g.api.state().manualToasts, 1);
+      g.actionPointer('pointercancel'); g.advance(12);
+      assert.equal(g.inspect.contacts.length, 1); assert.ok(Object.values(g.api.state().keys).every(v => !v));
     }
   });
-  test('both hands and the target stay live throughout the reach', () => {
-    const g = game(); g.tap('Enter'); g.advance(24); g.key('Space');
-    const p = g.inspect.player, h = p.h, tilt = p.tilt, bossY = g.inspect.toastRimY();
-    g.key('KeyO'); g.key('KeyQ'); g.advance(18);
-    assert.ok(p.h > h + 0.01, 'body responds while reaching');
-    assert.ok(Math.abs(p.tilt - tilt) > 0.02, 'wrist responds while reaching');
-    assert.notEqual(g.inspect.toastRimY(), bossY, 'target is not frozen at the button press');
-    assert.ok(p.reach > 0 && p.reach < 1); assert.equal(g.inspect.contacts.length, 0);
-    g.key('KeyO', false); g.key('KeyQ', false); g.key('Space', false);
+  test('both hands remain live after a tap without retroactively changing its judgement', () => {
+    const g = game(); g.tap('Enter'); g.advance(24); g.tap('Space');
+    const p = g.inspect.player, h = p.h, tilt = p.tilt, contact = { ...g.inspect.contacts[0] };
+    g.key('KeyO'); g.key('KeyQ'); g.advance(24);
+    assert.ok(p.h > h + 0.01); assert.ok(Math.abs(p.tilt - tilt) > 0.02);
+    assert.equal(g.inspect.contacts.length, 1); assert.equal(g.inspect.contacts[0].judgedMargin, contact.judgedMargin);
+    assert.equal(g.inspect.contacts[0].result, contact.result);
+    g.key('KeyO', false); g.key('KeyQ', false);
   });
-  test('contact uses the live pose; tipping has no separate leader-splash penalty', () => {
-    const good = game('?capture=1&tut=0&bot=expert&seed=20261022');
-    until(good, () => good.inspect.contacts.length > 0, 600);
-    const goodHit = good.inspect.contacts[0];
-    assert.equal(goodHit.result, 'ok'); assert.equal(goodHit.margin, goodHit.judgedMargin);
-    assert.equal(goodHit.reach, 1);
-    const bad = game('?capture=1&tut=0&bot=expert&seed=20261022');
-    until(bad, () => bad.inspect.player.reach > 0.1, 600);
-    const atPress = bad.inspect.player.P.rim.y - bad.inspect.toastRimY();
-    // Alter only the player's input, never geometry or judgment state.
-    bad.overrideControls({ Q: 0, W: 1, Space: 1 });
-    until(bad, () => bad.inspect.contacts.length > 0, 180);
-    const badHit = bad.inspect.contacts[0];
-    assert.equal(bad.inspect.st.why?.tilt, undefined);
-    assert.ok(!bad.api.dbg().jword.includes('一身'));
-    assert.equal(badHit.result, badHit.margin >= 0 && badHit.margin <= bad.inspect.winSpan() && Math.abs(badHit.timing) <= bad.api.dbg().timingWindow ? 'ok' : 'strike');
-    assert.equal(badHit.margin, badHit.judgedMargin); assert.notEqual(badHit.margin, atPress);
-    assert.ok(badHit.level > goodHit.level);
+  test('real taps use the current height and balance without a leader-splash penalty', () => {
+    const g = game('?capture=1&tut=0&bot=expert&seed=20261022');
+    until(g, () => g.inspect.contacts.length > 0, 600);
+    const hit = g.inspect.contacts[0];
+    assert.equal(hit.result, 'ok'); assert.equal(hit.margin, hit.judgedMargin);
+    assert.ok(Math.abs(hit.timing-hit.inputLeft)<1e-8);
+    assert.equal(g.inspect.st.why?.tilt, undefined);
+    assert.ok(!g.api.dbg().jword.includes('一身'));
   });
   test('full hype rewards score without duplicate wine or skipping the floor', () => {
     const g = game('?capture=1&tut=0&bot=expert&seed=20261022');
@@ -399,7 +385,7 @@ if (!matrixOnly) {
       const g = game(); g.tap('Enter'); const p = g.inspect.player, r = g.inspect.st.round;
       const margin = g.inspect.perfBand() / 2;
       p.P.rim.y = g.inspect.toastRimY() + margin; p.tilt = p.w = 0; p.cupRate = fast ? 2 : 0;
-      p.wine = 0.5; r.manual = true; r.t = 0.5 + r.T - timing;
+      p.wine = 0.5; r.manual = true; r.t = 0.5 + r.T - g.inspect.reachTime() - timing;
       r.mh = Array.from({ length: 10 }, (_, i) => [g.inspect.st.t - i / 60, margin, unstableHistory && i === 5 ? 1 : 0, 0]);
       g.inspect.judgeClink(); return g;
     }
@@ -455,24 +441,21 @@ if (!matrixOnly) {
     until(early, () => early.inspect.st.strikes > 0, 90);
     assert.equal(early.inspect.st.why.early, 1); assert.ok(early.inspect.contacts[0].timing > early.api.dbg().timingWindow);
     const late = game(); late.tap('Enter');
-    // Zero is now inside the wider grace period; wait past the last viable
-    // start time (contact still takes 0.42 seconds).
-    until(late, () => late.api.state().left <= 0.42 - late.api.dbg().timingWindow - 0.08, 600); late.tap('Space');
+    // Wait past the input window: a timeout and a subsequent tap cannot charge twice.
+    until(late, () => late.inspect.st.strikes > 0, 600); late.tap('Space');
     until(late, () => late.inspect.st.strikes > 0, 90); assert.equal(late.inspect.st.why.late, 1);
     const timed = game('?capture=1&tut=0&bot=expert&seed=20261022');
     until(timed, () => timed.inspect.contacts.length > 0, 600);
     assert.equal(timed.inspect.contacts[0].result, 'ok');
     assert.ok(Math.abs(timed.inspect.contacts[0].timing) <= timed.api.dbg().timingWindow);
   });
-  test('the tutorial teaches the same committed tap and timing mistakes cost no lives', () => {
+  test('the tutorial teaches the same immediate tap and timing mistakes cost no lives', () => {
     for (const input of ['keyboard', 'touch']) {
       const g = game('?tut=1&seed=20261022'); g.tap('Enter');
       // Select the teaching exercise, without skipping its enter/step behavior.
       Object.assign(g.inspect.st.tut, { step: 5, t: 0, sub: 0, enter: true }); g.advance(24);
       if (input === 'keyboard') g.tap('Space'); else g.pressAction();
-      g.advance(8); const reach = g.inspect.player.reach;
-      assert.ok(reach > 0 && reach < 1); assert.equal(g.inspect.contacts.length, 0);
-      until(g, () => g.inspect.contacts.length > 0, 60);
+      assert.equal(g.inspect.contacts.length, 1); assert.equal(g.inspect.player.reach, 1);
       assert.equal(g.inspect.contacts[0].result, 'strike');
       assert.ok(g.api.tut()); assert.equal(g.inspect.st.strikes, 0); g.render();
     }

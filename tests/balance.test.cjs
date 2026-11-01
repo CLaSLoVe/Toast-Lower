@@ -10,7 +10,7 @@ function game(layer = 0, mode = 'normal', extra = '', options = {}) {
 function hit(g) {
  const {st, player:p} = g.inspect, r=st.round, m=g.inspect.perfBand()/2;
  p.P.rim.y=g.inspect.toastRimY()+m; p.tilt=p.w=p.cupRate=0;
- r.manual=true;r.t=r.T+.5;r.mh=Array.from({length:10},(_,i)=>[st.t-i/60,m,0,0]);
+ r.manual=true;r.t=r.T+.5-g.inspect.reachTime();r.mh=Array.from({length:10},(_,i)=>[st.t-i/60,m,0,0]);
  g.inspect.judgeClink();
 }
 function miss(g) { g.inspect.strike(null,null,'late'); g.inspect.finishToastAttempt(); }

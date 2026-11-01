@@ -243,7 +243,7 @@ function fk(c) {
   const hand = d(c.arm - 0.5, L.fa, elbow);
   const reach = c.spec.kind === 'player' ? (c.reach || 0) : 0;
   elbow.x += 12 * sc * f * reach; hand.x += 30 * sc * f * reach;
-  hand.y -= 5 * sc * reach;
+  // Reaching is horizontal feedback only; it never changes the judged height.
   const a2 = toA + PI * 0.82 + Math.sin(c.sway) * 0.15;
   const elbow2 = d(a2, L.ua, shoulder);
   const hand2 = d(a2 + 0.5, L.fa * 0.9, elbow2);
@@ -438,13 +438,15 @@ function stepAlienLeaders(dt) {
     const y = r.base + i * a.step;
     c.s = r.smash ? 1 : sForRim(c.spec, y - floorY(st.L));
     c.tilt = c.vtilt = 0; poseFromS(c, c.s);
-    const selected = !r.smash && a.revealed && i === a.cup && r.phase === 'aim' && toastInputLeft() <= 0;
+    const selected = !r.smash && !r.result && a.revealed && i === a.cup && r.phase === 'aim' && toastInputLeft() <= 0;
     const homeX = player.x + 340 + i * 235 - tableAt(c.spec, c.s).cupDX;
-    if (selected) {
-      // Reveal at one second; move only on zero, arriving with the player's reach.
+    if ((c.toastContactUntil || 0) > st.t) {
+      c.x = player.P.rim.x + 24 * SC - tableAt(c.spec, c.s).cupDX;
+    } else if (selected) {
+      // Reveal at one second; the brief lunge starts at zero. A valid tap snaps contact immediately.
       if (r.alienApproachX == null) r.alienApproachX = c.x;
       const contactX = Math.max(player.P.cupB.x, player.P.rim.x) + 24 * SC - tableAt(c.spec, c.s).cupDX;
-      const duration = Math.max(0.12, reachTime() - Math.min(0.06, timingWindow() * 0.25));
+      const duration = 0.08;
       c.x = lerp(r.alienApproachX, contactX, ease(clamp(-toastInputLeft() / duration, 0, 1)));
     } else c.x += (homeX - c.x) * Math.min(1, 7 * dt);
     settle(c, fl);
@@ -708,7 +710,7 @@ function rearmRoundClock() {
   // Keep already judged notes and the target; restart only the pending cue sequence.
   r.t = 0; r.T = (st.alien ? CFG.alienCountdown : Math.max(CFG.minWait, 2 * 60 / CFG.musicBpm)) + reachTime() - 0.5;
   r.musicAnchor = null; r.cue = null; r.clockWaiting = false;
-  r.attacking = false; r.attackT = 0; r.mh = []; player.reach = player.reachV = 0;
+  r.attacking = !!r.waitForBeat; r.attackT = 0; r.mh = []; player.reach = player.reachV = 0;
 }
 function setPaused(value) { if (!value && st.rearmAfterPause) { rearmRoundClock(); st.rearmAfterPause = false; } st.paused = value; debugMenuOpen = false; clearInputs(); syncMusic(); }
 function returnToTitle() {
@@ -901,7 +903,7 @@ function runBot(dt) {
       if (keys[k] !== prev[k] && st.keyT[k] < B.dwell && !urgent && !(prev[k] && (k === 'O' || k === 'P'))) keys[k] = prev[k]; if (keys[k] !== prev[k]) st.keyT[k] = 0; }
     st.botLast = st.t;
   }
-  // Read the leader's incoming gesture, then tap once. Keep balancing throughout the reach.
+  // Track the input beat and current pose, then tap once; the judgement is immediate.
   keys.Space = r && r.attacking && r.phase === 'aim' ? 1 : 0;
   if (r && canToast()) {
     const gap = p.P.rim.y - toastRimY();
@@ -1112,7 +1114,7 @@ function moveBody(p, K, dt, d) {
   if (p.h < 0) { p.h = 0; p.vh = Math.max(0, p.vh); p.veh = Math.max(0, p.veh); }
   if (p.h > 1) { p.h = 1; p.vh = Math.min(0, p.vh); p.veh = Math.min(0, p.veh); }
   stepSway(p, dt, d);
-  poseFromS(p, h2s(clamp(p.h + p.sw * swayFade(p) + (p.reach || 0) * 0.018, 0, 1)));
+  poseFromS(p, h2s(clamp(p.h + p.sw * swayFade(p), 0, 1)));
   // pounding the floor with O during a smash: a little bob of the arm and shoulders
   if (smashing && p.h > 0.9 && K.O && st.round.phase === 'aim') { const bob = Math.abs(Math.sin(st.t * 15)); p.arm += 0.3 * bob; p.phi -= 0.08 * bob; }
 }
@@ -1220,15 +1222,15 @@ function pressCheck(dt, d) {
 }
 
 // ---------------------------------------------------------------- clinking rounds
-// The leader keeps a visible countdown and reaches on his beat. Space commits the player's reach.
-// At actual contact, timing, relative height and cup balance are all judged together.
+// The visible zero is the input/contact beat. A tap judges the current pose immediately.
+// The horizontal punch and recoil are feedback, never a second judgement window.
 // After a good clink he politely goes lower next time. Once his target is below what a cup can
 // reach on this floor, the round becomes a SMASH round: break the floor before the countdown ends.
 const POLITE_LINES = [['你的腰，比我前途还灵活'], ['别卷了，我腰有工伤'], ['这份敬意，承重墙收到了'], ['嘴上说随意，膝盖很诚实']];
 const RUDE_LINES = [['你敬的是天花板？'], ['杯子挺高，情商挺低'], ['这杯里装的是辞职信？'], ['你小子想坐我这个位置？']];
 const ROUND_EVENTS = {
   feint: { title: '假客气', hint: '他说随意，杯子还会再降！', col: '#b8a0ff' },
-  rush: { title: '领导赶下一场', hint: '这一杯节奏更快 · 看伸手动作', col: '#ffad72' },
+  rush: { title: '领导赶下一场', hint: '这一杯节奏更快 · 听拍子', col: '#ffad72' },
   steady: { title: '全桌都看着你', hint: '卡准那一拍 · 碰杯时也要扶稳', col: '#79dfcd' },
 };
 function toastButtonRect() {
@@ -1241,27 +1243,34 @@ let REACH_TIME = CFG.reachTime;
 function reachTime() { return st.round && st.round.chain ? Math.min(REACH_TIME, CFG.chainReach, 60 / CFG.musicBpm * 0.38) : REACH_TIME; }
 // A readable reaction window; later rooms keep some timing pressure.
 function timingWindow() { const d = difficulty(); const w = CTL === 'vel' ? d.time + CFG.practiceBonus : d.time - d.taper * Math.min(1, shapeK(st.L)); return st.round && st.round.chain ? Math.min(w, 60 / CFG.musicBpm * CFG[d.id + 'ChainWindow']) : w; }
-// The visible clock targets the input beat, compensating for the reach animation.
+// Keep the existing countdown schedule (including saved beat offsets).
+// This offset no longer delays contact: input and judgement share this exact clock.
 function toastInputLeft() { return roundLeft() - reachTime(); }
+function toastClockVisual() {
+  const left = toastInputLeft(), onBeat = Math.abs(left) < 0.05;
+  return { left, onBeat, alpha: left >= -0.05 ? 1 : clamp(1 - (-left - 0.05) / 0.14, 0, 1),
+    color: onBeat ? '#ff6666' : '#ffffff', label: onBeat ? '0s' : left > 0 ? `${left.toFixed(1)}s` : '' };
+}
 function toastBeatReady() { return Math.abs(toastInputLeft()) <= timingWindow(); }
 function canToast() {
   const r = st.round;
   return !st.paused && st.state === 'play' && (!st.tut || st.tut.step === 5) && st.freeze <= 0 && r && r.phase === 'aim' && !r.smash && !r.attacking && !(st.alien && !st.alien.revealed) && r.t > 0.22;
 }
-// Space commits to one physical reach. The leader keeps his beat; Q/W/O/P stay live until contact.
+// Judge synchronously on the input event; subsequent movement cannot change this result.
 function requestToast() {
+  if (st.state === 'play' && !st.paused && st.round && st.round.phase === 'aim' && !st.round.result) { syncToastClock(); revealAlienTarget(); }
   if (!canToast()) return false;
   const r = st.round; r.attacking = true; r.attackT = 0; r.manual = true;
   r.attempts = (r.attempts || 0) + 1;
+  r.inputJudged = true; st.manualToasts++;
+  stepToastCue();
+  judgeClink();
   return true;
 }
 function stepReach(dt) {
   const p = player, r = st.round, before = p.reach || 0;
   if (!r || st.tut && st.tut.step !== 5 || st.state !== 'play') { p.reach = 0; p.reachV = 0; return; }
-  if (r.phase === 'aim' && r.attacking) {
-    r.attackT += dt;
-    p.reach = clamp(r.attackT / reachTime(), 0, 1);
-  } else p.reach = Math.max(0, before - dt / (r.chain ? 0.10 : 0.48));
+  p.reach = Math.max(0, before - dt / (r.chain ? 0.12 : 0.18));
   p.reachV = (p.reach - before) / dt;
 }
 function floorLimit() { return floorY(st.L) - 83 * SC; } // lower than this and nobody can clink on their feet: smash time
@@ -1358,6 +1367,12 @@ function strike(zh, en, why) {
 function judgeSay(pair) { if (st.judge) { st.judge.sub = pair[0]; bubbles.length = 0; } else say(boss, pair, 1.6); }
 function finishToastAttempt() {
   const r = st.round;
+  if (r.inputJudged && toastInputLeft() > 1e-9 && Math.abs(r.timing) <= timingWindow() && st.state === 'play') {
+    r.waitForBeat = true; st.freeze = 0;
+    if (r.chain) { st.shake = Math.min(st.shake, 2); if (st.judge) st.judge.compact = true; }
+    return;
+  }
+  r.waitForBeat = false;
   if (r.chain) {
     if (r.chainIndex >= r.chain) return;
     r.lastNoteResult = r.result;
@@ -1368,7 +1383,7 @@ function finishToastAttempt() {
       r.T += r.chainBeat;
       if (r.cue) { r.cue.target += r.chainBeat; r.cue.next = 2; }
       r.result = null; r.attacking = false; r.attackT = 0; r.manual = false;
-      player.reach = 0; player.reachV = 0;
+      r.inputJudged = false;
       return;
     }
   }
@@ -1392,13 +1407,25 @@ function awardHype(amount) {
   if (st.judge) { st.judge.word = '全桌服气！！'; st.judge.col = '#ffdf62'; }
   if (!st.round.chain) { st.freeze = Math.max(st.freeze, 0.17); st.shake = Math.max(st.shake, 12); }
 }
+function toastImpact(ok) {
+  const p = player, dx = 30 * p.P.sc * p.face * (1 - (p.reach || 0));
+  p.P.elbow.x += dx * 0.4;
+  for (const key of ['hand', 'cupB', 'rim']) p.P[key].x += dx;
+  p.reach = 1; p.reachV = 0;
+  if (!ok) return;
+  const c = toastChar(), shift = p.P.rim.x + 24 * SC - c.P.rim.x;
+  c.x += shift;
+  // Preserve the sampled height/tilt; the other leaders stay in place.
+  for (const point of Object.values(c.P)) if (point && typeof point === 'object' && 'x' in point) point.x += shift;
+  c.toastContactUntil = st.t + 0.10;
+}
 function judgeClink() {
   const r = st.round, d = diff(), L = d.L;
   if (!r || (!r.tut && r.phase !== 'aim') || r.result) return;
   const by = toastRimY();
   const margin = player.P.rim.y - by;
   r.margin = margin;
-  r.timing = roundLeft();
+  r.timing = r.tut && !r.manual ? 0 : toastInputLeft();
   const timed = !r.tut || st.tut && st.tut.step === 5;
   const offBeat = timed && Math.abs(r.timing) > timingWindow();
   // Perfect requires accurate timing and a steady rim and cup over the last 0.18 s.
@@ -1413,13 +1440,14 @@ function judgeClink() {
   const perfect = ok && margin < PERF && avg >= 0 && avg < PERF &&
     Math.abs(r.timing) <= Math.min(CFG.perfectTime, timingWindow()) && (r.tut || stable);
   st.freeze = perfect ? 0.13 : 0.065;
+  if (r.inputJudged) toastImpact(ok);
   juiceClink(ok ? (perfect ? 'perfect' : 'ok') : 'bad', r.tut);
   const tc = toastChar();
   let jbx = tc.P ? tc.P.rim.x : boss.P.rim.x;
   if (st.alien && st.alien.on && tc === boss) jbx = alienRimX(st.alien.cup);
   st.judge = { word: offBeat ? r.timing > 0 ? '敬早了！扑空！' : '敬晚了！' : far ? '敬到地府了!' : !ok ? '胆儿肥了!' : perfect ? '完美拿捏!' : r.manual ? '碰上了！' : '礼数到位!', col: far ? '#ff9a3d' : !ok ? '#ff4d4d' : perfect ? '#ffd34d' : '#ffffff', t: 0,
     px: player.P.rim.x, py: player.P.rim.y, bx: jbx, by };
-  if (r.tut) { r.result = ok ? 'ok' : 'strike'; r.phase = 'react'; r.t = 0; judgeSay(ok ? pick([['真乖！'], ['对喽！'], ['这才像样']]) : offBeat ? ['看红色 0s 那一拍按空格！'] : far ? ['太低啦，妈够不着！'] : ['杯子比妈还高？']);
+  if (r.tut) { r.result = ok ? 'ok' : 'strike'; r.waitForBeat = r.inputJudged && toastInputLeft() > 1e-9 && !offBeat; if (r.waitForBeat) st.freeze = 0; else { r.phase = 'react'; r.t = 0; } judgeSay(ok ? pick([['真乖！'], ['对喽！'], ['这才像样']]) : offBeat ? ['看红色 0s 那一拍按空格！'] : far ? ['太低啦，妈够不着！'] : ['杯子比妈还高？']);
     for (let i = 0; i < 14; i++) parts.push({ x: (player.P.rim.x + boss.P.rim.x) / 2 + R(-12, 12), y: (player.P.rim.y + boss.P.rim.y) / 2, vx: R(-220, 220), vy: R(-460, -120), life: 2, r: R(4, 8), col: drinkCol(), type: 'drop' });
     return; }
   const cx = (player.P.rim.x + tc.P.rim.x) / 2, cy = (player.P.rim.y + tc.P.rim.y) / 2;
@@ -1511,12 +1539,12 @@ function stepRound(dt) {
       const old = r.target; r.target = Math.min(floorLimit() - 8, r.target + 38 + 2 * Math.min(st.L, 9));
       r.move = r.target - old; st.bossJ = 0; say(boss, ['哎呀随意～（偷偷再降）'], 1.1);
     }
-    if (!r.smash && r.attacking && player.reach >= 1) {
-      r.early = clamp(roundLeft() / r.T, 0, 1); st.manualToasts++;
-      judgeClink(); return;
-    }
-    const left = roundLeft();
+    const left = r.smash ? roundLeft() : toastInputLeft();
     stepToastCue();
+    if (r.waitForBeat) {
+      if (left <= 1e-9) finishToastAttempt();
+      return;
+    }
     const n = Math.ceil(left); if (r.smash && left <= r.T && n < r.beep && n >= 1) { r.beep = n; sfx('tick'); }
     if (left <= (r.smash ? 0 : -timingWindow())) {
       if (r.smash) { strike('还不够低！', null, 'smash'); r.phase = 'react'; r.t = 0; }
@@ -1598,8 +1626,8 @@ const TUT_STEPS = [
       say(boss, ['看准红色 0s，按空格一起碰！'], 3.5); tutMsg('红色 0s 按空格 · Q/W 继续扶杯', ['Q', 'W', 'O', 'P']); },
     step(T, dt) {
       const tu = st.tut, r = st.round;
-      if (r.phase === 'aim' && r.attacking && player.reach >= 1) { judgeClink(); }
-      else if (r.phase === 'aim' && roundLeft() < -timingWindow()) { r.result = 'strike'; r.phase = 'react'; r.t = 0; say(boss, ['这拍错过了，再来一次'], 1.6); }
+      if (r.waitForBeat && toastInputLeft() <= 1e-9) { r.waitForBeat = false; r.phase = 'react'; r.t = 0; }
+      else if (r.phase === 'aim' && !r.result && toastInputLeft() < -timingWindow()) { r.result = 'strike'; r.phase = 'react'; r.t = 0; say(boss, ['这拍错过了，再来一次'], 1.6); }
       else if (r.phase === 'react' && r.t > 1.4) {
         if (r.result === 'ok') { player.reach = 0; player.reachV = 0; tutNext(); }
         else { st.round = { phase: 'aim', t: 0, T: 4.5, target: tutLevel(115), smash: false, n: 1, tut: true };
@@ -1655,7 +1683,7 @@ function stepNPCs(dt) {
   const q = player.P, qs = q.sc;
   const pFront = Math.max(q.head.x + q.hr, q.knee.x + 14 * qs, q.shoulder.x + 22 * qs, q.hip.x + 22 * qs, q.toe.x);
   const minX = pFront + 12 + 60 * boss.s - e.frontDX;
-  const clinking = r && r.phase === 'clink', approach = r && r.phase === 'aim' && !r.smash ? clamp(1 - roundLeft() / (reachTime() + timingWindow() * 0.88), 0, 1) : 0, away = r && r.phase === 'aim' ? 110 + 40 * Math.sin(st.t * 2) * 0.2 : 140;
+  const clinking = r && r.phase === 'clink' || (boss.toastContactUntil || 0) > st.t, approach = r && r.phase === 'aim' && !r.smash && !r.result ? clamp(-toastInputLeft() / 0.08, 0, 1) : 0, away = r && r.phase === 'aim' ? 110 + 40 * Math.sin(st.t * 2) * 0.2 : 140;
   const wantX = clinking ? Math.max(touchX, minX) : Math.max(touchX + away * (1 - approach), minX + 40 * (1 - approach));
   boss.x += (clamp(wantX, player.x + 90, 2000) - boss.x) * Math.min(1, (clinking ? 16 : 6) * dt);
   settle(boss, fl);
@@ -2939,9 +2967,9 @@ function drawToastButton() {
   ctx.fillStyle = col; rr(r.x, r.y, r.w, r.h, 16); ctx.fill();
   ctx.strokeStyle = '#201624'; ctx.lineWidth = 4; ctx.stroke();
   if (reach > 0) { ctx.fillStyle = risk > 1 ? '#ef7657' : '#89cbb2'; rr(r.x + 6, r.y + r.h - 11, Math.max(8, (r.w - 12) * reach), 6, 3); ctx.fill(); }
-  const beat = !slam && rd && rd.phase === 'aim' && toastBeatReady();
-  if (beat && !rd.attacking) { ctx.strokeStyle = Math.abs(toastInputLeft()) < 0.05 ? '#ff6666' : '#ffd34d'; ctx.lineWidth = 5; rr(r.x - 4, r.y - 4, r.w + 8, r.h + 8, 18); ctx.stroke(); }
-  const label = slam ? '按住 O 砸穿地板' : rd && rd.phase === 'react' ? '下一杯' : rd && rd.attacking ? '出手中 · 扶稳！' : toastInputLeft() < -timingWindow() ? '错过这一拍' : beat ? (Math.abs(toastInputLeft()) < 0.05 ? (TOUCH ? '0s · 现在碰！' : '0s · 按空格！') : TOUCH ? '碰杯' : '空格 · 碰杯') : TOUCH ? '0s 点碰杯' : '0s 按空格';
+  const beat = !slam && rd && rd.phase === 'aim' && Math.abs(toastInputLeft()) < 0.05;
+  if (beat && !rd.attacking) { ctx.strokeStyle = '#ff6666'; ctx.lineWidth = 5; rr(r.x - 4, r.y - 4, r.w + 8, r.h + 8, 18); ctx.stroke(); }
+  const label = slam ? '按住 O 砸穿地板' : rd && rd.phase === 'react' ? '下一杯' : rd && rd.attacking ? '下一拍' : toastInputLeft() < -timingWindow() ? '错过这一拍' : beat ? (Math.abs(toastInputLeft()) < 0.05 ? (TOUCH ? '0s · 现在碰！' : '0s · 按空格！') : TOUCH ? '碰杯' : '空格 · 碰杯') : TOUCH ? '0s 点碰杯' : '0s 按空格';
   text(TOUCH ? (slam ? '左杆向下砸楼' : rd && rd.attacking ? '扶稳！' : rd && rd.phase === 'react' ? '下一杯' : '敬酒') : label, r.x + r.w / 2, r.y + r.h / 2 - 1, TOUCH ? 48 : LAY === 'desk' ? 23 : 29, '#241722', 'center', 900);
   if (TOUCH && !slam) text('红色 0s 点一下', r.x + r.w / 2, r.y + r.h / 2 + 57, 25, '#604d4a', 'center', 700);
   ctx.restore();
@@ -3045,7 +3073,9 @@ function render() {
       if (st.alien.revealed && i !== st.alien.cup) continue;
       const leader = st.alien.leaders[i], cup = cupGeom(leader);
       const { x, y } = S(alienRimX(i), alienRimY(i) + cup.bowlH * leader.P.sc / 2);
-      const onBeat = Math.abs(left) < 0.05, col = onBeat ? '#ff6666' : toastBeatReady() ? '#ffd34d' : left < 0 ? '#a28b98' : '#ffffff';
+      const clock = toastClockVisual(), col = clock.color;
+      if (!clock.alpha) continue;
+      ctx.save(); ctx.globalAlpha *= clock.alpha;
       // Same shrinking-to-red-zero grammar as ordinary rounds, scaled to three cups.
       const rad = Math.max(6, 20 + 30 * left / total) * z;
       ctx.strokeStyle = '#ff6666'; ctx.lineWidth = 2 * z; ctx.beginPath(); ctx.arc(x, y, 20 * z, 0, 2 * PI); ctx.stroke();
@@ -3053,17 +3083,19 @@ function render() {
       ctx.strokeStyle = col; ctx.lineWidth = 4 * z; ctx.beginPath(); ctx.arc(x, y, rad, 0, 2 * PI); ctx.stroke();
       const labelY = y - 59 * z;
       ctx.fillStyle = 'rgba(28,20,38,.9)'; rr(x - 34 * z, labelY - 16 * z, 68 * z, 32 * z, 8 * z); ctx.fill();
-      text(onBeat ? '0s' : `${Math.max(0, left).toFixed(1)}s`, x, labelY, 24 * z, col, 'center', 900);
+      if (clock.label) text(clock.label, x, labelY, 24 * z, col, 'center', 900);
+      ctx.restore();
     }
   }
   if (playing && rd && rd.chain && !rd.smash) {
     const y = HB + 88 * UI, spacing = 62 * UI;
     for (let i = 0; i < rd.chain; i++) {
       const x = W / 2 + (i - (rd.chain - 1) / 2) * spacing;
-      const done = i < rd.chainResults.length, current = i === rd.chainIndex;
-      const col = done ? rd.chainResults[i] ? '#92dbb2' : '#ec786f' : current ? '#ffd34d' : '#6c5b4e';
+      const current = i === rd.chainIndex, done = i < rd.chainResults.length || current && rd.result != null;
+      const hit = i < rd.chainResults.length ? rd.chainResults[i] : rd.result === 'ok';
+      const col = done ? hit ? '#92dbb2' : '#ec786f' : current ? '#ffd34d' : '#6c5b4e';
       circ(x, y, (current ? 21 : 17) * UI, col, '#292018', 3);
-      text(done ? rd.chainResults[i] ? '✓' : '×' : String(i + 1), x, y, 22 * UI, '#211a19', 'center', 900);
+      text(done ? hit ? '✓' : '×' : String(i + 1), x, y, 22 * UI, '#211a19', 'center', 900);
     }
   }
   // --- clink path + countdown ring around his cup
@@ -3074,24 +3106,22 @@ function render() {
     const bc = S(tcx, tRimY + 16 * SC);
     if (rd.phase === 'aim') {
       const left = toastInputLeft(), total = rd.chain && rd.chainIndex > 0 ? rd.chainBeat : Math.max(0.1, rd.T + 0.5 - reachTime());
-      if (rd.T < 50) {
-        // One moving circle crosses a red zero target. The shaded annulus is
-        // the actual input tolerance on BOTH sides of zero, not a second beat.
+      if (rd.T < 50 && toastClockVisual().alpha > 0) {
+        // One moving circle meets the red target on the third cue.
+        // Tolerance stays in the rules; it never adds a competing visual signal.
         const scale = UI * cam.z, targetRad = 46 * scale;
         const radiusAt = seconds => Math.max(12 * scale, targetRad + 68 * scale * seconds / total);
-        const rad = radiusAt(left), earlyRad = radiusAt(timingWindow()), lateRad = radiusAt(-timingWindow());
-        const ready = toastBeatReady(), onBeat = Math.abs(left) < 0.05;
-        const col = onBeat ? '#ff6666' : ready ? '#ffd34d' : left < 0 ? '#a28b98' : '#ffffff';
-        ctx.strokeStyle = 'rgba(255,211,77,0.16)'; ctx.lineWidth = earlyRad - lateRad;
-        ctx.beginPath(); ctx.arc(bc.x, bc.y, (earlyRad + lateRad) / 2, 0, 2 * PI); ctx.stroke();
+        const rad = radiusAt(left), clock = toastClockVisual(), col = clock.color;
+        ctx.save(); ctx.globalAlpha *= clock.alpha;
         ctx.strokeStyle = '#ff6666'; ctx.lineWidth = 3 * UI;
         ctx.beginPath(); ctx.arc(bc.x, bc.y, targetRad, 0, 2 * PI); ctx.stroke();
         ctx.lineWidth = 9 * UI; ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.arc(bc.x, bc.y, rad, 0, 2 * PI); ctx.stroke();
         ctx.strokeStyle = col; ctx.lineWidth = 5 * UI; ctx.beginPath(); ctx.arc(bc.x, bc.y, rad, 0, 2 * PI); ctx.stroke();
-        const label = rd.attacking ? '出手中' : onBeat ? '0s · 碰！' : `${Math.max(0, left).toFixed(1)}s`;
-        const labelY = bc.y - Math.max(rad, earlyRad) - 36 * UI;
+        const label = clock.label;
+        const labelY = bc.y - Math.max(rad, targetRad) - 36 * UI;
         ctx.fillStyle = 'rgba(30,18,28,0.9)'; rr(bc.x - 78 * UI, labelY - 22 * UI, 156 * UI, 44 * UI, 12 * UI); ctx.fill();
-        text(label, bc.x, labelY, 27 * UI, col, 'center', 900, '#302028');
+        if (label) text(label, bc.x, labelY, 27 * UI, col, 'center', 900, '#302028');
+        ctx.restore();
       }
     }
   }

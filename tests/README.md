@@ -74,3 +74,8 @@ preset, compare equal early/late errors, verify actual per-mode floor refills,
 and check the height/drift scaling. The optional VM timing probe shifts only the
 bot's intended tap time; physics, movement and contact still run normally. Alien
 reachability tests cover all three difficulties, targets and supported test tempos.
+
+Run `node tests/instant.test.cjs` for synchronous keyboard/touch contact, input-time
+height and stability, same-event sound and cup placement, preserved early-tap cues,
+live music-clock sampling, disappearing zero labels, and single timeout penalties.
+The reaction animation cannot change a resolved judgement.

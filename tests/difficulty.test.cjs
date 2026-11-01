@@ -9,7 +9,7 @@ function game(mode, layer = 0) {
 function judgeOffset(mode, layer, offset) {
  const g=game(mode,layer),p=g.inspect.player,r=g.inspect.st.round,m=g.inspect.perfBand()/2;
  p.P.rim.y=g.inspect.toastRimY()+m;p.w=p.tilt=p.cupRate=0;
- r.manual=true;r.t=r.T+.5+offset;r.mh=Array.from({length:10},(_,i)=>[g.inspect.st.t-i/60,m,0,0]);
+ r.manual=true;r.t=r.T+.5-g.inspect.reachTime()+offset;r.mh=Array.from({length:10},(_,i)=>[g.inspect.st.t-i/60,m,0,0]);
  g.inspect.judgeClink();return g.inspect.st.strikes===0;
 }
 function near(a,b){assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);}

@@ -12,7 +12,7 @@ function hit(g, wine = .8) {
   const r = g.inspect.st.round, p = g.inspect.player;
   const margin = g.inspect.perfBand() / 2;
   p.P.rim.y = g.inspect.toastRimY() + margin; p.tilt = p.w = p.cupRate = 0;
-  p.wine = wine; r.manual = true; r.t = .5 + r.T;
+  p.wine = wine; r.manual = true; r.t = .5 + r.T - g.inspect.reachTime();
   r.mh = Array.from({ length: 10 }, (_, i) => [g.inspect.st.t - i / 60, margin, 0, 0]);
   g.inspect.judgeClink();
 }

@@ -70,7 +70,7 @@ test('three independent leaders hold distinct heights and only the chosen leader
   a.leaders.forEach((c,i)=>assert.ok(Math.abs(c.P.rim.x-before[i])<.1,'movement begins at zero'));
   r.t+=.3;g.inspect.stepNPCs(1/60);
   a.leaders.forEach((c,i)=>{if(i===choice)assert.ok(c.P.rim.x<before[i]-30);else assert.ok(Math.abs(c.P.rim.x-before[i])<.1);assert.ok(Math.abs(c.P.rim.y-r.base-i*a.step)<1e-7);});
-  labels.length=0;g.render();assert.equal(labels.filter(s=>/^\d+\.\d+s$/.test(s)).length,1);
+  labels.length=0;g.render();assert.equal(labels.filter(s=>/^\d+\.\d+s$/.test(s)).length,0,'expired numeric countdown disappears');
  }
 });
 test('alien countdown keeps two full seconds; silent target and guide reveal together',()=>{
