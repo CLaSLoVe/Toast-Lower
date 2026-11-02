@@ -109,7 +109,7 @@ if (!matrixOnly) {
       const g = game(); g.inspect.config.spillMultiplier = multiplier;
       g.inspect.config.spillMax = 5; g.tap('Enter'); g.key('KeyW'); g.advance(100);
       assert.equal(g.api.state().strikes, 0);
-      return 1 - g.inspect.player.wine;
+      return g.inspect.wineCapacity() - g.inspect.player.wine;
     });
     assert.equal(trials[0], 0); assert.ok(trials[1] > 0);
     assert.ok(trials[2] >= trials[1]); assert.ok(trials[2] <= 0.05 * 100 / 60 + 1e-9);
@@ -159,7 +159,7 @@ if (!matrixOnly) {
       g.render();
     }
     assert.ok(windows[0] > windows[1] && windows[1] > windows[2]);
-    assert.ok(durations[0] > durations[1] && durations[1] > durations[2]);
+    assert.ok(durations[0] > durations[1] && durations[1] === durations[2]);
     assert.ok(Math.abs(durations[1] + 0.5 - (2 + game().inspect.config.normalSetup)) < 1e-9, 'normal countdown includes its preparation allowance');
     assert.equal(game('?tut=0&difficulty=invalid').api.dbg().difficulty, 'normal');
   });
@@ -291,7 +291,7 @@ if (!matrixOnly) {
     assert.equal(g.inspect.st.why?.tilt, undefined);
     assert.ok(!g.api.dbg().jword.includes('一身'));
   });
-  test('full hype rewards score without duplicate wine or skipping the floor', () => {
+  test('full hype keeps feedback without duplicate wine or skipping the floor', () => {
     const g = game('?capture=1&tut=0&bot=expert&seed=20261022');
     // Set up a nearly full reward meter; movement and contact remain natural.
     g.inspect.st.hype = 99; g.inspect.player.wine = 0.5;
@@ -389,7 +389,7 @@ if (!matrixOnly) {
       r.mh = Array.from({ length: 10 }, (_, i) => [g.inspect.st.t - i / 60, margin, unstableHistory && i === 5 ? 1 : 0, 0]);
       g.inspect.judgeClink(); return g;
     }
-    const perfect = contact(0), early = contact(0.25), late = contact(-0.25), shaky = contact(0, true), fast = contact(0, false, true);
+    const perfect = contact(0), early = contact(0.18), late = contact(-0.18), shaky = contact(0, true), fast = contact(0, false, true);
     assert.equal(perfect.api.state().perfects, 1);
     for (const g of [early, late, shaky, fast]) { assert.equal(g.api.state().toasts, 1); assert.equal(g.api.state().perfects, 0); }
     assert.ok(perfect.api.state().score > shaky.api.state().score);
@@ -532,7 +532,7 @@ if (!matrixOnly) {
     assert.equal(g.api.state().over?.reason, 'beer');
     assert.equal(g.api.state().state, 'over'); g.render();
     g.tap('KeyR'); const s = g.api.state();
-    assert.equal(s.state, 'play'); assert.equal(s.score, 0); assert.equal(s.strikes, 0); assert.equal(s.beer, 1); assert.equal(s.over, null);
+    assert.equal(s.state, 'play'); assert.equal(s.score, 0); assert.equal(s.strikes, 0); assert.equal(s.beer, g.inspect.wineCapacity()); assert.equal(s.over, null);
     g.advance(60, true); finiteState(g);
   });
 }

@@ -65,7 +65,7 @@ test('retry cannot generate score or combo/hype; mixed groups recover consistent
  for(let i=0;i<4;i++)hit(g);assert.equal(g.inspect.st.score,0);assert.equal(g.inspect.st.combo,0);assert.equal(g.inspect.st.hype,0);
 });
 test('successful contact has no physical wine impulse and accounting uses actual bounded changes',()=>{
- const g=game();g.inspect.player.wine=.99;g.inspect.player.wv=.123;hit(g);near(g.inspect.player.wv,.123);
+ const g=game(0,'easy');g.inspect.player.wine=.99;g.inspect.player.wv=.123;hit(g);near(g.inspect.player.wv,.123);
  g.inspect.refillWine(.1);near(g.inspect.st.wineLedger.refill,.01);
  g.inspect.changeWine('spill',.04);g.inspect.changeWine('penalty',.12);g.inspect.refillWine(.03);
  near(g.inspect.player.wine,1-.04-.12+.03);
@@ -75,12 +75,12 @@ test('successful contact has no physical wine impulse and accounting uses actual
 });
 test('story clear saves immediately, home saves progress, custom and bot runs cannot replace standard records',()=>{
  const g=game();g.inspect.st.L=11;g.inspect.st.breaks=11;g.inspect.st.score=555000;g.inspect.breakFloor();
- const best=JSON.parse(g.storage.get('toastLower.best.v4'));assert.equal(best.score,g.inspect.st.score);
- const p=game();hit(p);const h=p.inspect.homeButton;p.point('pointerdown',h.x+h.w/2,h.y+h.h/2);assert.equal(JSON.parse(p.storage.get('toastLower.best.v4')).score,p.inspect.st.score);
+ const best=JSON.parse(g.storage.get('toastLower.best.v5'));assert.equal(best.score,g.inspect.st.score);
+ const p=game();hit(p);const h=p.inspect.homeButton;p.point('pointerdown',h.x+h.w/2,h.y+h.h/2);assert.equal(JSON.parse(p.storage.get('toastLower.best.v5')).score,p.inspect.st.score);
  for(const extra of ['&bot=expert','&ctl=vel','&debug=1']) {
-  const c=game(0,'normal',extra);c.inspect.st.score=999999;c.inspect.saveBest();assert.equal(c.storage.has('toastLower.best.v4'),false);
+  const c=game(0,'normal',extra);c.inspect.st.score=999999;c.inspect.saveBest();assert.equal(c.storage.has('toastLower.best.v5'),false);
  }
- const c=game();c.inspect.config.toastScore=1000;hit(c);c.inspect.gameOver('beer');assert.equal(c.inspect.st.over.custom,true);assert.equal(c.storage.has('toastLower.best.v4'),false);
+ const c=game();c.inspect.config.performanceScore=1000;hit(c);c.inspect.gameOver('beer');assert.equal(c.inspect.st.over.custom,true);assert.equal(c.storage.has('toastLower.best.v5'),false);
 });
 test('all active states pause on focus loss, tab hide, Escape and the pause button',()=>{
  for(const state of ['play','fall','standup']) for(const method of ['blur','hidden','escape','button']) {
@@ -124,7 +124,7 @@ test('resource notices and result ledger render with useful labels in both layou
   const text=[];const g=game(7,'normal','',{touch,width:touch?844:1080,height:touch?390:1080,onDraw(k,a){if(k==='fillText')text.push(a[0]);}});
   g.inspect.player.wine=.5;miss(g);g.render();assert.ok(text.includes('罚酒 −12%'));
   hit(g);miss(g);g.inspect.newRound(false);g.inspect.changeWine('spill',.04);g.inspect.gameOver('beer');g.inspect.st.stT=2;text.length=0;g.render();
-  assert.ok(text.includes('失败'));assert.ok(text.some(x=>x.includes('完美')&&x.includes('失误')));assert.ok(text.some(x=>x.startsWith('洒酒')));assert.ok(text.some(x=>x.startsWith('添酒')));assert.ok(!text.includes('酒洒光了！'));
+  assert.ok(text.includes('失败'));assert.ok(text.some(x=>x.includes('完美')&&x.includes('失误')));assert.ok(!text.some(x=>x.startsWith('洒酒')),'receipt stays collapsed');const d=g.inspect.detailButton;g.point('pointerdown',g.inspect.canvasSize.W/2-540+d.x+d.w/2,d.y+d.h/2);g.render();assert.ok(text.some(x=>x.startsWith('洒酒')));assert.ok(text.some(x=>x.startsWith('添酒')));assert.ok(!text.includes('酒洒光了！'));
  }
 });
 console.log(`${checks}/${checks} balance and lifecycle checks passed`);

@@ -25,7 +25,7 @@ On desktop, R restarts and M mutes. Open Settings from the home screen or during
 
 The red **0s** marks the ideal toast timing. Run out of wine and the game ends. Missed toasts cost wine; successful rounds restore a little. Perfect toasts require both precise timing and a steady glass. Later glasses are smaller and hold less wine.
 
-Easy keeps forgiving timing. Normal and Hard tighten timing, increase cup drift in the tomb and alien chapters, and spread alien cups farther apart. The height window is 100% / 85% / 65%; Hard starts with a smaller glass holding 80% of the standard full glass, reaching the same 60% minimum later. Stage refills are 10% / 7% / 4%; successful-round refills and grouped penalties stay the same.
+Easy keeps its existing feel. Normal inherits the previous Hard preset. The new Hard tightens height and timing further and requires stronger cup control. Height windows are 100% / 65% / 45%; opening capacities are 100% / 80% / 70%, all reaching the same 60% minimum. Stage refills are 10% / 4% / 4%; round refills and grouped penalties are unchanged. Hard's single-toast timing window narrows from ±0.15s to ±0.12s, with a 0.20-beat chain window. Aliens still count down for two seconds and reveal the target in the final second.
 
 ## Four chapters, twelve stages
 
@@ -36,9 +36,21 @@ Easy keeps forgiving timing. Normal and Hard tighten timing, increase cup drift 
 | Ancient tomb | Hold a fixed height and hit 2, 3, then 4 consecutive beats |
 | Aliens | Three cups count down from 2 seconds. Only the target’s circle and height guide remain in the final second; the leader steps forward at 0s. The same leader can be picked again |
 
-After stage twelve, the results screen shows your rank, score, difficulty, perfects, misses and wine totals. Choose Continue Endless to keep playing with the same score and resources, or return home. Music continues through the results screen into endless mode.
+After stage twelve, a comic-style results card shows your rank, score, difficulty, perfects, misses, best combo and three score categories. Expand the details for the wine ledger. Choose Continue Endless or Return Home; music continues through the transition.
 
-Each stage has a fixed set of scoring opportunities. Each beat scores only on its first attempt, with a chain sharing one group’s score budget; retries can advance the stage but award no points or hype. Combos and hype settle once per group. Performance drives the score: a perfect toast adds 1,000 points before stage/group scaling, compared with up to 200 height-quality points for an ordinary hit. Stage base rewards are 500 × stage number, and the twelve-stage clear bonus is 5,000. High ranks require accurate play, not just reaching the end. One high score is shared across difficulties and records the difficulty used. It saves on clearing stages and returning home. Custom rules, practice controls, stage skips and automated runs do not replace standard records. This performance-focused scoring version uses a separate record; earlier records remain in local storage.
+The twelve-stage maximum is 100,000 points, with the same scoring rules across difficulties:
+
+| Category | Maximum | Rule |
+| --- | ---: | --- |
+| Toast performance | 40,000 | 10,000 per chapter, divided across stages, groups and notes; a first-attempt ordinary hit earns 50%, a perfect earns 100%, and a miss earns 0 |
+| Stages and completion | 50,000 | 3,000 per stage, plus 14,000 for clearing all twelve |
+| Wine preservation | 10,000 | Up to 5,000 for remaining wine and 5,000 from full-glass conversion |
+
+Each note scores only on its first attempt. Retries advance the stage but cannot reclaim missed points, build extra hype or farm conversion points. Combo and hype feedback remain, without separate score bonuses. A clear guarantees at least 50,000 points; all ordinary first-attempt hits yield 70,000–80,000, and all perfects yield 90,000–100,000. Titles depend only on score.
+
+Remaining wine scores once, based on how full the current glass is; continuing into endless does not award it again. Refills from first-attempt scoring rounds and first stage transitions convert the part that cannot fit into 50 points per 1% of a standard glass, capped at 5,000 points per run. Wine actually added counts only as refill. The ledger reconciles: opening wine + actual refills − spills − penalties − capacity reductions = remaining wine. A failed run also shows what depleted the last wine.
+
+One high score is shared across difficulties and records the difficulty used. Custom rules, practice controls, stage skips and automated runs do not replace standard records. Endless continues adding performance and stage points beyond the twelve-stage 100,000 maximum, without repeating the clear or remaining-wine awards; conversion retains its original cap. This scoring version uses a new record; earlier records remain in local storage.
 
 Successful contact itself consumes no wine. For 2/3/4-note chains, cumulative penalties are 12%/20%, 12%/16%/20%, and 12%/16%/18%/20%. A group with at least one successful note gets one refill (3% by default); an all-miss group gets none. Only a completely successful phrase advances. A partial phrase repeats at the same height, without awarding points for already attempted notes. Percentages use the standard full-glass capacity, including when Hard starts with a smaller glass. Results show actual spills, penalties and refills.
 
@@ -50,16 +62,16 @@ Your final score determines your title. Scores below are entry thresholds; the f
 | --- | --- | --- |
 | 0 | 成年香蕉 | You grew hands. Almost. |
 | 1 | 卧龙凤雏 | Two legendary strategists. One on each wrist. |
-| 2,500 | 小孩那桌 | Back to the kids' table. |
-| 6,500 | 夹菜我转桌 | Table manners were never the plan. |
-| 14,000 | 乌鸦哥 | Can't toast the table? Flip it. |
-| 30,000 | 端水大师 | Keep the glass level and everyone happy. |
-| 70,000 | 懂事长 | Toasted your way into management. |
-| 140,000 | 敬酒悍匪 | Taking the offensive. |
-| 230,000 | 国家一级陪酒员 | Practically licensed for this. |
-| 290,000 | 先天敬酒圣体 | Born for this banquet. |
-| 340,000 | 铁血山东 👍 | Social etiquette: maxed out. |
-| 380,000 | DeepDrink | A large toasting model. |
+| 1,000 | 小孩那桌 | Back to the kids' table. |
+| 3,000 | 夹菜我转桌 | Table manners were never the plan. |
+| 6,000 | 乌鸦哥 | Can't toast the table? Flip it. |
+| 12,000 | 端水大师 | Keep the glass level and everyone happy. |
+| 18,000 | 懂事长 | Toasted your way into management. |
+| 45,000 | 敬酒悍匪 | Taking the offensive. |
+| 65,000 | 国家一级陪酒员 | Practically licensed for this. |
+| 85,000 | 先天敬酒圣体 | Born for this banquet. |
+| 92,000 | 铁血山东 👍 | Social etiquette: maxed out. |
+| 98,000 | DeepDrink | A large toasting model. |
 
 ## Run locally
 

@@ -9,10 +9,10 @@ function game(mode='normal', opts={}) { const g=createGame({ search:`?tut=0&seed
 
 test('exactly depleted wine ends immediately, with no phantom survival or refill', () => {
  for (const mode of ['easy','normal','hard']) {
-  const g=game(mode), count=mode==='hard'?4:5;
+  const g=game(mode), count=mode==='easy'?5:4;
   for(let i=0;i<count;i++) { g.inspect.strike(null,null,'late'); if(i<count-1) g.inspect.newRound(false); }
   assert.equal(g.inspect.player.wine,0); assert.equal(g.inspect.st.state,'over');
-  near(g.inspect.st.over.wine.penalty,mode==='hard'?.8:1);
+  near(g.inspect.st.over.wine.penalty,mode==='hard'?.7:mode==='normal'?.8:1);
   g.inspect.newRound(false);assert.equal(g.inspect.player.wine,0);
  }
  const r=createGame().sandbox.ToastRules;
@@ -55,7 +55,7 @@ test('volume preferences survive default changes without reviving obsolete rule 
  config.savePreferences(storage,{...loaded,musicVolume:12});loaded=config.load(storage);near(loaded.musicVolume,12);near(loaded.missPenalty,20);
 });
 test('sway keeps current preset amplitudes and no longer changes with hit-window tuning', () => {
- for(const [mode,ratio] of [['easy',1],['normal',.85],['hard',.65]]) {
+ for(const [mode,ratio] of [['easy',1],['normal',.65],['hard',.65]]) {
   const g=game(mode);g.inspect.st.L=5;
   const c=g.inspect.st.round.partner,span=g.inspect.cupGeom(c).bowlH*c.spec.scale;
   const expected=.42*span*ratio*Math.min(1,.45+.38)*g.inspect.config[mode+'Hand']/288;
@@ -70,13 +70,13 @@ test('twelfth floor settles before endless, preserves all statistics and resumes
   g.inspect.player.wine=.4;g.inspect.beginStandup();
   assert.equal(g.inspect.st.state,'clear');assert.equal(g.inspect.st.L,12);assert.equal(g.inspect.st.over.cleared,true);
   const snapshot=JSON.stringify(g.inspect.st.over);g.advance(300);assert.equal(g.inspect.player.wine,.4);assert.equal(g.inspect.st.gameT,120);assert.equal(JSON.stringify(g.inspect.st.over),snapshot);
-  g.render();for(const word of ['十二关通关','继续无尽','回主页','DeepDrink','完美 22 次','失误 3 次'])assert.ok(labels.some(s=>s.includes(word)),word);
+  g.render();for(const word of ['通关！','继续无尽','返回主页','DeepDrink','完美 22 次','失误 3 次'])assert.ok(labels.some(s=>s.includes(word)),word);
   assert.ok(!labels.includes('失败'));
   if(touch){const r=g.inspect.clearButton;g.point('pointerdown',g.inspect.canvasSize.W/2-540+r.x+r.w/2,r.y+r.h/2);}
   else g.tap('Enter');
   assert.equal(g.inspect.st.state,'standup');assert.equal(g.inspect.st.L,12);
   const wine=g.inspect.player.wine;g.inspect.continueEndless();near(g.inspect.player.wine,wine);
-  g.advance(30);assert.equal(g.inspect.st.state,'play');assert.equal(g.inspect.st.L,12);assert.equal(g.inspect.st.score,654321);assert.equal(g.inspect.st.strikes,3);
+  g.advance(30);assert.equal(g.inspect.st.state,'play');assert.equal(g.inspect.st.L,12);assert.equal(g.inspect.st.score,654321+Math.round(5000*.4/.6));assert.equal(g.inspect.st.strikes,3);
  }
 });
 test('first-use hints persist once per mechanic, with mobile-specific actions and an off switch', () => {

@@ -231,7 +231,7 @@ function cupGeom(c) {
   if (sp.mom) return CUP_MOM;
   if (sp.kind !== 'player' && sp.kind !== 'boss') return CUP_STD;
   const baseK = st.tut ? 0 : shapeK(st.L);
-  const k = sp.kind === 'player' ? playerCupK() : baseK, key = sp.kind + k + ':' + baseK + (st.tut ? 't' : st.L < 3 ? '_' + st.L : '');
+  const k = sp.kind === 'player' ? playerCupK() : baseK, key = difficulty().id + sp.kind + k + ':' + baseK + (st.tut ? 't' : st.L < 3 ? '_' + st.L : '');
   if (geomCache.has(key)) return geomCache.get(key);
   let g;
   // you: the stem grows (rim further above your hand: bow lower), the bowl gets small and shallow and is filled closer to the rim
@@ -245,7 +245,7 @@ function cupGeom(c) {
     }
     g = { rimOff: 32, bowlH: Math.max(14, lerp(39, 20, k) + bonus), wt: lerp(17, 10, k), wb: lerp(13, 6.5, k), free: 5, foot: 14, footW: lerp(13, 9, k) };
   }
-  if (sp.kind === 'player' && !st.tut && difficulty().id === 'hard') g.free = g.wt * lerp(5.2, 2.6, baseK) / lerp(17, 13, baseK);
+  if (sp.kind === 'player' && !st.tut && difficulty().id !== 'easy') g.free = g.wt * lerp(5.2, 2.6, baseK) / lerp(17, 13, baseK);
   g.lim = Math.atan(g.free / g.wt);                                            // spill angle: the drink's surface reaches the rim
   g.cap = (g.bowlH * (g.wt + g.wb)) / (46 * 30);                               // bowl size vs the layer-1 glass
   // A smaller opening glass changes capacity/appearance, not the existing leak rate.
@@ -268,13 +268,13 @@ function beerK() {
 function playerCupK() {
   if (st.tut) return 0;
   const k = shapeK(st.L);
-  if (difficulty().id !== 'hard') return k;
-  const start = CFG.minCapacity < 100 ? (100 - Math.max(CFG.minCapacity, CFG.hardStartCapacity)) / (100 - CFG.minCapacity) : 0;
+  if (difficulty().id === 'easy') return k;
+  const start = CFG.minCapacity < 100 ? (100 - Math.max(CFG.minCapacity, CFG[difficulty().id + 'StartCapacity'])) / (100 - CFG.minCapacity) : 0;
   return start + (1 - start) * k;
 }
 function wineCapacity() {
   if (st.tut) return 1;
-  const start = difficulty().id === 'hard' ? Math.max(CFG.minCapacity, CFG.hardStartCapacity) / 100 : 1;
+  const start = difficulty().id !== 'easy' ? Math.max(CFG.minCapacity, CFG[difficulty().id + 'StartCapacity']) / 100 : 1;
   return lerp(start, CFG.minCapacity / 100, clamp(shapeK(st.L), 0, 1));
 }
 // All resource changes use standard-glass units; totals contain actual changes, never nominal costs.
@@ -287,7 +287,7 @@ function changeWine(kind, amount) {
   const actual = Math.abs(player.wine - before);
   if (!actual || st.tut) return actual;
   wineLedger()[kind] += actual;
-  if (kind === 'spill' || kind === 'penalty') { st.loss = actual; st.lossT = 0; }
+  if (kind === 'spill' || kind === 'penalty') { st.loss = actual; st.lossT = 0; st.lastLoss = { kind, amount: actual }; }
   if (kind !== 'capacity') {
     const notices = st.wineNotices || (st.wineNotices = []);
     const old = notices.find(n => n.kind === kind && (kind !== 'penalty') && st.t - n.at < 1.1);
@@ -297,7 +297,11 @@ function changeWine(kind, amount) {
   }
   return actual;
 }
-function refillWine(amount) { return changeWine('refill', amount); }
+function refillWine(amount, scoreEligible = false) {
+  const actual = changeWine('refill', amount);
+  if (scoreEligible && !st.tut) addScore(window.ToastRules.overflowPoints(CFG, Math.max(0, amount - actual), scoreLedger().overflow), 'overflow');
+  return actual;
+}
 function roundSucceeded(r) { return r && (r.chain ? r.chainHits === r.chain : r.result === 'ok'); }
 function roundEarnsRefill(r) { return r && (r.chain ? r.chainHits > 0 : r.result === 'ok'); }
 function chainPenaltyRatio(r, misses) {
@@ -519,7 +523,7 @@ const st = { state: (AUTO || CAPTURE) ? 'play' : 'title', L: START_LAYER, t: 0, 
   score: 0, strikes: 0, toasts: 0, perfects: 0, combo: 0, bestCombo: 0, hype: 0, bursts: 0, manualToasts: 0, round: null, tut: null, judge: null, freeze: 0, gain: null, stand: 0, perfect: false, perfT: 0, notPerfT: 1, hist: [], trick: 0, trickT: 0, over: null, gameT: 0,
   floorPlan: null, hiscore: 0, bestDifficulty: null, newRecord: false, botT: 0, coreBonus: false, warnT: 0, paused: false, bump: null, bossOff: 0, bossJ: 0, bossJT: 0, tdrT: 0 };
 // New scoring has its own versioned record; the old score remains in storage, untouched.
-const BEST_KEY = 'toastLower.best.v4';
+const BEST_KEY = 'toastLower.best.v5';
 try {
   const best = JSON.parse(localStorage.getItem(BEST_KEY));
   if (best && Number.isFinite(best.score) && best.score >= 0 && DIFFICULTIES.some(d => d.id === best.difficulty)) {
@@ -546,7 +550,6 @@ function saveBest() {
 
 // Score-based banquet titles. The banana is reserved for a zero-score run.
 const { rankFor } = window.ToastRules;
-function breakPts(L) { return CFG.floorScore * (L + 1); }
 function makeFloorPlan() {
   const rounds = activeMech() === 'alien' ? CFG.alienRounds : chainCount() ? CFG.chainRounds : st.L < 2 ? CFG.openingRounds : CFG.regularRounds;
   const notes = chainCount() || 1, start = st.stand + 40 * SC / 1.45;
@@ -562,7 +565,9 @@ function makeFloorPlan() {
   return { layer: st.L, rounds, notes, targets, claimed: Array(rounds * notes).fill(null), floorAwarded: false };
 }
 function claimScoreOpportunity(result) {
-  return !st.tut && window.ToastRules.claim(st.floorPlan, st.L, st.round, result);
+  const claimed = !st.tut && window.ToastRules.claim(st.floorPlan, st.L, st.round, result);
+  if (claimed) st.round.firstAttempt = true;
+  return claimed;
 }
 // difficulty grows with depth, without limit (endless mode keeps going)
 const TUNE = new URLSearchParams(location.search);
@@ -623,7 +628,24 @@ function stepChapterChatter() {
 }
 function pick(a) { return a[Math.floor(rnd() * a.length)]; }
 function banner(zh, en, dur, col) { bigText = { zh, en, t: 0, dur: dur || 2.2, col: col || '#ffd34d' }; }
-function addScore(n) { n = Math.round(n); if (n <= 0) return; st.score += n; if (!st.gain || st.gain.t > 0.9) st.gain = { n: 0, t: 0 }; st.gain.n += n; st.gain.t = 0; }
+function scoreLedger() { return st.scoreLedger || (st.scoreLedger = { performance: 0, progress: 0, overflow: 0, remaining: 0 }); }
+function addScore(n, kind = 'performance') {
+  if (!Number.isFinite(n) || n <= 0) return;
+  const ledger = scoreLedger(), before = Math.round(ledger[kind]); ledger[kind] += n;
+  const added = Math.round(ledger[kind]) - before; st.score += added;
+  if (!st.gain || st.gain.t > 0.9) st.gain = { n: 0, t: 0 };
+  st.gain.n += added; st.gain.t = 0;
+}
+function settleRemaining() {
+  if (st.remainingAwarded) return;
+  st.remainingAwarded = true;
+  addScore(window.ToastRules.remainingPoints(CFG, player.wine, wineCapacity()), 'remaining');
+}
+function resultDetails() {
+  return { wine: { ...wineLedger() }, initialWine: st.initialWine, remainingWine: player.wine,
+    capacity: wineCapacity(), points: Object.fromEntries(Object.entries(scoreLedger()).map(([k, v]) => [k, Math.round(v)])),
+    lastLoss: st.lastLoss ? { ...st.lastLoss } : null, detailsOpen: false };
+}
 
 function formation(L) {
   prepareAlienLeaders();
@@ -653,10 +675,10 @@ function restart() {
   runSeed = explicitSeed ?? Math.floor(Math.random() * 4294967296); seed = runSeed; physicsSeed = runSeed ^ 0x51ed270b;
   window.ToastMusic.reset();
   Object.assign(st, { L: START_LAYER, flipped: false, cycle: 0, holes: {}, score: 0, floorPlan: null, breaks: 0, strikes: 0, toasts: 0, perfects: 0, round: null, over: null, newRecord: false, coreBonus: false,
-    t: 0, guide: null, storySettled: false, tdrT: 0, swT: 0, bossJT: 0, why: {}, wineLedger: null, wineNotices: [], customRun: isCustomRun(), chatSeen: [], pressure: 0, cracks: [], lastCrackStep: 0, playT: 0, layerT: 0, gameT: 0, state: 'play', stT: 0, best: 0, sawLow: false, bossSay: 1.5, alien: null,
+    t: 0, guide: null, storySettled: false, tdrT: 0, swT: 0, bossJT: 0, why: {}, wineLedger: null, initialWine: null, scoreLedger: null, remainingAwarded: false, lastLoss: null, wineNotices: [], customRun: isCustomRun(), chatSeen: [], pressure: 0, cracks: [], lastCrackStep: 0, playT: 0, layerT: 0, gameT: 0, state: 'play', stT: 0, best: 0, sawLow: false, bossSay: 1.5, alien: null,
     combo: 0, bestCombo: 0, hype: 0, bursts: 0, manualToasts: 0, judge: null, freeze: 0, gain: null, paused: false, clinkGrace: 0, spillT: 0, spillOn: false, loss: 0, lossT: 9, punch: null, toastMotion: null });
   parts.length = debris.length = puddles.length = bubbles.length = popups.length = gaugeDrops.length = 0;
-  reset(); bigText = null; player.wine = wineCapacity(); syncMusic();
+  reset(); bigText = null; player.wine = wineCapacity(); st.initialWine = player.wine; syncMusic();
   clearInputs(); fx.length = 0; flash = null;
   const ch = chapterOf(st.L);
   if (ch && !st.tut) banner(layerLabel(st.L), '', 1.6);
@@ -766,7 +788,14 @@ cv.addEventListener('pointerdown', e => {
   e.preventDefault(); gestured = true; window.ToastMusic.gesture(); syncMusic();
   { const q0 = canvasPt(e), pb = pauseBtnRect();
     if (st.state !== 'title' && !st.paused && hitR(q0, playerSettingsRect())) { openPlayerSettings(); return; }
-    if (st.state === 'clear') { const q = overlayPt(q0); if (hitR(q, clearActionRect())) { continueEndless(); return; } if (hitR(q, clearActionRect(true))) { returnToTitle(); return; } }
+    if (['clear', 'over'].includes(st.state)) {
+      const q = overlayPt(q0);
+      if (hitR(q, resultDetailRect())) { st.over.detailsOpen = !st.over.detailsOpen; return; }
+      if (hitR(q, clearActionRect()) && st.stT > 1.2) { if (st.state === 'clear') continueEndless(); else restart(); return; }
+      if (hitR(q, clearActionRect(true))) { returnToTitle(); return; }
+      // Reading the receipt must never accidentally restart the run.
+      if (!hitR(q0, homeBtnRect()) && !hitR(q0, playerSettingsRect())) return;
+    }
     if (st.state !== 'title' && hitR(q0, homeBtnRect())) { returnToTitle(); return; }
     if (runActive() && !st.paused && q0.x > pb.x && q0.x < pb.x + pb.w && q0.y > pb.y && q0.y < pb.y + pb.h) { setPaused(true); return; }
     if (st.state === 'title' || st.paused) {
@@ -787,7 +816,7 @@ cv.addEventListener('pointerdown', e => {
   }
   if (st.tut) { const q = canvasPt(e); if (q.y < hudBottom() && q.x > W * 0.7) { endTutorial(); return; } }
   else if (st.state === 'clear') return;
-  else if (st.state === 'over') { if (st.stT > 1.2) restart(); return; }
+  else if (st.state === 'over') return;
   try { cv.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
   const pt = canvasPt(e);
   if (TOUCH) {
@@ -909,9 +938,8 @@ function breakFloor() {
   // score for this floor
   if (st.floorPlan && !st.floorPlan.floorAwarded) {
     st.floorPlan.floorAwarded = true;
-    addScore(breakPts(L));
-    addScore(player.wine * CFG.floorWineScore * (L + 1));
-    if (L === STORY_N - 1 && START_LAYER === 0 && st.breaks === STORY_N - 1) addScore(CFG.clearScore);
+    addScore(CFG.floorScore, 'progress');
+    if (L === STORY_N - 1 && START_LAYER === 0 && st.breaks === STORY_N - 1) addScore(CFG.clearScore, 'progress');
   }
   saveBest();
   let x1 = 1e9, x2 = -1e9;
@@ -943,15 +971,13 @@ function addCrack() {
 }
 
 // ---------------------------------------------------------------- game over
-const OVER_TEXT = {
-  beer: ['失败', 'FAILED'],
-};
 function gameOver(reason) {
   if (st.state !== 'play') return;
+  settleRemaining();
   st.state = 'over'; st.stT = 0; syncMusic();
   st.over = { reason, difficulty: difficultyId, cleared: START_LAYER === 0 && st.breaks >= STORY_N && st.L >= STORY_N, score: st.score, layer: st.L, depth: st.depth, people: allChars().length, t: st.gameT };
   saveBest();
-  st.over.wine = { ...wineLedger() }; st.over.custom = !!(st.customRun || isCustomRun());
+  Object.assign(st.over, resultDetails()); st.over.custom = !!(st.customRun || isCustomRun());
   clearInputs();
   bubbles.length = 0; st.shake = 16; sfx('thud');
   const p = player;
@@ -1012,8 +1038,8 @@ function stepDisturb(dt, d) {
 // It also rocks the cup (see moveCup). Off in smash rounds, falls, stand-ups and the first tutorial steps.
 const SWAY = { om: 2 * PI / 1.7, grow: 0.10, brace: 11 };
 function swayFade(p) { return clamp(p.h / 0.12, 0, 1); }
-// Preserve v68 preset sway; changing judgement width no longer changes body physics.
-function swayAmp() { return (st.tut ? 16 : (CTL === 'vel' ? 0.18 : 0.42) * physicalCupSpan() * ({ easy: 1, normal: 0.85, hard: 0.65 }[difficulty().id]) * Math.min(1, 0.45 + instab()) * difficulty().hand) / 288; }
+// Normal inherits the previous Hard sway; judgement width stays independent of physics.
+function swayAmp() { return (st.tut ? 16 : (CTL === 'vel' ? 0.18 : 0.42) * physicalCupSpan() * ({ easy: 1, normal: 0.65, hard: 0.65 }[difficulty().id]) * Math.min(1, 0.45 + instab()) * difficulty().hand) / 288; }
 function swayOn() { const r = st.round; if (st.tut) return !!st.tut.sway && st.state === 'play'; return disturbLive() && !['chain', 'alien'].includes(activeMech()); }
 function stepSway(p, dt, d) {
   if (!swayOn()) { const f = Math.exp(-4 * dt); p.sw = (p.sw || 0) * f; p.swv = (p.swv || 0) * f; return; }
@@ -1209,7 +1235,7 @@ function roundLeft() { const r = st.round; return r ? 0.5 + r.T - r.t : 9; }
 function newRound(fresh) {
   const d = diff(), fl = floorY(st.L), prev = st.round;
   if (!fresh && prev && roundEarnsRefill(prev) && !prev.refilled && !st.tut && st.state === 'play' && player.wine > 0) {
-    refillWine(CFG.roundRefill / 100); prev.refilled = true;
+    refillWine(CFG.roundRefill / 100, !!prev.firstAttempt); prev.refilled = true;
   }
   ensureAlien();
   if (!st.tut && (fresh || !st.floorPlan || st.floorPlan.layer !== st.L)) st.floorPlan = makeFloorPlan();
@@ -1408,7 +1434,7 @@ function finishToastAttempt() {
 function awardHype(amount) {
   st.hype = Math.min(100, st.hype + amount);
   if (st.hype < 100) return;
-  st.hype = 0; st.bursts++; addScore(CFG.hypeScore * (st.L + 1));
+  st.hype = 0; st.bursts++;
   refillWine(CFG.hypeRefill / 100);
   if (st.judge) { st.judge.word = '全桌服气！！'; st.judge.col = '#ffdf62'; }
   // Hype changes rewards, never pauses the beat or physics.
@@ -1461,9 +1487,7 @@ function judgeClink() {
     const combo = r.chain ? r.comboStart + 1 : st.combo + 1;
     if (r.chain) { r.scoredHits++; if (perfect) r.chainPerfects++; }
     else { st.combo = combo; st.bestCombo = Math.max(st.bestCombo, st.combo); }
-    const close = clamp(1 - margin / 90, 0, 1);
-    const quick = r.manual ? CFG.timingScore * clamp(1 - Math.abs(r.timing) / timingWindow(), 0, 1) : 0;
-    const points = window.ToastRules.toastPoints(CFG, { perfect, close, quick, wine: player.wine, combo, layer: L, notes: divisor });
+    const points = window.ToastRules.toastPoints(CFG, { perfect, rounds: st.floorPlan.rounds, notes: divisor });
     addScore(points);
     if (perfect) st.perfects++;
     if (!r.chain) { awardHype(perfect ? CFG.hypePerfect : CFG.hypeHit); if (perfect) refillWine(CFG.perfectRefill / 100); }
@@ -1713,10 +1737,11 @@ let su = null;
 function beginStandup(continuing = false) {
   if (!continuing) st.L++;
   if (st.L === STORY_N && !st.storySettled) {
+    settleRemaining();
     st.storySettled = true; st.state = 'clear'; st.stT = 1.4;
     st.over = { reason: 'clear', difficulty: difficultyId, cleared: START_LAYER === 0 && st.breaks >= STORY_N,
       score: st.score, layer: STORY_N - 1, depth: layerDef(STORY_N - 1).depth, t: st.gameT,
-      wine: { ...wineLedger() }, custom: !!(st.customRun || isCustomRun()) };
+      ...resultDetails(), custom: !!(st.customRun || isCustomRun()) };
     clearInputs(); saveBest(); syncMusic(); bigText = null; st.guide = null; bubbles.length = 0;
     return;
   }
@@ -1742,7 +1767,8 @@ function beginStandup(continuing = false) {
   saved.forEach(f => Object.assign(f.c, { k: f.k, b: f.b, phi: f.phi, arm: f.arm, x: f.x, y: f.y }));
   su = { from: saved, to };
   for (const c of allChars()) { c.mode = 'play'; if (c !== player) c.wine = 1; }
-  refillWine(CFG[difficulty().id + 'FloorRefill'] / 100);
+  refillWine(CFG[difficulty().id + 'FloorRefill'] / 100, !st.floorPlan?.refillAwarded);
+  if (st.floorPlan) st.floorPlan.refillAwarded = true;
   const ld = layerDef(st.L); st.depth = ld.depth;
   if (ld.endless === 1) banner('进入无尽模式！', '', 1.9, '#ff9a3d');
   else banner(layerLabel(st.L), '', 1.7);
@@ -1753,14 +1779,15 @@ function continueEndless() {
   if (st.state !== 'clear') return;
   st.over = null; clearInputs(); beginStandup(true); syncMusic();
 }
-function clearActionRect(home = false) { return { x: home ? 560 : 180, y: TOUCH ? 954 : 930, w: 340, h: TOUCH ? 104 : 84 }; }
+function clearActionRect(home = false) { return { x: home ? 560 : TOUCH ? 120 : 180, y: 930, w: TOUCH ? 400 : 340, h: TOUCH ? 128 : 84 }; }
 function drawClearActions() {
   for (const home of [false, true]) {
     const r = clearActionRect(home);
-    ctx.fillStyle = home ? '#382a33' : '#ffd34d'; rr(r.x, r.y, r.w, r.h, 18); ctx.fill();
-    text(home ? '回主页' : '继续无尽', r.x + r.w / 2, r.y + r.h / 2, TOUCH ? 38 : 32, home ? '#fff1da' : '#63251f', 'center', 900);
+    comicPanel(r.x, r.y, r.w, r.h, home ? '#f6e3ba' : '#e5ac43', 18);
+    text(home ? '返回主页' : st.state === 'clear' ? '继续无尽' : '再来一局', r.x + r.w / 2, r.y + r.h / 2, TOUCH ? 38 : 32, '#63251f', 'center', 900);
   }
 }
+
 function stepStandup(dt) {
   const tt = clamp(st.stT / (st.breaks > 1 ? CFG.repeatStandup : 0.7), 0, 1), e = ease(tt);
   su.from.forEach((f, i) => {
@@ -2700,32 +2727,76 @@ function stepGaugeDrops(dt) {
     if (d.life <= 0 || d.y > H) gaugeDrops.splice(i, 1);
   }
 }
-function drawMobileResult(o) {
-  const [rank, remark] = rankFor(o.score), mode = DIFFICULTIES.find(d => d.id === o.difficulty) || difficulty();
-  const fit = Math.min(1, (W - 80) / 1920);
-  ctx.save(); ctx.translate(540, 540); ctx.scale(fit, fit); ctx.translate(-540, -540);
-  const l = o.wine || wineLedger(), left = 70, right = 1000;
-  ctx.fillStyle = '#211a24'; rr(-390, 160, 1860, 690, 36); ctx.fill();
-  text(o.reason === 'clear' ? '十二关通关' : '失败', 540, 90, 50, o.reason === 'clear' ? '#ffd34d' : '#ff796b', 'center', 900);
-  ctx.fillStyle = '#ffd34d'; rr(left - 360, 235, 720, 122, 24); ctx.fill();
-  text(rank, left, 296, 72, '#7a1019', 'center', 900);
-  text(remark, left, 420, 40, '#e5d2c4', 'center', 800);
-  text(Math.round(o.score).toLocaleString('en-US'), left, 555, 142, '#ffd34d', 'center', 900);
-  text(`${o.custom ? '自定义 · ' : ''}${mode.level} · ${mode.name}`, left, 710, 38, '#e5d2c4', 'center', 800);
-  text(`完美 ${st.perfects} 次    失误 ${st.strikes} 次`, right, 252, 46, '#fff', 'center', 900);
-  text(`最高 ${st.bestCombo} 连敬`, right, 330, 34, '#e5d2c4', 'center', 800);
-  const rows = [['洒酒', l.spill, '#ffc36f', '−'], ['罚酒', l.penalty, '#ff796b', '−'], ['添酒', l.refill, '#91e0a4', '+']];
-  rows.forEach(([name, amount, color, sign], i) => {
-    text(name, right - 290, 440 + i * 82, 46, color, 'left', 900);
-    text(`${sign}${winePercent(amount)}%`, right + 290, 440 + i * 82, 50, color, 'right', 900);
-  });
-  text('本局累计 · 按标准大杯容量', right, 710, 30, '#bfaeb9', 'center', 700);
-  if (l.capacity > .0005) text(`换小杯 −${winePercent(l.capacity)}%`, right, 770, 30, '#bfaeb9', 'center', 700);
-  text(`${o.cleared ? '十二关已通关 · ' : ''}第 ${o.layer + 1} 层`, left, 795, 34, '#bfaeb9', 'center', 800);
-  text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}${st.bestDifficulty ? ' · ' + DIFFICULTIES.find(d => d.id === st.bestDifficulty).level : ''}${st.newRecord ? ' · 新纪录！' : ''}`, 540, 910, 34, '#7fd0ff', 'center', 800);
-  if (o.reason !== 'clear') text('点一下重来', 540, 1000, 38, '#fff', 'center', 900);
-  ctx.restore();
+function resultLayout() {
+  const mobile = TOUCH && LAY === 'land', width = mobile ? W - 120 : 930;
+  const x = (1080 - width) / 2;
+  return { mobile, x, width, left: x + width * .24, right: x + width * .74 };
 }
+function resultDetailRect() {
+  const l = resultLayout();
+  return { x: l.mobile ? l.right - 180 : 330, y: l.mobile ? 760 : 812, w: 360, h: l.mobile ? 104 : 64 };
+}
+function comicPanel(x, y, w, h, fill = '#fff0cf', radius = 24) {
+  ctx.fillStyle = '#472c2c'; rr(x + 8, y + 10, w, h, radius); ctx.fill();
+  ctx.fillStyle = fill; ctx.strokeStyle = '#472c2c'; ctx.lineWidth = 5;
+  rr(x, y, w, h, radius); ctx.fill(); ctx.stroke();
+}
+function drawResult(o) {
+  const l = resultLayout(), [rank, remark] = rankFor(o.score), mode = DIFFICULTIES.find(d => d.id === o.difficulty) || difficulty();
+  const p = o.points || {}, wine = o.wine || wineLedger(), mobile = l.mobile;
+  const main = mobile ? l.left : 540, right = mobile ? l.right : 540;
+  comicPanel(l.x, 92, l.width, 800);
+  // A small comic stamp carries the outcome; the honor remains the headline.
+  ctx.save(); ctx.translate(l.x + 130, 145); ctx.rotate(-.07);
+  ctx.strokeStyle = '#a13930'; ctx.lineWidth = 4; ctx.strokeRect(-88, -28, 176, 56);
+  text(o.reason === 'clear' ? '通关！' : '失败', 0, 0, 34, '#a13930', 'center', 900); ctx.restore();
+  if (st.newRecord) text('新纪录！', mobile ? main : l.x + l.width - 130, mobile ? 810 : 145, 32, '#a13930', 'center', 900);
+  const rankY = mobile ? 285 : 225;
+  ctx.font = `900 ${mobile ? 64 : 58}px ${FONT}`;
+  const rankSize = Math.min(mobile ? 64 : 58, (mobile ? l.width * .43 : 790) / Math.max(1, ctx.measureText(rank).width) * (mobile ? 64 : 58));
+  text(rank, main, rankY, rankSize, '#7b2929', 'center', 900);
+  text(remark, main, mobile ? 375 : 300, mobile ? 36 : 29, '#715040', 'center', 800);
+  text(Math.round(o.score).toLocaleString('en-US'), main, mobile ? 520 : 408, mobile ? 132 : 110, '#7b2929', 'center', 900);
+  text(`${o.custom ? '自定义 · ' : ''}${mode.level} · ${mode.name}`, main, mobile ? 640 : 485, mobile ? 34 : 28, '#715040', 'center', 800);
+  text(`完美 ${st.perfects} 次    失误 ${st.strikes} 次`, right, mobile ? 265 : 540, mobile ? 40 : 29, '#472c2c', 'center', 900);
+  if (mobile) text(`最高 ${st.bestCombo} 连敬`, right, 325, 31, '#715040', 'center', 800);
+  else text(`最高 ${st.bestCombo} 连敬`, 540, 578, 25, '#715040', 'center', 800);
+  if (o.reason !== 'clear' && o.lastLoss) {
+    const cause = o.lastLoss.kind === 'penalty' ? `最后一次罚酒 −${winePercent(o.lastLoss.amount)}%` : '最后一点酒洒了';
+    text(cause, main, mobile ? 740 : 115, mobile ? 34 : 25, '#a13930', 'center', 800);
+  }
+  const rows = [['敬酒表现', p.performance || 0], ['过关奖励', p.progress || 0], ['保酒奖励', (p.remaining || 0) + (p.overflow || 0)]];
+  if (!o.detailsOpen) {
+    const half = mobile ? l.width * .19 : 320;
+    rows.forEach(([name, value], i) => {
+      const y = (mobile ? 465 : 635) + i * (mobile ? 92 : 67);
+      text(name, right - half, y, mobile ? 40 : 32, '#715040', 'left', 800);
+      text(value.toLocaleString('en-US'), right + half, y, mobile ? 48 : 36, '#7b2929', 'right', 900);
+    });
+  } else {
+    // Compact details use a common standard-glass unit so every row reconciles.
+    const detail = [
+      ['开局', `${winePercent(o.initialWine || 0)}%`],
+      ['添酒', `+${winePercent(wine.refill)}%`],
+      ['洒酒', `−${winePercent(wine.spill)}%`],
+      ['罚酒', `−${winePercent(wine.penalty)}%`],
+      ...(wine.capacity > .0005 ? [['换杯减少', `−${winePercent(wine.capacity)}%`]] : []),
+      ['剩酒 / 容量', `${winePercent(o.remainingWine)}% / ${winePercent(o.capacity)}%`]
+    ];
+    const half = mobile ? l.width * .19 : 320, start = mobile ? 415 : 635, gap = mobile ? 48 : 25;
+    text(`剩酒 +${p.remaining || 0} 分 · 满杯兑换 +${p.overflow || 0} 分`, right, mobile ? 365 : 608, mobile ? 27 : 23, '#7b2929', 'center', 900);
+    detail.forEach(([label, value], i) => {
+      text(label, right - half, start + i * gap, mobile ? 31 : 24, '#715040', 'left', 800);
+      text(value, right + half, start + i * gap, mobile ? 33 : 25, '#472c2c', 'right', 900);
+    });
+    text('按标准杯计', right, mobile ? 736 : 791, mobile ? 25 : 21, '#866954', 'center', 700);
+  }
+  const d = resultDetailRect();
+  ctx.strokeStyle = '#a46e47'; ctx.lineWidth = 2; rr(d.x, d.y, d.w, d.h, 14); ctx.stroke();
+  text(o.detailsOpen ? '收起明细 −' : '查看明细 +', d.x + d.w / 2, d.y + d.h / 2, mobile ? 32 : 27, '#7b2929', 'center', 800);
+  drawClearActions();
+}
+
 function drawGauge(t) {
   const g = gaugeRect(), p = player, wine = clamp(p.wine / wineCapacity(), 0, 1), col = drinkCol(p);
   const hurt = st.state === 'play' && st.lossT < 0.35 && st.loss > 0.002 ? 1 - st.lossT / 0.35 : 0;
@@ -3321,32 +3392,7 @@ function render() {
       ctx.globalAlpha = a;
       ctx.fillStyle = 'rgba(8,8,12,0.86)'; ctx.fillRect(0, 0, W, H);
       ctx.save(); overlayBox();
-      if (TOUCH && LAY === 'land') drawMobileResult(o);
-      else {
-      const [rz, remark] = rankFor(o.score);
-      const [tz] = o.reason === 'clear' ? ['十二关通关'] : OVER_TEXT[o.reason] || OVER_TEXT.beer;
-      text(tz, 540, 120, 48, o.reason === 'clear' ? '#ffd34d' : '#ff796b', 'center', 900);
-      const mode = DIFFICULTIES.find(d => d.id === o.difficulty) || difficulty();
-      ctx.font = `900 66px ${FONT}`;
-      const rankWidth = Math.max(460, ctx.measureText(rz).width + 80);
-      ctx.fillStyle = '#ffd34d'; rr(540 - rankWidth / 2, 190, rankWidth, 116, 24); ctx.fill();
-      text(rz, 540, 248, 66, '#7a1019', 'center', 900);
-      text(remark, 540, 350, 30, '#e5d2c4', 'center', 700);
-      text(Math.round(o.score).toLocaleString('en-US'), 540, 450, 112, '#ffd34d', 'center', 900);
-      text(`${o.custom ? '自定义 · ' : ''}${mode.level} · ${mode.name}`, 540, 540, 30, '#e5d2c4', 'center', 800);
-      text(`完美 ${st.perfects} 次    失误 ${st.strikes} 次    最高 ${st.bestCombo} 连敬`, 540, 594, 30, '#fff', 'center', 800);
-      const ledger = o.wine || wineLedger();
-      ctx.fillStyle = '#241e28'; rr(130, 638, 820, 132, 22); ctx.fill();
-      text(`洒酒 −${winePercent(ledger.spill)}%`, 170, 678, 32, '#ffc36f', 'left', 900);
-      text(`罚酒 −${winePercent(ledger.penalty)}%`, 540, 678, 32, '#ff796b', 'center', 900);
-      text(`添酒 +${winePercent(ledger.refill)}%`, 910, 678, 32, '#91e0a4', 'right', 900);
-      const capacity = ledger.capacity > 0.0005 ? ` · 换小杯 −${winePercent(ledger.capacity)}%` : '';
-      text(`本局累计 · 按标准大杯容量${capacity}`, 540, 738, 23, '#bfaeb9', 'center', 700);
-      text(`${o.cleared ? '十二关已通关 · ' : ''}第 ${o.layer + 1} 层 · ${o.depth < 0.05 ? '0 米' : '−' + fmtDepth(o.depth)}`, 540, 815, 28, '#e5d2c4', 'center', 800);
-      text(`最高分 ${Math.round(st.hiscore).toLocaleString('en-US')}${st.bestDifficulty ? ' · ' + DIFFICULTIES.find(d => d.id === st.bestDifficulty).level : ''}${st.newRecord ? ' · 新纪录！' : ''}`, 540, 867, 28, '#7fd0ff', 'center', 900);
-      if (o.reason !== 'clear') text(TOUCH ? '点一下重来' : '按 R 重来', 540, 930, 34, '#fff', 'center', 900);
-      }
-      if (o.reason === 'clear') drawClearActions();
+      drawResult(o);
       ctx.restore(); ctx.globalAlpha = 1;
     }
   }

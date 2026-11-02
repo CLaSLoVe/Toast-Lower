@@ -85,8 +85,8 @@ planted feet, drawing/physics isolation, collision-synchronized sound, pause/hom
 cleanup, uninterrupted steering and 160 BPM phrases, and all-hit group finishers.
 No gesture can change an already resolved score, penalty, or wine amount.
 
-Run `node tests/height-audio.test.cjs` for actual 100/85/65% height boundaries
-across chapters, the hard glass shrinking from 80% to 60% without changing spill
+Run `node tests/height-audio.test.cjs` for actual 100/65/45% height boundaries
+across chapters, normal/hard glasses shrinking from 80%/70% to 60% without changing spill
 thresholds or rates, unchanged standard-glass penalties/refills, tutorial isolation,
 and independent music/effects routing. Music tests simulate an ignored media-element
 volume setter, shared gain buses, cue ducking, mute and audio-context recovery.
@@ -110,3 +110,10 @@ perfect/ordinary/miss-heavy play produces clearly different scores with controll
 wine amounts. It also loads the real music module together with the game (rather
 than substituting its API), covering music across settlement/endless and stale
 play-promise rejection after pause/resume. Media and AudioContext remain CPU stubs.
+
+`node tests/receipt.test.cjs` exercises the 40,000 / 50,000 / 10,000 score budget,
+exact 100,000 perfect and 80,000 ordinary full-glass campaigns across all modes,
+partial refill conversion and its cap, retry exclusion, score/wine conservation,
+one-time settlement, and receipt/restart hit targets on desktop, landscape and
+rotated portrait. Contacts are controlled to isolate scoring; these are not human
+completion-rate estimates. Difficulty tests check the tighter windows separately.

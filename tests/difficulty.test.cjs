@@ -25,20 +25,20 @@ test('equal early/late errors distinguish modes while accurate taps remain valid
   for(const layer of [0,3,9,11]) {
    assert.equal(judgeOffset('easy',layer,sign*.4),true);
    assert.equal(judgeOffset('normal',layer,sign*.4),false);
-   assert.equal(judgeOffset('normal',layer,sign*.26),true);
-   assert.equal(judgeOffset('hard',layer,sign*.26),false);
+   assert.equal(judgeOffset('normal',layer,sign*.18),true);
+   assert.equal(judgeOffset('hard',layer,sign*.18),false);
   }
   for(const layer of [6,7,8]) {
    assert.equal(judgeOffset('easy',layer,sign*.19),true);
    assert.equal(judgeOffset('normal',layer,sign*.19),false);
-   assert.equal(judgeOffset('normal',layer,sign*.14),true);
-   assert.equal(judgeOffset('hard',layer,sign*.14),false);
+   assert.equal(judgeOffset('normal',layer,sign*.11),true);
+   assert.equal(judgeOffset('hard',layer,sign*.11),false);
   }
  }
  for(const mode of ['easy','normal','hard'])for(const layer of [0,3,6,7,8,9,11])assert.equal(judgeOffset(mode,layer,.05),true);
 });
-test('actual floor transitions refill 10/7/4 percent with no timing or input-speed changes',()=>{
- for(const [mode,refill] of [['easy',.10],['normal',.07],['hard',.04]]) {
+test('actual floor transitions refill 10/4/4 percent with no timing or input-speed changes',()=>{
+ for(const [mode,refill] of [['easy',.10],['normal',.04],['hard',.04]]) {
   const g=game(mode),c=g.inspect.config;g.inspect.player.wine=.2;g.inspect.breakFloor();
   for(let i=0;i<240&&g.inspect.st.L===0;i++)g.advance(1);
   assert.equal(g.inspect.st.L,1);near(g.inspect.player.wine,.2+refill);near(g.inspect.st.wineLedger.refill,refill);
@@ -47,7 +47,7 @@ test('actual floor transitions refill 10/7/4 percent with no timing or input-spe
  }
 });
 test('late chapters scale height and drift instead of adding hidden shoves or changing success rules',()=>{
- for(const [mode,mult,drift] of [['easy',1,.35],['normal',1.1,.5],['hard',1.2,.7]]) {
+ for(const [mode,mult,drift] of [['easy',1,.35],['normal',1.2,.7],['hard',1.2,.7]]) {
   for(const [layer,base] of [[9,36],[10,48],[11,60]])near(game(mode,layer).inspect.st.alien.step,base*mult);
   const g=game(mode,8),p=g.inspect.player,c=g.inspect.config;
   assert.equal(c[mode+'FocusDrift'],drift);p.tdr=0;p.tdrGoal=1;g.inspect.st.tdrT=10;

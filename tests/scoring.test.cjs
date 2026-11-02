@@ -95,16 +95,16 @@ test('story clear award occurs only at twelve completed floors from the first st
   const g = game(); g.inspect.st.L = 11; g.inspect.st.breaks = 11; g.inspect.newRound(true);
   const before = g.inspect.st.score, wine = g.inspect.player.wine, cfg = g.inspect.config;
   g.inspect.breakFloor();
-  assert.equal(g.inspect.st.score - before, cfg.floorScore * 12 + Math.round(wine * 120 * 12) + cfg.clearScore);
+  assert.equal(g.inspect.st.score - before, cfg.floorScore + cfg.clearScore);
   const jumped = game(11); jumped.inspect.breakFloor();
-  assert.equal(jumped.inspect.st.score, cfg.floorScore * 12 + Math.round(jumped.inspect.player.wine * 120 * 12));
+  assert.equal(jumped.inspect.st.score, cfg.floorScore);
 });
 
 test('honors follow score thresholds regardless of difficulty or campaign completion', () => {
-  const ranks = [[0, '成年香蕉'], [1, '卧龙凤雏'], [2500, '小孩那桌'],
-    [6500, '夹菜我转桌'], [14000, '乌鸦哥'], [30000, '端水大师'],
-    [70000, '懂事长'], [140000, '敬酒悍匪'], [230000, '国家一级陪酒员'],
-    [290000, '先天敬酒圣体'], [340000, '铁血山东 👍'], [380000, 'DeepDrink']];
+  const ranks = [[0, '成年香蕉'], [1, '卧龙凤雏'], [1000, '小孩那桌'],
+    [3000, '夹菜我转桌'], [6000, '乌鸦哥'], [12000, '端水大师'],
+    [18000, '懂事长'], [45000, '敬酒悍匪'], [65000, '国家一级陪酒员'],
+    [85000, '先天敬酒圣体'], [92000, '铁血山东 👍'], [98000, 'DeepDrink']];
   for (const mode of ['easy', 'normal', 'hard']) for (const layer of [0, 11, 12]) {
     const g = game(layer, mode);
     for (let i = 0; i < ranks.length; i++) {
@@ -122,12 +122,12 @@ test('honors follow score thresholds regardless of difficulty or campaign comple
 test('one shared highest score retains its difficulty across reloads and lower runs', () => {
   const g = game(0, 'hard', 7, { 'toastLower.best': '999999' });
   assert.equal(g.inspect.st.hiscore, 0, 'legacy scores are not compared to the new formula');
-  hit(g); const score = g.inspect.st.score; g.inspect.gameOver('beer');
+  hit(g); g.inspect.player.wine=0; const score = g.inspect.st.score; g.inspect.gameOver('beer');
   assert.equal(g.storage.get('toastLower.best'), '999999', 'legacy record remains untouched');
   const restored = game(0, 'easy', 7, Object.fromEntries(g.storage));
   assert.equal(restored.inspect.st.hiscore, score); assert.equal(restored.inspect.st.bestDifficulty, 'hard');
-  restored.inspect.gameOver('beer'); assert.equal(restored.inspect.st.bestDifficulty, 'hard');
-  restored.api.restart(); restored.inspect.st.score = score + 1; restored.inspect.gameOver('beer');
+  restored.inspect.player.wine=0; restored.inspect.gameOver('beer'); assert.equal(restored.inspect.st.bestDifficulty, 'hard');
+  restored.api.restart(); restored.inspect.st.score = score + 1; restored.inspect.player.wine=0; restored.inspect.gameOver('beer');
   const again = game(0, 'normal', 7, Object.fromEntries(restored.storage));
   assert.equal(again.inspect.st.hiscore, score + 1); assert.equal(again.inspect.st.bestDifficulty, 'easy');
 });

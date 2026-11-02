@@ -12,9 +12,15 @@
     common: ['roundWait', 'missPenalty', 'roundRefill', 'spillMultiplier', 'spillMax', 'minCapacity'],
     difficulty: ['Time', 'Taper', 'Setup', 'BodyCupCoupling', 'Hand', 'ChainWindow', 'FocusDrift', 'FloorRefill', 'AlienHeight', 'HeightWindow'],
     feel: ['stickDeadzone', 'stickCurve', 'cupTiltLimit', 'bodyBrakeCoupling', 'bodyAccel', 'bodyBrake', 'cupAccel', 'cupBrake', 'releaseCup', 'releaseBody'],
-    advanced: ['openingRounds', 'regularRounds', 'chainRounds', 'toastScore', 'comboScore', 'comboCap', 'hypeScore', 'floorScore', 'clearScore', 'chainReach', 'chainPenaltyFirst', 'chainPenaltySecond', 'chainPenaltyThird', 'successPause', 'missPause', 'smashCharge', 'stallPause', 'timingScore', 'heightScore', 'wineScore', 'floorWineScore', 'hypeHit', 'hypePerfect', 'hypeMiss', 'alienRounds', 'alienCountdown', 'alienReveal', 'alienStep1', 'alienStep2', 'alienStep3', 'musicBpm', 'hardStartCapacity', 'spillSoundInterval', 'perfectTime', 'perfectScore', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'spillGrace', 'spillRamp']
+    advanced: ['performanceScore', 'ordinaryScoreRatio', 'remainingScore', 'overflowScore', 'overflowRate', 'normalStartCapacity', 'openingRounds', 'regularRounds', 'chainRounds', 'floorScore', 'clearScore', 'chainReach', 'chainPenaltyFirst', 'chainPenaltySecond', 'chainPenaltyThird', 'successPause', 'missPause', 'smashCharge', 'stallPause', 'hypeHit', 'hypePerfect', 'hypeMiss', 'alienRounds', 'alienCountdown', 'alienReveal', 'alienStep1', 'alienStep2', 'alienStep3', 'musicBpm', 'hardStartCapacity', 'spillSoundInterval', 'perfectTime', 'perfectRate', 'repeatSmashScale', 'repeatSmashPause', 'repeatStandup', 'reachTime', 'minWait', 'depthSpeedup', 'retargetBonus', 'rushScale', 'practiceBonus', 'perfectRefill', 'hypeRefill', 'spillGrace', 'spillRamp']
   };
   const tips = {
+    performanceScore: '十二关表现总预算，每章四分之一；组内平分，每拍仅首次尝试计分。',
+    ordinaryScoreRatio: '普通成功占对应预算的比例；完美为100%，失误为0。',
+    remainingScore: '本局首次结算时，按剩酒占当前杯容量的比例加分；继续无尽不重复发放。',
+    overflowScore: '本局满杯余量兑换的总上限；补敬添酒不能兑换。',
+    overflowRate: '首次计分回合与首次过层添酒时，每1%装不下的酒兑换多少分。',
+    normalStartCapacity: '中等继承原高难的80%开局杯，后期降至最小杯容量。',
     openingRounds: '职场前两关各有几次固定敬酒机会；失败补敬不会增加计分机会。',
     regularRounds: '其余普通与晃动关卡的固定敬酒轮数。',
     chainPenaltyFirst: '一组第一次失误罚标准额度的60%；默认即12%标准大杯容量。',
@@ -24,11 +30,7 @@
     FocusDrift: '古墓和外星保留的扶杯漂移强度；这两章不再随机推搡。',
     stallPause: '超过这个时长未更新画面时暂停；恢复后重新给出当前待碰杯的拍子。',
     chainRounds: '每关连续踩拍的组数；每拍只在第一次尝试时计分。',
-    toastScore: '成功一组的基础分，乘以当前关数；连敬按拍数平分，补敬不计分。',
-    comboScore: '每组全中延续连敬；连敬加分乘以当前关数。',
-    comboCap: '超过此连敬次数后，连敬加分不再增加。',
-    hypeScore: '气势满格的奖励，乘以当前关数；补敬不积累气势。',
-    floorScore: '每关完成时的基础分，乘以当前关数。',
+    floorScore: '每关完成时的固定奖励，不随层数翻倍。',
     clearScore: '从第一关完整打完十二关时，一次性追加的奖励。',
     stickDeadzone: '手机摇杆靠近中心时不输入，避免手指微晃。电脑键盘不受影响。',
     stickCurve: '越大，小幅推杆越细腻；推到底仍保持原来的最大力度。',
@@ -53,7 +55,6 @@
     BodyCupCoupling: '这一档上下移动时带动杯子的强度；也受扶杯干扰倍率影响，越小越容易稳住。',
     bodyBrakeCoupling: '加速和刹车时的短促晃动，方向随身体速度变化。',
     perfectTime: '必须同时合拍并扶稳，才算完美。不会收紧普通碰杯范围。',
-    perfectScore: '完美额外得分，随当前层数增加；默认不额外补酒。',
     perfectRate: '接触前杯子转动不能超过此速度，避免甩过正确位置也算完美。',
     repeatSmashScale: '第一次之后的砸楼蓄力时长倍率，越小越快。',
     repeatSmashPause: '第一次之后，砸楼前的停顿时间。',
