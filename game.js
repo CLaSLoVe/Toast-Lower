@@ -2784,7 +2784,7 @@ function drawResult(o) {
       ['剩酒 / 容量', `${winePercent(o.remainingWine)}% / ${winePercent(o.capacity)}%`]
     ];
     const half = mobile ? l.width * .19 : 320, start = mobile ? 415 : 635, gap = mobile ? 48 : 25;
-    text(`剩酒 +${p.remaining || 0} 分 · 满杯兑换 +${p.overflow || 0} 分`, right, mobile ? 365 : 608, mobile ? 27 : 23, '#7b2929', 'center', 900);
+    text(`${o.cleared && o.reason !== 'clear' ? '通关剩酒' : '剩酒'} +${p.remaining || 0} 分 · 满杯兑换 +${p.overflow || 0} 分`, right, mobile ? 365 : 608, mobile ? 27 : 23, '#7b2929', 'center', 900);
     detail.forEach(([label, value], i) => {
       text(label, right - half, start + i * gap, mobile ? 31 : 24, '#715040', 'left', 800);
       text(value, right + half, start + i * gap, mobile ? 33 : 25, '#472c2c', 'right', 900);

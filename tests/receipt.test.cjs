@@ -26,6 +26,7 @@ for(const mode of ['easy','normal','hard'])for(const perfect of [false,true]) {
  assert.equal(o.score,perfect?100000:80000);assert.equal(Object.values(o.points).reduce((a,b)=>a+b,0),o.score);
  const score=o.score;g.inspect.continueEndless();g.advance(30);ledger(g);assert.equal(g.inspect.st.score,score,'no duplicated settlement/refill conversion at the cap');
  g.inspect.changeWine('penalty',1);g.inspect.gameOver('beer');assert.equal(g.inspect.st.over.score,score,'endless failure does not award leftover wine twice');ledger(g);
+ const labels=[];g.sandbox.document.getElementById('c').getContext('2d').fillText=t=>labels.push(t);g.inspect.st.over.detailsOpen=true;g.inspect.st.stT=2;g.render();assert.ok(labels.some(t=>t.includes('通关剩酒 +5000')),'previous settlement is identified when endless ends with no wine');
 }
 console.log('PASS all three difficulties: controlled full perfect = 100000, all ordinary = 80000; wine and score ledgers reconcile');
 {
