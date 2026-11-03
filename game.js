@@ -471,13 +471,17 @@ function openPlayerSettings() {
   if (active) setPaused(true);
   clearInputs();
   window.ToastSettings.open({ user: true, values: { ...CFG }, muted,
-    guides: guidesEnabled, touch: TOUCH,
+    guides: tutorialEnabled, touch: TOUCH,
     onChange(values, mute, guides) {
       const clean = CONFIG.validate(values);
       for (const key of CONFIG.preferenceKeys) CFG[key] = clean[key];
-      guidesEnabled = guides; setMute(mute);
+      if (tutorialEnabled !== guides) {
+        tutorialEnabled = guides; tutorialPreferenceManual = true;
+        try { localStorage.setItem(TUTORIAL_ENABLED_KEY, guides ? '1' : '0'); } catch (_) {}
+      }
+      setMute(mute);
       // Storage may be disabled; volume still works for this session.
-      try { CONFIG.savePreferences(localStorage, CFG); localStorage.setItem('toastLower.guides.enabled', guides ? '1' : '0'); } catch (_) {}
+      try { CONFIG.savePreferences(localStorage, CFG); } catch (_) {}
     },
     onClose() { if (active && !wasPaused) setPaused(false); }
   });
@@ -712,7 +716,7 @@ function returnToTitle() {
   parts.length = debris.length = puddles.length = bubbles.length = popups.length = fx.length = gaugeDrops.length = 0;
   window.ToastMusic.reset(); syncMusic();
 }
-function startFromTitle(forceTut) { debugMenuOpen = false; if (forceTut || st.tut || wantTutorial()) { startTutorial(); return; } restart(); }
+function startFromTitle(forceTut) { debugMenuOpen = false; if (forceTut || st.tut || wantTutorial(true)) { startTutorial(); return; } restart(); }
 addEventListener('keydown', e => {
   if (window.ToastSettings.isOpen()) return;
   gestured = true; window.ToastMusic.gesture(); syncMusic();
@@ -1593,9 +1597,15 @@ const MOM_SPEC = { kind: 'guest', mom: true, shirt: '#e2577a', pants: '#5a4a6a',
 const TUTORIAL_KEY = 'toastLower.tutorial.v2';
 let tutorialSeen = false;
 try { tutorialSeen = ['completed', 'skipped'].includes(localStorage.getItem(TUTORIAL_KEY)) || localStorage.getItem('toastLower.tutDone') === '1'; } catch (_) {}
-function wantTutorial() {
-  if (params.has('tut')) return params.get('tut') === '1';
-  return !tutorialSeen && !BOT && !AUTO && !CAPTURE && START_LAYER === 0;
+const TUTORIAL_ENABLED_KEY = 'toastLower.tutorial.enabled';
+let tutorialEnabled = !tutorialSeen, tutorialPreferenceManual = false;
+try {
+  const saved = localStorage.getItem(TUTORIAL_ENABLED_KEY);
+  if (saved === '0' || saved === '1') { tutorialEnabled = saved === '1'; tutorialPreferenceManual = true; }
+} catch (_) {}
+function wantTutorial(fromHome = false) {
+  if ((!fromHome || !tutorialPreferenceManual) && params.has('tut')) return params.get('tut') === '1';
+  return tutorialEnabled && !BOT && !AUTO && !CAPTURE && START_LAYER === 0;
 }
 function tutorialBeatStep() { return !!st.tut && (st.tut.step === 5 || st.tut.step === 6); }
 function tutorialActionVisible() { return !!st.tut && (st.tut.step === 0 || tutorialBeatStep()); }
@@ -1613,6 +1623,7 @@ function startTutorial() {
 }
 function endTutorial(outcome = 'completed') {
   tutorialSeen = true;
+  if (!tutorialPreferenceManual) tutorialEnabled = false;
   try { localStorage.setItem(TUTORIAL_KEY, outcome); } catch (_) {}
   st.tut = null; restart();
 }
@@ -3000,8 +3011,13 @@ function drawDifficultyPicker() {
     text(d.name, r.x + r.w / 2, r.y + r.h * .61, Math.min(mobile ? 48 : 32, r.w / 10.2), '#492421', 'center', 900);
   });
 }
-function titleStartRect() { if (mobileTitle()) return { x: W / 2 - 360, y: 755, w: 720, h: 155 }; return { x: 260, y: 700, w: 560, h: 126 }; }
-function titleTutRect() { if (mobileTitle()) return { x: W / 2 - 270, y: 924, w: 540, h: 90 }; return { x: 310, y: 868, w: 460, h: 96 }; }
+function titleStartRect() { if (mobileTitle()) return { x: W / 2 - 360, y: 720, w: 720, h: 145 }; return { x: 260, y: 700, w: 560, h: 126 }; }
+function titleTutRect() { if (mobileTitle()) return { x: W / 2 - 360, y: 890, w: 720, h: 124 }; return { x: 260, y: 856, w: 560, h: 120 }; }
+function drawTitleTutorial() {
+  const r = titleTutRect();
+  comicPanel(r.x, r.y, r.w, r.h, '#f7e4bb', 22);
+  text('妈妈教你酒桌规矩', r.x + r.w / 2, r.y + r.h / 2, mobileTitle() ? 48 : 40, '#75382c', 'center', 900);
+}
 function debugEntryRect() { if (mobileTitle()) return { x: W - 180, y: 930, w: 120, h: 120 }; return { x: 950, y: 900, w: 64, h: 50 }; }
 function drawDesktopTitle() {
   ctx.save(); overlayBox();
@@ -3027,7 +3043,7 @@ function drawDesktopTitle() {
   const gold = ctx.createLinearGradient(0, start.y, 0, start.y + start.h); gold.addColorStop(0, '#ffe5a1'); gold.addColorStop(1, '#f4b950');
   ctx.fillStyle = gold; rr(start.x, start.y, start.w, start.h, 26); ctx.fill(); ctx.strokeStyle = '#fff1c7'; ctx.lineWidth = 4; ctx.stroke();
   text('开席！', 540, start.y + start.h / 2, 58, '#63251f', 'center', 900);
-  const tut = titleTutRect(); text('妈妈教你玩', 540, tut.y + tut.h / 2, 32, '#ffe4bc', 'center', 800, '#4a2021');
+  drawTitleTutorial();
   drawPlayerSettings(); drawHomeNotice(); drawDebugEntry(); ctx.restore();
 }
 function drawMobileTitle() {
@@ -3051,8 +3067,7 @@ function drawMobileTitle() {
   ctx.fillStyle = gold; rr(start.x, start.y, start.w, start.h, 28); ctx.fill();
   ctx.strokeStyle = '#fff1c7'; ctx.lineWidth = 4; ctx.stroke();
   text('开席！', cx, start.y + start.h / 2, 68, '#63251f', 'center', 900);
-  const tut = titleTutRect();
-  text('妈妈教你玩', cx, tut.y + tut.h / 2, 40, '#ffe4bc', 'center', 800, '#4a2021');
+  drawTitleTutorial();
   drawPlayerSettings(); drawHomeNotice(); drawDebugEntry();
 }
 function playerSettingsRect() {

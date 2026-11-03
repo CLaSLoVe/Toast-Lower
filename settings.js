@@ -165,7 +165,7 @@
       input.addEventListener('input', () => { draft[key] = Number(input.value); output.textContent = draft[key] + '%'; apply(); });
       content.append(el('div', { class: 'setting-row volume-row' }, [el('label', { for: 'player-' + key, text: label }), input, output]));
     }
-    for (const [key, label, checked] of [['mute', '静音', selectedMute], ['guides', '首次引导', options.guides]]) {
+    for (const [key, label, checked] of [['mute', '静音', selectedMute], ['guides', '引导', options.guides]]) {
       const input = el('input', { id: 'player-' + key, type: 'checkbox' }); input.checked = checked;
       input.addEventListener('change', () => { if (key === 'mute') selectedMute = input.checked; else options.guides = input.checked; apply(); });
       content.append(el('div', { class: 'setting-row' }, [el('label', { for: 'player-' + key, text: label }), input]));

@@ -124,7 +124,7 @@ function createGame(options = {}) {
     get canToast() { return typeof canToast === 'function' ? canToast : null; },
     get requestToast() { return typeof requestToast === 'function' ? requestToast : null; },
     get contacts() { return window.__contacts; },
-    get homeButton() { return homeBtnRect(); }, get titleStartButton() { return titleStartRect(); },
+    get homeButton() { return homeBtnRect(); }, get titleStartButton() { return titleStartRect(); }, get titleTutorialButton() { return titleTutRect(); },
     get activeButton() { return typeof toastButtonRect === 'function' ? toastButtonRect() : null; },
   };\n${marker}`);
   vm.createContext(sandbox);

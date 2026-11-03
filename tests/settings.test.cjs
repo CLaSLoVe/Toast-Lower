@@ -34,3 +34,9 @@ for(const id of ['setting-musicVolume','setting-sfxVolume','setting-spillSoundVo
 const bpm=dialog.querySelector('#setting-musicBpm');bpm.value='130';bpm.emit('input');dialog.querySelector('form').emit('submit');assert.equal(saved.values.musicBpm,130);assert.equal(closed,2);
 api.open({user:true,values:config.defaults,muted:false,guides:true,onChange(){},onClose:()=>closed++});dialog.emit('cancel');assert.equal(closed,3);assert.equal(api.isOpen(),false);
 console.log('PASS player settings live sliders, mute, hints, modal lifecycle and separation from test controls');
+
+api.open({user:true,values:config.defaults,muted:false,guides:true,onChange(){},onClose(){}});
+assert.equal(dialog.all(e=>e.tag==='label'&&e.textContent==='首次引导').length,0);
+assert.equal(dialog.all(e=>e.tag==='label'&&e.textContent==='引导').length,1);
+assert.equal(dialog.querySelector('.tutorial-entry'),undefined);
+console.log('PASS settings expose one tutorial toggle, without a second tutorial button');

@@ -23,7 +23,7 @@ Automated playthrough.
 
 On desktop, R restarts and M mutes. Choose a difficulty or replay the tutorial from the home screen. Settings are available both at home and during play to adjust audio.
 
-New players automatically meet Mom and can skip at any time. On mobile, learn left-hand movement and right-hand toasting, then balancing, timing, a two-toast phrase and floor smashing. The cup wobbles and spills, but Mom replenishes the juice. The countdown starts once the height is aligned; both toasts must land to finish the phrase.
+New players automatically meet Mom and can skip at any time; completing or skipping turns automatic onboarding off. The “引导” (Tutorial) setting controls future starts and remembers your choice. The home-screen “妈妈教你酒桌规矩” button always replays the lesson. On mobile, learn left-hand movement and right-hand toasting, then balancing, timing, a two-toast phrase and floor smashing. The cup wobbles and spills, but Mom replenishes the juice. The countdown starts once the height is aligned; both toasts must land to finish the phrase.
 
 On mobile, diagonal stick input controls both axes; releasing it preserves momentum. Even with portrait rotation lock enabled, the display and touch controls rotate automatically inside the page.
 

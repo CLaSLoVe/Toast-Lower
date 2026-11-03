@@ -66,3 +66,30 @@ console.log('PASS height-ready two-second countdown; chain missed beat preserves
  click(g,g.inspect.homeButton);g.tap('Enter');assert.equal(g.api.tut(),null,'same-session skip survives disabled storage');
 }
 console.log('PASS storage rejection cannot break skip or force the same-session tutorial again');
+
+for (const layout of [{touch:false,width:1080,height:1080},{touch:true,width:844,height:390},{touch:true,width:390,height:844}]) {
+ const g=createGame({search:'?tut=0',storage:{'toastLower.tutorial.v2':'completed'},...layout});
+ const r=g.inspect.titleTutorialButton, start=g.inspect.titleStartButton;
+ assert.ok(r.y>start.y+start.h);assert.ok(r.w>=560);assert.ok(r.h>=120);
+ // Desktop title hit areas use the 1080 overlay; these dimensions share its coordinates.
+ click(g,r);assert.ok(g.api.tut());assert.equal(g.inspect.boss.spec.mom,true);
+
+}
+console.log('PASS prominent home entry replays Mom despite saved completion and tut=0');
+
+function toggleTutorial(g,enabled) {
+ g.inspect.openPlayerSettings();const opts=g.inspect.settings;
+ opts.onChange(opts.values,opts.muted,enabled);opts.onClose();
+}
+{
+ const g=fresh();g.tap('KeyS');g.inspect.openPlayerSettings();assert.equal(g.inspect.settings.guides,false);g.inspect.settings.onClose();
+ toggleTutorial(g,true);click(g,g.inspect.homeButton);g.tap('Enter');assert.ok(g.api.tut());
+ g.tap('KeyS');click(g,g.inspect.homeButton);g.tap('Enter');assert.ok(g.api.tut(),'manual on survives completion/skip');
+ assert.ok(fresh({storage:Object.fromEntries(g.storage)}).api.tut(),'manual preference persists across reload');
+ toggleTutorial(g,false);g.tap('KeyS');click(g,g.inspect.homeButton);g.tap('Enter');assert.equal(g.api.tut(),null);
+ assert.equal(fresh({storage:Object.fromEntries(g.storage)}).api.tut(),null);
+ const old=fresh({storage:{'toastLower.tutDone':'1'}});old.inspect.openPlayerSettings();assert.equal(old.inspect.settings.guides,false);
+ const title=createGame({search:'?tut=0',storage:{'toastLower.tutorial.v2':'completed'}});
+ toggleTutorial(title,true);title.tap('Enter');assert.ok(title.api.tut(),'explicit setting wins on a new start even with old tut=0 link');
+}
+console.log('PASS tutorial toggle: automatic onboarding switches off, explicit on/off persists and controls later starts');
