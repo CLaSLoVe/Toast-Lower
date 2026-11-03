@@ -494,7 +494,8 @@ const DIFFICULTY_KEY = 'toastLower.difficulty';
 let difficultyId = params.get('difficulty');
 try { if (!DIFFICULTIES.some(d => d.id === difficultyId)) difficultyId = localStorage.getItem(DIFFICULTY_KEY); } catch (e) {}
 if (!DIFFICULTIES.some(d => d.id === difficultyId)) difficultyId = 'normal';
-function difficulty() { return DIFFICULTIES.find(d => d.id === (st.tut ? 'normal' : difficultyId)); }
+const TUTORIAL_DIFFICULTY = { id: 'easy', time: .28, taper: 0, setup: 0, hand: .55 };
+function difficulty() { return st.tut ? TUTORIAL_DIFFICULTY : DIFFICULTIES.find(d => d.id === difficultyId); }
 function selectDifficulty(id) {
   if (!DIFFICULTIES.some(d => d.id === id)) return;
   difficultyId = id;
@@ -511,8 +512,8 @@ try {
 } catch (_) {}
 function firstGuide() {
   const mech = activeMech();
-  if (st.tut || BOT || CAPTURE || !guidesEnabled || seenGuides.has(mech)) return;
-  st.guide = { text: window.ToastUI.guide(mech, TOUCH), until: st.t + 2 };
+  if (st.tut || st.startingTutorial || BOT || CAPTURE || !guidesEnabled || seenGuides.has(mech)) return;
+  st.guide = { text: window.ToastUI.guide(mech, TOUCH, chainCount()), until: st.t + 2 };
   seenGuides.add(mech); bigText = null;
   try { localStorage.setItem('toastLower.guides.seen.v1', JSON.stringify([...seenGuides])); } catch (_) {}
 }
@@ -711,7 +712,7 @@ function returnToTitle() {
   parts.length = debris.length = puddles.length = bubbles.length = popups.length = fx.length = gaugeDrops.length = 0;
   window.ToastMusic.reset(); syncMusic();
 }
-function startFromTitle(forceTut) { debugMenuOpen = false; if (forceTut || st.tut) { startTutorial(); return; } restart(); }
+function startFromTitle(forceTut) { debugMenuOpen = false; if (forceTut || st.tut || wantTutorial()) { startTutorial(); return; } restart(); }
 addEventListener('keydown', e => {
   if (window.ToastSettings.isOpen()) return;
   gestured = true; window.ToastMusic.gesture(); syncMusic();
@@ -726,7 +727,7 @@ addEventListener('keydown', e => {
   if (st.paused) { if (e.code === 'Space' || e.code === 'Enter') setPaused(false); return; }
   if (st.state === 'title') { if (['Space', 'Enter', 'KeyT'].includes(e.code)) startFromTitle(e.code === 'KeyT'); return; }
   if (st.state === 'clear') { if (e.code === 'Enter' || e.code === 'Space') continueEndless(); else if (e.code === 'Escape') returnToTitle(); return; }
-  if (e.code === 'KeyS' && st.tut) { endTutorial(); return; }
+  if (e.code === 'KeyS' && st.tut) { endTutorial('skipped'); return; }
   if (e.code === 'Space' && !BOT && st.state === 'play') { heldKeys.add(e.code); refreshKeys(); requestToast(); return; }
   if (KEYMAP[e.code] && !BOT && st.state === 'play') { heldKeys.add(e.code); refreshKeys(); }
   if (e.code === 'KeyR' && (st.state === 'over' || st.state === 'play')) { if (st.tut) startTutorial(); else restart(); }
@@ -777,7 +778,7 @@ function mobileWords(value) { return window.ToastUI.mobileWords(value, TOUCH); }
 function canvasPt(e) { return window.ToastUI.canvasPoint(e, cv.getBoundingClientRect(), W, H, rotated); }
 // multi-touch: every finger is tracked by pointerId, so Q+W+O+P can all be held at once.
 // A finger that slides from one button onto another switches keys (like a real gamepad).
-function btnAt(p) { if (st.state === 'play' && (!st.tut || st.tut.step === 5) && hitR(p, toastButtonRect())) return 'Space'; for (let i = 0; i < 4; i++) { const r = btnRect(i), m = 8; if (p.x > r.x - m && p.x < r.x + r.w + m && p.y > r.y - m && p.y < r.y + r.h + m) return BTN[i][0]; } return null; }
+function btnAt(p) { if (st.state === 'play' && (!st.tut || tutorialActionVisible()) && hitR(p, toastButtonRect())) return 'Space'; for (let i = 0; i < 4; i++) { const r = btnRect(i), m = 8; if (p.x > r.x - m && p.x < r.x + r.w + m && p.y > r.y - m && p.y < r.y + r.h + m) return BTN[i][0]; } return null; }
 function refreshKeys() { if (BOT) return; for (const k in keys) keys[k] = 0; if (st.paused) return; for (const code of heldKeys) { if (KEYMAP[code]) keys[KEYMAP[code]] = 1; else if (code === 'Space') keys.Space = 1; } for (const k of pointers.values()) if (k && k !== 'stick') keys[k] = 1;
   if (TOUCH && stick.id !== null) {
     keys.Q = Math.max(keys.Q, -stick.x); keys.W = Math.max(keys.W, stick.x);
@@ -787,6 +788,7 @@ function refreshKeys() { if (BOT) return; for (const k in keys) keys[k] = 0; if 
 cv.addEventListener('pointerdown', e => {
   e.preventDefault(); gestured = true; window.ToastMusic.gesture(); syncMusic();
   { const q0 = canvasPt(e), pb = pauseBtnRect();
+    if (st.tut && hitR(q0, tutorialSkipRect())) { endTutorial('skipped'); return; }
     if (st.state !== 'title' && !st.paused && hitR(q0, playerSettingsRect())) { openPlayerSettings(); return; }
     if (['clear', 'over'].includes(st.state)) {
       const q = overlayPt(q0);
@@ -814,8 +816,7 @@ cv.addEventListener('pointerdown', e => {
       setPaused(false); return;
     }
   }
-  if (st.tut) { const q = canvasPt(e); if (q.y < hudBottom() && q.x > W * 0.7) { endTutorial(); return; } }
-  else if (st.state === 'clear') return;
+  if (!st.tut && st.state === 'clear') return;
   else if (st.state === 'over') return;
   try { cv.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
   const pt = canvasPt(e);
@@ -824,7 +825,7 @@ cv.addEventListener('pointerdown', e => {
     const sr = stickRect();
     if (Math.hypot(pt.x - sr.x, pt.y - sr.y) <= sr.hit && stick.id === null) {
       stick.id = e.pointerId; pointers.set(e.pointerId, 'stick'); updateStick(pt);
-    } else if ((!st.tut || st.tut.step === 5) && hitR(pt, toastButtonRect())) pointers.set(e.pointerId, 'Space');
+    } else if ((!st.tut || tutorialActionVisible()) && hitR(pt, toastButtonRect())) pointers.set(e.pointerId, 'Space');
   } else pointers.set(e.pointerId, btnAt(pt));
   refreshKeys();
   if (pointers.get(e.pointerId) === 'Space') requestToast();
@@ -887,7 +888,8 @@ function runBot(dt) {
   }
   // Track the input beat and current pose, then tap once; the judgement is immediate.
   keys.Space = r && r.attacking && r.phase === 'aim' ? 1 : 0;
-  if (r && canToast()) {
+  if (st.tut && st.tut.step === 0 && st.tut.sub === 1) requestToast();
+  if (r && canToast() && !(st.tut && st.tut.step === 0)) {
     const gap = p.P.rim.y - toastRimY();
     const late = roundLeft() <= reachTime();
     const ready = roundLeft() <= reachTime() + Math.min(0.06, timingWindow() * 0.25);
@@ -1021,7 +1023,7 @@ function stepDisturb(dt, d) {
   // the cup's slow lean: a new direction every few seconds
   st.tdrT -= dt;
   if (st.tdrT <= 0) { st.tdrT = physicsRange(1.6, 3.2) / d.driftT; p.tdrGoal = (physicsRandom() < 0.5 ? -1 : 1) * physicsRange(0.3, 0.55) * d.drift; }
-  const goal = live ? (p.tdrGoal || 0) * (['chain', 'alien'].includes(activeMech()) ? CFG[difficulty().id + 'FocusDrift'] : 1) : tutDrift ? 0.35 * Math.sign(p.tdrGoal || 1) : 0;
+  const goal = live ? (p.tdrGoal || 0) * (['chain', 'alien'].includes(activeMech()) ? CFG[difficulty().id + 'FocusDrift'] : 1) : tutDrift ? .65 : 0;
   p.tdr += (goal - p.tdr) * Math.min(1, 2 * dt);
   // a bump: ~0.8 s warning (! over your head), then a shove on height and/or tilt
   const b = st.bump;
@@ -1211,10 +1213,15 @@ function toastClockVisual() {
 function toastBeatReady() { return Math.abs(toastInputLeft()) <= timingWindow(); }
 function canToast() {
   const r = st.round;
-  return !st.paused && st.state === 'play' && (!st.tut || st.tut.step === 5) && st.freeze <= 0 && r && r.phase === 'aim' && !r.smash && !r.attacking && !(st.alien && !st.alien.revealed) && r.t > 0.22;
+  if (st.tut && st.tut.step === 0 && st.tut.sub === 1) return !st.paused && st.state === 'play';
+  return !st.paused && st.state === 'play' && (!st.tut || tutorialActionVisible()) && st.freeze <= 0 && r && r.phase === 'aim' && !r.smash && !r.attacking && !(st.alien && !st.alien.revealed) && r.t > 0.22;
 }
 // Judge synchronously on the input event; subsequent movement cannot change this result.
 function requestToast() {
+  if (st.tut && st.tut.step === 0 && st.tut.sub === 1 && !st.paused) {
+    st.tut.sub = 2; st.tut.t = 0; tutMsg('');
+    juiceClink('ok', true); say(boss, ['对，就这么碰！'], .8); return true;
+  }
   if (st.state === 'play' && !st.paused && st.round && st.round.phase === 'aim' && !st.round.result) { syncToastClock(); revealAlienTarget(); }
   if (!canToast()) return false;
   const r = st.round; r.attacking = true; r.attackT = 0; r.manual = true;
@@ -1226,7 +1233,7 @@ function requestToast() {
 }
 function stepReach(dt) {
   const p = player, r = st.round, before = p.reach || 0;
-  if (!r || st.tut && st.tut.step !== 5 || st.state !== 'play') { p.reach = 0; p.reachV = 0; return; }
+  if (!r || st.tut && !tutorialActionVisible() || st.state !== 'play') { p.reach = 0; p.reachV = 0; return; }
   p.reach = Math.max(0, before - dt / (r.chain ? 0.12 : 0.18));
   p.reachV = (p.reach - before) / dt;
 }
@@ -1446,7 +1453,7 @@ function judgeClink() {
   const margin = player.P.rim.y - by;
   r.margin = margin;
   r.timing = r.tut && !r.manual ? 0 : toastInputLeft();
-  const timed = !r.tut || st.tut && st.tut.step === 5;
+  const timed = !r.tut || st.tut && tutorialBeatStep();
   const offBeat = timed && Math.abs(r.timing) > timingWindow();
   // Perfect requires accurate timing and a steady rim and cup over the last 0.18 s.
   const mh = (r.mh || []).filter(m => st.t - m[0] <= 0.18), avg = (mh.reduce((a, m) => a + m[1], 0) + margin) / (mh.length + 1);
@@ -1466,9 +1473,12 @@ function judgeClink() {
   if (st.alien && st.alien.on && tc === boss) jbx = alienRimX(st.alien.cup);
   st.judge = { word: offBeat ? r.timing > 0 ? '敬早了！扑空！' : '敬晚了！' : far ? '敬到地府了!' : !ok ? '胆儿肥了!' : perfect ? '完美拿捏!' : r.manual ? '碰上了！' : '礼数到位!', col: far ? '#ff9a3d' : !ok ? '#ff4d4d' : perfect ? '#ffd34d' : '#ffffff', t: 0,
     px: player.P.rim.x, py: player.P.rim.y, bx: jbx, by };
-  if (r.tut) { r.result = ok ? 'ok' : 'strike'; r.waitForBeat = r.inputJudged && toastInputLeft() > 1e-9 && !offBeat; if (r.waitForBeat) st.freeze = 0; else { r.phase = 'react'; r.t = 0; } judgeSay(ok ? pick([['真乖！'], ['对喽！'], ['这才像样']]) : offBeat ? ['看红色 0s 那一拍按空格！'] : far ? ['太低啦，妈够不着！'] : ['杯子比妈还高？']);
-    for (let i = 0; i < 14; i++) parts.push({ x: (player.P.rim.x + boss.P.rim.x) / 2 + R(-12, 12), y: (player.P.rim.y + boss.P.rim.y) / 2, vx: R(-220, 220), vy: R(-460, -120), life: 2, r: R(4, 8), col: drinkCol(), type: 'drop' });
-    return; }
+  if (r.tut) {
+    st.judge.word = ok ? '碰上了！' : offBeat ? '没踩上拍子' : far ? '太低啦！' : '再低一点！';
+    r.result = ok ? 'ok' : 'strike';
+    if (!r.chain) judgeSay(ok ? ['对喽！'] : offBeat ? ['听第三声，再碰！'] : far ? ['太低啦，妈够不着！'] : ['杯口再低一点']);
+    finishToastAttempt(); return;
+  }
   const cx = (player.P.rim.x + tc.P.rim.x) / 2, cy = (player.P.rim.y + tc.P.rim.y) / 2;
   if (offBeat) { judgeSay(r.timing > 0 ? ['急什么？我还没伸手呢！'] : ['这杯我举了一个世纪！']); strike(null, null, r.timing > 0 ? 'early' : 'late'); finishToastAttempt(); return; }
   if (far) { judgeSay(['接地气，不是接地府！']); strike(null, null, 'far'); finishToastAttempt(); return; }
@@ -1578,92 +1588,147 @@ function stepRound(dt) {
   }
 }
 
-// ---------------------------------------------------------------- tutorial level: 妈妈教你酒桌规矩
-// Mom plays the boss at home with a cup of juice. One mechanic per step; each step waits for the
-// player to actually do it. Nothing can fail here: spills get topped up, wobbles are caught.
+// ---------------------------------------------------------------- tutorial: Mom teaches with juice, real motion, no failure.
 const MOM_SPEC = { kind: 'guest', mom: true, shirt: '#e2577a', pants: '#5a4a6a', skin: '#f3c7a0', hair: '#3a2418', apron: '#fff3d6', scale: SC * 0.98, drink: '#ff9a2e' };
-function wantTutorial() { return params.get('tut') === '1'; }
-function tutLevel(dy) { return st.stand + dy * SC / 1.45; } // a target height relative to standing
+const TUTORIAL_KEY = 'toastLower.tutorial.v2';
+let tutorialSeen = false;
+try { tutorialSeen = ['completed', 'skipped'].includes(localStorage.getItem(TUTORIAL_KEY)) || localStorage.getItem('toastLower.tutDone') === '1'; } catch (_) {}
+function wantTutorial() {
+  if (params.has('tut')) return params.get('tut') === '1';
+  return !tutorialSeen && !BOT && !AUTO && !CAPTURE && START_LAYER === 0;
+}
+function tutorialBeatStep() { return !!st.tut && (st.tut.step === 5 || st.tut.step === 6); }
+function tutorialActionVisible() { return !!st.tut && (st.tut.step === 0 || tutorialBeatStep()); }
+function tutorialSkipRect() { const home = homeBtnRect(), navX = home.x - home.w - (TOUCH ? 18 : 12); return { x: navX - (TOUCH ? 246 : 150), y: TOUCH ? 34 : 24, w: TOUCH ? 224 : 132, h: TOUCH ? 116 : 60 }; }
+function tutLevel(dy) { return st.stand + dy * SC / 1.45; }
 function tutHold(dy) { st.round = { phase: 'hold', t: 0, T: 99, target: tutLevel(dy), smash: false, n: 0, tut: true }; }
 function tutMsg(zh, keysArr) { st.tut.msg = mobileWords(zh); st.tut.keys = keysArr || []; }
-function tutNext() { st.tut.step++; st.tut.t = 0; st.tut.sub = 0; st.tut.acc = 0; st.tut.fails = 0; st.tut.enter = true; }
+function tutNext() { st.tut.step++; st.tut.t = 0; st.tut.sub = 0; st.tut.acc = 0; st.tut.enter = true; st.judge = null; bubbles.length = 0; }
 function tutClink() { st.round.phase = 'clink'; st.round.t = 0; }
 function startTutorial() {
-  st.tut = null; restart();
-  st.tut = { step: 0, t: 0, sub: 0, acc: 0, fails: 0, enter: true, msg: '', keys: [], fade: 0, usedQ: false };
-  st.L = 0; reset(); tutHold(20); bigText = null;
+  st.startingTutorial = true; st.tut = null; restart(); st.startingTutorial = false;
+  st.tut = { step: 0, t: 0, sub: 0, acc: 0, enter: true, msg: '', keys: [], fade: 0 };
+  st.L = 0; reset(); tutHold(20); bigText = null; bubbles.length = 0;
+  stepTutorial(0);
 }
-function endTutorial() {
+function endTutorial(outcome = 'completed') {
+  tutorialSeen = true;
+  try { localStorage.setItem(TUTORIAL_KEY, outcome); } catch (_) {}
   st.tut = null; restart();
 }
-function tutHoldStep(dy, line, msg, keysArr, again) { // shared: get your rim under Mom's line, she clinks
+function tutHoldStep(dy, msg, keysArr, combined = false) {
   return {
-    enter() { tutHold(dy); say(boss, line, 3.4); tutMsg(msg, keysArr); },
+    enter() { tutHold(dy); st.tut.sway = combined; tutMsg(msg, keysArr); },
+    step(T, dt) {
+      const tu = st.tut, r = st.round, margin = player.P.rim.y - toastRimY();
+      if (r.phase === 'hold') {
+        const steady = !combined || Math.abs(player.tilt + player.w) < .18;
+        tu.acc = margin > 2 && margin < winSpan() && steady ? tu.acc + dt : 0;
+        if (tu.acc > .45) { tutMsg(''); tutClink(); }
+      } else if (r.phase === 'react' && r.t > .5) {
+        if (r.result === 'ok') tutNext();
+        else { tutHold(dy); st.judge = null; tutMsg(msg, keysArr); tu.acc = 0; }
+      }
+    }
+  };
+}
+function beginTutorialBeat(chain) {
+  const target = st.round.target;
+  st.round = { phase: 'aim', t: 0, T: 2 + (chain ? Math.min(REACH_TIME, CFG.chainReach, 60 / CFG.musicBpm * .38) : reachTime()) - .5,
+    target, smash: false, n: 1, tut: true, mh: [] };
+  if (chain) Object.assign(st.round, { chain: 2, chainIndex: 0, chainHits: 0, chainResults: [], chainBeat: 60 / CFG.musicBpm, scoredHits: 0 });
+  st.judge = null; bubbles.length = 0;
+  tutMsg(chain ? '高度稳住，跟拍碰两下' : '圈合拢、第三声响，按空格', ['Space']);
+}
+function tutorialBeatExercise(chain) {
+  return {
+    enter() {
+      tutHold(115); st.tut.sway = true;
+      if (chain) say(boss, ['这回碰两下，别碰一下就跑！'], 1.5);
+      tutMsg('先对准高度，准备碰杯', ['O', 'P', 'Q', 'W']);
+    },
     step(T, dt) {
       const tu = st.tut, r = st.round;
-      if (r.phase === 'hold') { tu.acc = player.P.rim.y > r.target + 4 ? tu.acc + dt : Math.max(0, tu.acc - dt); if (T > 2.6 && tu.acc > 0.45) { tutMsg(''); tutClink(); } }
-      else if (r.phase === 'react' && r.t > 1.3) { if (r.result === 'ok') tutNext(); else { tutHold(dy); say(boss, again, 1.8); tutMsg(msg, keysArr); tu.acc = 0; } }
-    } };
+      if (r.phase === 'hold') {
+        const margin = player.P.rim.y - toastRimY();
+        tu.acc = margin > 0 && margin < winSpan() ? tu.acc + dt : 0;
+        if (tu.acc >= .35 && (!chain || T >= 1)) beginTutorialBeat(chain);
+      } else if (r.waitForBeat && toastInputLeft() <= 1e-9) finishToastAttempt();
+      else if (r.phase === 'aim' && !r.result && toastInputLeft() < -timingWindow()) {
+        r.result = 'strike'; r.timing = toastInputLeft();
+        st.judge = { word: '错过这一拍', col: '#ff9a78', t: 0, px: player.P.rim.x, py: player.P.rim.y, bx: boss.P.rim.x, by: toastRimY() };
+        finishToastAttempt();
+      } else if (r.phase === 'react' && r.t > .5) {
+        if (roundSucceeded(r)) { player.reach = player.reachV = 0; tutNext(); }
+        else {
+          const target = r.target; tutHold(115); st.round.target = target; tu.acc = 0; st.judge = null;
+          tutMsg(chain ? '漏了一拍，整组再来！' : '听第三声，再试一次', []);
+        }
+      }
+    }
+  };
 }
 const TUT_STEPS = [
-  { // 0: hello
-    enter() { tutHold(10); say(boss, ['儿子，过来，妈教你酒桌规矩'], 3.2); tutMsg(''); },
-    step(T) { if (T > 3.4) tutNext(); } },
-  // 1: O goes down
-  tutHoldStep(52, ['碰杯时，杯口要比长辈低！'], '按住 O 弯下去，杯口低过线', ['O'], ['高了高了，再来']),
-  { // 2: P comes back up
-    enter() { tutHold(-40); say(boss, ['好！P 是起身'], 2.4); tutMsg('按住 P 站直', ['P']); },
-    step(T, dt) { const tu = st.tut; tu.acc = player.h < 0.04 ? tu.acc + dt : 0; if (T > 1.5 && tu.acc > 0.5) tutNext(); } },
-  { // 3: the cup drifts by itself; Q tips it back, W forward
-    enter() { tutHold(-40); st.tut.drift = true; say(boss, ['看你的杯子，它自己会慢慢歪'], 3); tutMsg(''); },
+  { // Learn the two hands before balancing or timing is introduced.
+    enter() { tutHold(10); tutMsg(TOUCH ? '左手推摇杆：上下调高度，左右扶杯' : 'O / P 调高度，Q / W 扶杯', ['O', 'P', 'Q', 'W']); },
     step(T, dt) {
-      const tu = st.tut, p = player;
-      if (tu.sub === 0) { if (Math.abs(p.tilt) > 0.2 || T > 5) { tu.sub = 1; tu.t = 0; tu.used = false; say(boss, ['Q 往后仰，W 往前倾，扶平它'], 3); tutMsg('点按 Q / W，把杯子扶平', ['Q', 'W']); } }
-      else if (tu.sub === 1) { if (keys.Q || keys.W) tu.used = true; tu.acc = tu.used && Math.abs(p.tilt) < 0.08 ? tu.acc + dt : 0;
-        if (tu.acc > 1.0 || tu.t > 14) { tu.sub = 2; tu.t = 0; tu.n = 0; say(boss, ['还有，酒会晃！看好了…'], 2.6); tutMsg(''); } }
-      else if (tu.sub === 2) { if (tu.t > 2.4) { tu.sub = 3; tu.t = 0; tu.acc = 0; p.wv = (tu.n % 2 ? -1 : 1) * 1.9;
-          say(boss, ['酒会晃，反着扶！'], 2.6); tutMsg('酒往前涌按 Q，往后涌按 W', ['Q', 'W']); } }
-      else if (tu.sub === 3) { tu.acc = tu.t > 0.6 && Math.abs(p.w) < 0.08 && Math.abs(p.wv) < 0.6 && Math.abs(p.tilt) < 0.12 ? tu.acc + dt : 0;
-        if (tu.acc > 0.6 || tu.t > 12) { tu.n++; tu.t = 0; tutMsg('');
-          if (tu.n < 2) { tu.sub = 2; tu.t = 1.0; say(boss, ['好，再来一下'], 1.6); } else { tu.sub = 4; say(boss, ['对喽，手要一直扶着'], 2.8); } } }
-      else if (tu.t > 2.8) { tu.drift = false; tutNext(); }
-    } },
-  // 4: moving fast sloshes the drink
-  tutHoldStep(175, ['再低点。动太快，酒会晃出来！'], '慢慢按 O 往下，边走边扶杯', ['O', 'Q', 'W'], ['再低一点点']),
-  { // 5: practise the same leader beat as the real game, without losing lives.
-    enter() { st.round = { phase: 'aim', t: 0, T: 4.5, target: tutLevel(115), smash: false, n: 1, tut: true }; st.tut.sway = true;
-      say(boss, ['看准红色 0s，按空格一起碰！'], 3.5); tutMsg('红色 0s 按空格 · Q/W 继续扶杯', ['Q', 'W', 'O', 'P']); },
+      const tu = st.tut;
+      if (tu.sub === 0) {
+        if (keys.O || keys.P || keys.Q || keys.W) tu.acc += dt;
+        if (T > .7 && tu.acc > .12) {
+          tu.sub = 1; tu.t = 0; tutMsg(TOUCH ? '右手点敬酒，跟妈妈碰杯' : '按空格，跟妈妈碰杯', ['Space']);
+        }
+      } else if (tu.sub === 2 && T > .5) tutNext();
+    }
+  },
+  tutHoldStep(52, '上下调整，让杯口落在辅助带里', ['O', 'P']),
+  { enter() { tutHold(-40); tutMsg('按住 P 站直', ['P']); },
+    step(T, dt) { const tu = st.tut; tu.acc = keys.P && player.h < .04 ? tu.acc + dt : 0; if (tu.acc > .35) tutNext(); } },
+  { // A visible, predictable lean; idle waiting can never pass this exercise.
+    enter() {
+      tutHold(-40); st.tut.drift = true; st.tut.sway = true; st.tut.countered = false;
+      player.tilt = .1; player.vet = .14;
+      say(boss, ['杯子要洒了，反着扶！'], 1.5);
+      tutMsg('点按 Q / W，把杯子扶平', ['Q', 'W']);
+    },
     step(T, dt) {
-      const tu = st.tut, r = st.round;
-      if (r.waitForBeat && toastInputLeft() <= 1e-9) { r.waitForBeat = false; r.phase = 'react'; r.t = 0; }
-      else if (r.phase === 'aim' && !r.result && toastInputLeft() < -timingWindow()) { r.result = 'strike'; r.phase = 'react'; r.t = 0; say(boss, ['这拍错过了，再来一次'], 1.6); }
-      else if (r.phase === 'react' && r.t > 1.4) {
-        if (r.result === 'ok') { player.reach = 0; player.reachV = 0; tutNext(); }
-        else { st.round = { phase: 'aim', t: 0, T: 4.5, target: tutLevel(115), smash: false, n: 1, tut: true };
-          say(boss, ['没事，再来！看妈的手，跟着碰'], 2.4); }
-      }
-    } },
-  { // 6: below the floor -> smash with O (but not at home!)
-    enter() { st.tut.sway = false; st.round = { phase: 'aim', t: 0, T: 999, target: floorY(0) + poseTable(boss.spec)[100].low, smash: true, n: 1, tut: true, beep: 0 }; say(boss, ['以后领导会比地板还低…'], 3.2); tutMsg(''); },
+      const tu = st.tut, p = player, level = p.tilt + p.w;
+      if ((keys.W - keys.Q) * level < -.015) tu.countered = true;
+      if (tu.sub === 0 && Math.abs(level) > .18) tu.sub = 1;
+      // Early active correction also counts; the user need not wait for a spill.
+      const steady = tu.countered && Math.abs(level) < .10 && Math.abs(p.cupRate) < .45;
+      tu.acc = steady ? tu.acc + dt : 0;
+      if (tu.acc >= .6) { tu.drift = false; say(boss, ['对喽，手要一直扶着'], .8); tutNext(); }
+    }
+  },
+  tutHoldStep(175, '慢慢按 O 往下，边走边扶杯', ['O', 'Q', 'W'], true),
+  tutorialBeatExercise(false),
+  tutorialBeatExercise(true),
+  { // Hold down to smash, then Mom stops the demonstration at home.
+    enter() { st.tut.sway = false; st.round = { phase: 'aim', t: 0, T: 999, target: floorY(0) + poseTable(boss.spec)[100].low, smash: true, n: 1, tut: true, beep: 0 }; tutMsg('按住 O：趴下，再继续砸', ['O']); },
     step(T) {
       const tu = st.tut;
-      if (tu.sub === 0 && T > 3.4) { tu.sub = 1; say(boss, ['那就按住 O 趴到底，继续按住，砸穿地板！'], 3.6); tutMsg('按住 O：趴下，再继续砸', ['O']); }
-      else if (tu.sub === 1 && st.pressure > 0.55) { tu.sub = 2; tu.t = 0; st.round.smash = false; st.round.target = tutLevel(10); st.pressure = 0; tutMsg(''); say(boss, ['停停停！家里的地板不许砸！'], 2.4); }
-      else if (tu.sub === 2 && tu.t > 2.6) { tu.sub = 3; tu.t = 0; say(boss, ['好了，去上班吧！'], 2.2); }
-      else if (tu.sub === 3 && tu.t > 2.2) { tu.sub = 4; tu.t = 0; tu.fade = 0.001; }
-      else if (tu.sub === 4 && tu.t > 1.0) endTutorial();
-    } },
+      if (tu.sub === 0 && st.pressure > .55) { tu.sub = 1; tu.t = 0; st.round.smash = false; st.round.phase = 'hold'; st.pressure = 0; tutMsg(''); say(boss, ['停停停！家里的地板不许砸！'], 1.3); }
+      else if (tu.sub === 1 && T > 1.3) { tu.sub = 2; tu.t = 0; tu.fade = .001; }
+      else if (tu.sub === 2 && T > .7) endTutorial();
+    }
+  }
 ];
 function stepTutorial(dt) {
   const tu = st.tut; if (!tu) return;
-  tu.t += dt; if (tu.fade) tu.fade += dt;
   const S = TUT_STEPS[tu.step];
   if (tu.enter) { tu.enter = false; tu.t = 0; S.enter(); }
+  // The first gesture enables audio; nothing times out before the player arrives.
+  if (!gestured && !BOT && !CAPTURE) return;
+  tu.t += dt; if (tu.fade) tu.fade += dt;
   const r = st.round;
-  if (r) { r.t += dt; if (tu.step === 5) { syncToastClock(dt); stepToastCue(); } if (r.phase === 'clink' && (Math.abs(boss.P.rim.x - (player.P.rim.x + 24 * SC)) < 14 || r.t > 0.45)) judgeClink(); }
+  if (r) {
+    r.t += dt;
+    if (tutorialBeatStep() && r.phase === 'aim') { syncToastClock(dt); stepToastCue(); }
+    if (r.phase === 'clink' && (Math.abs(boss.P.rim.x - (player.P.rim.x + 24 * SC)) < 14 || r.t > .45)) judgeClink();
+  }
   if (st.tut === tu) S.step(tu.t, dt);
-  // forgiving: keep a little juice in the cup
-  if (player.wine < 0.25) { player.wine = 0.7; say(boss, ['妈给你满上'], 1.4); }
+  if (player.wine < .25) { player.wine = .7; say(boss, ['妈给你满上'], 1.2); }
 }
 
 function drinkCol(c) { return (c && c.spec.drink) || (st.tut ? '#ff9a2e' : '#f2b51d'); }
@@ -3059,7 +3124,7 @@ function drawStick() {
 }
 
 function drawToastButton() {
-  if (st.tut && st.tut.step !== 5 || st.state !== 'play' || st.paused) return;
+  if (st.tut && !tutorialActionVisible() || st.state !== 'play' || st.paused) return;
   const r = toastButtonRect(), rd = st.round, slam = smashOn(), enabled = canToast();
   const risk = Math.abs(player.tilt + player.w) / spillLim(), reach = player.reach || 0;
   if (TOUCH) {
@@ -3079,9 +3144,22 @@ function drawToastButton() {
   if (reach > 0) { ctx.fillStyle = risk > 1 ? '#ef7657' : '#89cbb2'; rr(r.x + 6, r.y + r.h - 11, Math.max(8, (r.w - 12) * reach), 6, 3); ctx.fill(); }
   const beat = !slam && rd && rd.phase === 'aim' && Math.abs(toastInputLeft()) < 0.05;
   if (beat && !rd.attacking) { ctx.strokeStyle = '#ff6666'; ctx.lineWidth = 5; rr(r.x - 4, r.y - 4, r.w + 8, r.h + 8, 18); ctx.stroke(); }
-  const label = slam ? '按住 O 砸穿地板' : rd && rd.phase === 'react' ? '下一杯' : rd && rd.attacking ? '下一拍' : toastInputLeft() < -timingWindow() ? '错过这一拍' : beat ? (Math.abs(toastInputLeft()) < 0.05 ? (TOUCH ? '0s · 现在碰！' : '0s · 按空格！') : TOUCH ? '碰杯' : '空格 · 碰杯') : TOUCH ? '0s 点碰杯' : '0s 按空格';
+  const label = st.tut && st.tut.step === 0 ? '空格 · 碰杯' : slam ? '按住 O 砸穿地板' : rd && rd.phase === 'react' ? '下一杯' : rd && rd.attacking ? '下一拍' : toastInputLeft() < -timingWindow() ? '错过这一拍' : beat ? (Math.abs(toastInputLeft()) < 0.05 ? (TOUCH ? '0s · 现在碰！' : '0s · 按空格！') : TOUCH ? '碰杯' : '空格 · 碰杯') : TOUCH ? '0s 点碰杯' : '0s 按空格';
   text(TOUCH ? (slam ? '左杆向下砸楼' : rd && rd.attacking ? '扶稳！' : rd && rd.phase === 'react' ? '下一杯' : '敬酒') : label, r.x + r.w / 2, r.y + r.h / 2 - 1, TOUCH ? 48 : LAY === 'desk' ? 23 : 29, '#241722', 'center', 900);
   if (TOUCH && !slam) text('红色 0s 点一下', r.x + r.w / 2, r.y + r.h / 2 + 57, 25, '#604d4a', 'center', 700);
+  ctx.restore();
+}
+
+function drawTutorialControls() {
+  const skip = tutorialSkipRect();
+  comicPanel(skip.x, skip.y, skip.w, skip.h, '#f7e4bb', 16);
+  text(TOUCH ? '跳过 ›' : 'S 跳过', skip.x + skip.w / 2, skip.y + skip.h / 2, TOUCH ? 38 : 25, '#75382c', 'center', 900);
+  if (st.paused || st.tut.step !== 0) return;
+  const left = st.tut.sub === 0, active = st.tut.sub < 2;
+  if (!active) return;
+  ctx.save(); ctx.strokeStyle = '#ffe28c'; ctx.lineWidth = 6; ctx.globalAlpha = .75 + .25 * Math.sin(st.t * 4);
+  if (TOUCH && left) { const r = stickRect(); ctx.beginPath(); ctx.arc(r.x, r.y, r.r + 18, 0, 2 * PI); ctx.stroke(); }
+  else if (!left) { const r = toastButtonRect(); rr(r.x - 8, r.y - 8, r.w + 16, r.h + 16, TOUCH ? r.h / 2 : 18); ctx.stroke(); }
   ctx.restore();
 }
 
@@ -3152,7 +3230,7 @@ function render() {
   const S = (x, y) => worldToScreen(x, y, shx, shy);
   const rd = st.round, playing = st.state === 'play' && boss.P && player.P;
   // --- the boss's rim height: dashed line, green while you are below it
-  if (playing && rd && rd.phase !== 'react' && !(st.alien && !st.alien.revealed && !rd.smash)) {
+  if (playing && rd && (!st.tut || ![0, 2, 3].includes(st.tut.step)) && rd.phase !== 'react' && !(st.alien && !st.alien.revealed && !rd.smash)) {
     const bry = toastRimY(), by = S(0, bry).y, reach = winSpan(), PERF = perfBand();
     const gap = player.P.rim.y - bry, below = gap >= 0 && (rd.smash || gap <= reach);
     const laneLeft = 0, laneRight = W;
@@ -3275,7 +3353,7 @@ function render() {
     ctx.save(); ctx.globalAlpha = a;
     const mark = (p, col, zh, side) => { ctx.strokeStyle = '#111'; ctx.lineWidth = 10 * UI; line({ x: p.x - 46 * UI, y: p.y }, { x: p.x + 46 * UI, y: p.y }); ctx.strokeStyle = col; ctx.lineWidth = 6 * UI; line({ x: p.x - 46 * UI, y: p.y }, { x: p.x + 46 * UI, y: p.y }); text(zh, p.x + side * 54 * UI, p.y, 22 * UI, col, side > 0 ? 'left' : 'right', 900, 'rgba(0,0,0,0.85)'); };
     const youLow = j.py >= j.by;
-    mark(bp, '#ffd34d', '领导', 1); mark(pp, youLow ? '#7dff8a' : '#ff4d4d', '你', -1);
+    mark(bp, '#ffd34d', st.tut ? '妈妈' : '领导', 1); mark(pp, youLow ? '#7dff8a' : '#ff4d4d', '你', -1);
     const sc3 = 1 + Math.max(0, 0.18 - j.t) * 1.2;
     ctx.translate(W / 2, HB + 156 * UI); ctx.scale(sc3 * UI, sc3 * UI);
     text(j.word, 0, 0, j.word.length > 5 ? 76 : 92, j.col, 'center', 900, 'rgba(0,0,0,0.9)');
@@ -3315,7 +3393,7 @@ function render() {
     if (st.gain && st.gain.t < 1.2) { ctx.globalAlpha = clamp((1.2 - st.gain.t) * 3, 0, 1); text(`+${st.gain.n.toLocaleString('en-US')}`, hudW / 2, 102 - st.gain.t * 10, 26, '#7dff8a', 'center', 900, 'rgba(0,0,0,0.75)'); ctx.globalAlpha = 1; }
 
   }
-  if (st.tut) text(TOUCH ? '跳过 ›' : 'S 跳过 ›', hudW - 22, 34, 24, '#fff', 'right', 900, 'rgba(0,0,0,0.7)');
+
   ctx.restore();
   // --- the side glass (main beer feedback)
   if (st.state === 'play' || st.state === 'title' || st.state === 'standup' || st.state === 'fall' || st.state === 'over') drawGauge(t);
@@ -3335,11 +3413,12 @@ function render() {
   }
   st.hintKeys = hint ? hint[1] : [];
   if (TOUCH && hint && !st.tut) hint = null;
-  if (TOUCH && hint) hint = [mobileWords(hint[0]), hint[1].map(k => ({ Q: '←', W: '→', O: '↓', P: '↑', Space: '点' })[k] || k)];
+  if (TOUCH && hint) hint = [mobileWords(hint[0]), st.tut ? [] : hint[1].map(k => ({ Q: '←', W: '→', O: '↓', P: '↑', Space: '点' })[k] || k)];
   if (hint) {
-    const wy = PORT ? floorSY() + 44 : LAY === 'land' ? floorSY() + 28 : 839, fs2 = (st.tut ? 32 : 25) * UI;
+    const wy = TOUCH && st.tut ? H - 52 : PORT ? floorSY() + 44 : LAY === 'land' ? floorSY() + 28 : 839, fs2 = TOUCH && st.tut ? 44 : (st.tut ? 32 : 25) * UI;
     ctx.font = `900 ${fs2}px ${FONT}`; const tw = ctx.measureText(hint[0]).width, cw = hint[1].length * (fs2 * 1.25 + 8);
     let x0 = W / 2 - (tw + cw + (cw ? 12 : 0)) / 2;
+    if (TOUCH && st.tut) { ctx.fillStyle = 'rgba(42,25,30,.88)'; rr(x0 - 22, wy - 34, tw + 44, 68, 18); ctx.fill(); }
     for (const kk of hint[1]) { const sz = fs2 * 1.25; ctx.fillStyle = blink ? '#ffd34d' : '#fff'; rr(x0, wy - sz / 2, sz, sz, 10); ctx.fill(); text(kk, x0 + sz / 2, wy + 2, fs2 * 0.9, '#111', 'center', 900); x0 += sz + 8; }
     if (cw) x0 += 12;
     text(hint[0], x0, wy, fs2, st.tut ? '#ffffff' : '#ffd34d', 'left', 900, 'rgba(0,0,0,0.8)');
@@ -3413,6 +3492,7 @@ function render() {
     text(st.guide.text, W / 2, y, size, '#ffe4a0', 'center', 800);
   }
   drawGameNavigation();
+  if (st.tut) drawTutorialControls();
   if (st.state === 'title') {
     ctx.fillStyle = '#21141e'; ctx.fillRect(0, 0, W, H);
     if (mobileTitle()) drawMobileTitle(); else drawDesktopTitle();

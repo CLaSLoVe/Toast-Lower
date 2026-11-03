@@ -26,9 +26,9 @@ function stickAxes(dx, dy, deadzone, curve) {
   const axis = v => Math.sign(v) * Math.pow(Math.max(0, Math.min(1, (Math.abs(v) - deadzone) / (1 - deadzone))), curve);
   return { rawX, rawY, x: axis(rawX), y: axis(rawY) };
 }
-function guide(mech, touch) {
+function guide(mech, touch, count = 2) {
   return { basic: touch ? '圈合拢、第三声响，点敬酒' : '圈合拢、第三声响，按空格',
-    shake: '晃动时，边调高度边扶杯', chain: '高度不变，跟着拍子连敬', alien: '最后一秒，看亮圈追目标' }[mech];
+    shake: '晃动时，边调高度边扶杯', chain: `这一组连碰${({2: '两', 3: '三', 4: '四'})[count] || count}下，全中再往下`, alien: '最后一秒，看亮圈追目标' }[mech];
 }
 window.ToastUI = { KEYMAP, mobileWords, canvasPoint, stickAxes, guide };
 })();

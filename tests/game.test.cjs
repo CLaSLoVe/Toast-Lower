@@ -453,7 +453,7 @@ if (!matrixOnly) {
     for (const input of ['keyboard', 'touch']) {
       const g = game('?tut=1&seed=20261022'); g.tap('Enter');
       // Select the teaching exercise, without skipping its enter/step behavior.
-      Object.assign(g.inspect.st.tut, { step: 5, t: 0, sub: 0, enter: true }); g.advance(24);
+      Object.assign(g.inspect.st.tut, { step: 5, t: 0, sub: 0, enter: true }); g.inspect.stepTutorial(0); g.inspect.beginTutorialBeat(false); g.advance(24);
       if (input === 'keyboard') g.tap('Space'); else g.pressAction();
       assert.equal(g.inspect.contacts.length, 1); assert.equal(g.inspect.player.reach, 1);
       assert.equal(g.inspect.contacts[0].result, 'strike');
@@ -467,7 +467,7 @@ if (!matrixOnly) {
       visited.add(g.api.tut().step); g.advance(1);
     }
     assert.equal(g.api.tut(), null, 'tutorial has no unreachable exercise');
-    assert.deepEqual([...visited], [0, 1, 2, 3, 4, 5, 6]);
+    assert.deepEqual([...visited], [0, 1, 2, 3, 4, 5, 6, 7]);
     assert.equal(g.api.state().state, 'play'); assert.equal(g.api.state().layer, 0);
     assert.equal(g.api.state().strikes, 0); g.render(); finiteState(g);
   });
@@ -595,8 +595,9 @@ test('toast beats pause with play and run in the timing tutorial', () => {
   g.tap('Escape'); until(g, () => g.sandbox.__sounds.some(s => s.type === 'countGo'));
   assert.equal(g.sandbox.__sounds.filter(s => s.type.startsWith('count')).length, 3);
   g.inspect.st.tut = { step: 5, t: 0, enter: true };
+  g.inspect.stepTutorial(0); g.inspect.beginTutorialBeat(false);
   g.sandbox.__sounds.length = 0;
-  for (let i = 0; i < 280; i++) g.inspect.stepTutorial(1 / 60);
+  for (let i = 0; i < 160; i++) g.inspect.stepTutorial(1 / 60);
   assert.deepEqual(Array.from(g.sandbox.__sounds.filter(s => s.type.startsWith('count')), n => n.type), ['count', 'count', 'countGo']);
 });
 

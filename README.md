@@ -21,7 +21,11 @@ Automated playthrough.
 | Pause | Esc / pause button | Top-right pause button |
 | Return home | Top-right house icon | Top-right house icon |
 
-On desktop, R restarts and M mutes. Open Settings from the home screen or during play to adjust audio; closing it resumes an active game. Choose a difficulty or open the tutorial from the home screen. On mobile, diagonal stick input controls both axes; releasing it preserves momentum. The game always uses landscape: with portrait rotation lock enabled, the display and touch controls rotate automatically inside the page.
+On desktop, R restarts and M mutes. Choose a difficulty or replay the tutorial from the home screen. Settings are available both at home and during play to adjust audio.
+
+New players automatically meet Mom and can skip at any time. On mobile, learn left-hand movement and right-hand toasting, then balancing, timing, a two-toast phrase and floor smashing. The cup wobbles and spills, but Mom replenishes the juice. The countdown starts once the height is aligned; both toasts must land to finish the phrase.
+
+On mobile, diagonal stick input controls both axes; releasing it preserves momentum. Even with portrait rotation lock enabled, the display and touch controls rotate automatically inside the page.
 
 The red **0s** marks the ideal toast timing. Run out of wine and the game ends. Missed toasts cost wine; successful rounds restore a little. Perfect toasts require both precise timing and a steady glass. Later glasses are smaller and hold less wine.
 

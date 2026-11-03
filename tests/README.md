@@ -117,3 +117,10 @@ partial refill conversion and its cap, retry exclusion, score/wine conservation,
 one-time settlement, and receipt/restart hit targets on desktop, landscape and
 rotated portrait. Contacts are controlled to isolate scoring; these are not human
 completion-rate estimates. Difficulty tests check the tighter windows separately.
+
+`node tests/tutorial.test.cjs` verifies first-visit routing and persistent explicit
+skips/completions, no progress from idle waiting, mobile left/right-hand training
+and skip hit targets (including rotated portrait), real tutorial spills without
+a failure state, height-gated musical countdowns, whole-phrase retry behavior,
+and normal-input completion with each selected difficulty. Tutorial practice
+never changes real score/penalties, and exiting starts with fresh resources.

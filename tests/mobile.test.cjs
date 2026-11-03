@@ -82,9 +82,9 @@ test('mobile smash, tutorial, feedback and navigation prompts never show keyboar
   }
   g.tap('Escape');check();g.tap('Escape');
   g.inspect.st.state='title';g.tap('KeyT');
-  for(let step=0;step<=6;step++) {
+  for(let step=0;step<=7;step++) {
    Object.assign(g.inspect.st.tut,{step,enter:true,sub:0,t:0,acc:0});g.inspect.stepTutorial(1/60);check();
-   if(step===3||step===6){g.inspect.st.tut.t=6;g.inspect.stepTutorial(1/60);check();}
+   if(step===3||step===7){g.inspect.st.tut.t=6;g.inspect.stepTutorial(1/60);check();}
   }
   g.inspect.st.judge={word:'没敬上',col:'#fff',t:.3,px:0,py:0,bx:0,by:0,sub:'看红色 0s 那一拍按空格！'};check();
   assert.ok(drawn.some(s=>s.includes(touch?'点「敬酒」':'按空格')));

@@ -82,7 +82,7 @@ test('twelfth floor settles before endless, preserves all statistics and resumes
 test('first-use hints persist once per mechanic, with mobile-specific actions and an off switch', () => {
  const g=game();assert.ok(g.inspect.st.guide.text.includes('按空格'));
  g.inspect.st.guide=null;g.inspect.firstGuide();assert.equal(g.inspect.st.guide,null);
- g.inspect.st.L=6;g.inspect.firstGuide();assert.ok(g.inspect.st.guide.text.includes('连敬'));
+ g.inspect.st.L=6;g.inspect.firstGuide();assert.ok(g.inspect.st.guide.text.includes('全中再往下'));
  const again=game('normal',{storage:Object.fromEntries(g.storage)});assert.equal(again.inspect.st.guide,null);
  const mobile=game('normal',{touch:true});assert.ok(mobile.inspect.st.guide.text.includes('点敬酒'));
  const off=game('normal',{storage:{'toastLower.guides.enabled':'0'}});assert.equal(off.inspect.st.guide,null);
