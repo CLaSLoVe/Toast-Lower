@@ -9,18 +9,21 @@ function click(g,r,portrait=false){const cv=g.sandbox.document.getElementById('c
  else g.point('pointerdown',x,y,9);
 }
 {
- const g=fresh();assert.equal(g.inspect.st.state,'play');assert.equal(g.api.tut().step,0);assert.equal(g.inspect.boss.spec.mom,true);
+ const g=fresh();assert.equal(g.inspect.st.state,'title');assert.equal(g.api.tut(),null);
+ g.advance(600);assert.equal(g.inspect.st.state,'title');assert.equal(g.api.tut(),null);
+ g.tap('Enter');assert.equal(g.api.tut().step,0);assert.equal(g.inspect.boss.spec.mom,true);
  g.advance(600);assert.equal(g.api.tut().step,0);assert.equal(g.api.tut().sub,0);assert.equal(g.sandbox.__sounds.filter(s=>s.type.startsWith('count')).length,0);
  assert.equal(g.storage.has('toastLower.tutorial.v2'),false);assert.equal(g.storage.has('toastLower.guides.seen.v1'),false,'opening Mom cannot consume a real-stage hint');
  g.tap('KeyS');assert.equal(g.api.tut(),null);assert.equal(g.storage.get('toastLower.tutorial.v2'),'skipped');
  assert.equal(fresh({storage:Object.fromEntries(g.storage)}).inspect.st.state,'title');
  assert.equal(fresh({storage:{'toastLower.tutDone':'1'}}).inspect.st.state,'title','legacy completion is respected');
  for(const query of ['?tut=0','?capture=1','?auto=1','?bot=expert','?layer=6'])assert.equal(fresh({search:query}).api.tut(),null,query);
- const abandoned=fresh();const home=abandoned.inspect.homeButton;click(abandoned,home);assert.equal(abandoned.storage.has('toastLower.tutorial.v2'),false);abandoned.tap('Enter');assert.ok(abandoned.api.tut());
+ const abandoned=fresh();abandoned.tap('Enter');const home=abandoned.inspect.homeButton;click(abandoned,home);assert.equal(abandoned.storage.has('toastLower.tutorial.v2'),false);abandoned.tap('Enter');assert.ok(abandoned.api.tut());
 }
-console.log('PASS fresh users automatically meet Mom; explicit skip/completion and abandoned sessions are distinguished');
+console.log('PASS fresh users stay on home until Start; explicit skip/completion and abandoned sessions are distinguished');
 for(const portrait of [false,true]){
  const g=fresh({touch:true,width:portrait?390:844,height:portrait?844:390});
+ click(g,g.inspect.titleStartButton,portrait);
  assert.ok(g.inspect.st.tut.msg.includes('左手'));assert.ok(g.inspect.st.tut.msg.includes('左右扶杯'));
  const sr=g.inspect.stickGeometry;
  if(portrait){const cv=g.sandbox.document.getElementById('c'),r=cv.getBoundingClientRect(),{W,H}=g.inspect.canvasSize;g.canvasDispatch('pointerdown',{pointerId:1,clientX:r.left+(1-(sr.y+.5*sr.r)/H)*r.width,clientY:r.top+sr.x/W*r.height});}
@@ -62,7 +65,7 @@ console.log('PASS all selected difficulties complete every exercise through ordi
 }
 console.log('PASS height-ready two-second countdown; chain missed beat preserves spacing, full phrase required, no real score/penalty');
 {
- const g=fresh();g.sandbox.localStorage.setItem=()=>{throw Error('blocked storage');};g.tap('KeyS');assert.equal(g.api.tut(),null);
+ const g=fresh();g.tap('Enter');g.sandbox.localStorage.setItem=()=>{throw Error('blocked storage');};g.tap('KeyS');assert.equal(g.api.tut(),null);
  click(g,g.inspect.homeButton);g.tap('Enter');assert.equal(g.api.tut(),null,'same-session skip survives disabled storage');
 }
 console.log('PASS storage rejection cannot break skip or force the same-session tutorial again');
@@ -82,10 +85,10 @@ function toggleTutorial(g,enabled) {
  opts.onChange(opts.values,opts.muted,enabled);opts.onClose();
 }
 {
- const g=fresh();g.tap('KeyS');g.inspect.openPlayerSettings();assert.equal(g.inspect.settings.guides,false);g.inspect.settings.onClose();
+ const g=fresh();g.tap('Enter');g.tap('KeyS');g.inspect.openPlayerSettings();assert.equal(g.inspect.settings.guides,false);g.inspect.settings.onClose();
  toggleTutorial(g,true);click(g,g.inspect.homeButton);g.tap('Enter');assert.ok(g.api.tut());
  g.tap('KeyS');click(g,g.inspect.homeButton);g.tap('Enter');assert.ok(g.api.tut(),'manual on survives completion/skip');
- assert.ok(fresh({storage:Object.fromEntries(g.storage)}).api.tut(),'manual preference persists across reload');
+ const reloaded=fresh({storage:Object.fromEntries(g.storage)});assert.equal(reloaded.inspect.st.state,'title');reloaded.tap('Enter');assert.ok(reloaded.api.tut(),'manual preference persists across reload, applied only on Start');
  toggleTutorial(g,false);g.tap('KeyS');click(g,g.inspect.homeButton);g.tap('Enter');assert.equal(g.api.tut(),null);
  assert.equal(fresh({storage:Object.fromEntries(g.storage)}).api.tut(),null);
  const old=fresh({storage:{'toastLower.tutDone':'1'}});old.inspect.openPlayerSettings();assert.equal(old.inspect.settings.guides,false);
@@ -93,3 +96,20 @@ function toggleTutorial(g,enabled) {
  toggleTutorial(title,true);title.tap('Enter');assert.ok(title.api.tut(),'explicit setting wins on a new start even with old tut=0 link');
 }
 console.log('PASS tutorial toggle: automatic onboarding switches off, explicit on/off persists and controls later starts');
+
+for (const layout of [{touch:false,width:1080,height:1080},{touch:true,width:844,height:390},{touch:true,width:390,height:844}]) {
+ for (const experienced of [false,true]) for (const entry of ['start','tutorial']) {
+  const g=fresh({...layout,storage:experienced?{'toastLower.tutorial.v2':'completed'}:{}});
+  assert.equal(g.inspect.st.state,'title');assert.equal(g.api.tut(),null);
+  g.advance(600);assert.equal(g.inspect.st.state,'title');
+  click(g,entry==='start'?g.inspect.titleStartButton:g.inspect.titleTutorialButton);
+  const taught=!experienced||entry==='tutorial';
+  assert.equal(!!g.api.tut(),taught);assert.equal(g.inspect.st.state,'play');
+  if(taught){g.tap('KeyS');assert.equal(g.api.tut(),null);assert.equal(g.inspect.st.state,'play');assert.equal(g.inspect.st.L,0);}
+ }
+}
+for (const search of ['?tut=1','?tut=0','?auto=1','?capture=1&tut=1&bot=expert','?bot=expert','?frame=120&tut=1']) {
+ const g=fresh({search,stayHome:true});assert.equal(g.inspect.st.state,'title',search);assert.equal(g.api.tut(),null,search);
+ g.advance(600);assert.equal(g.inspect.st.state,'title',search);
+}
+console.log('PASS desktop and both phone orientations: every load stays home, new Start teaches, experienced Start plays, Mom always replays');

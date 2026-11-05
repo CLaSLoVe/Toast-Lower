@@ -132,6 +132,12 @@ function createGame(options = {}) {
   for (const file of ['rules.js', 'chapters.js', 'audio-clock.js', 'input-ui.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), sandbox);
   if (options.realMusic) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'music.js'), 'utf8'), sandbox);
   vm.runInContext(instrumented, sandbox, { filename: sourcePath, timeout: 10000 });
+  // Automation explicitly presses Start, just like a player; page load itself stays on home.
+  const query = new URLSearchParams(sandbox.location.search);
+  if (!options.stayHome && (query.has('auto') || query.has('capture'))) {
+    windowEvents.dispatch('keydown', { code: 'Enter' });
+    windowEvents.dispatch('keyup', { code: 'Enter' });
+  }
   return {
     api: sandbox.__toast, inspect: sandbox.__test, storage, sandbox,
     dispatch: windowEvents.dispatch, canvasDispatch: canvasEvents.dispatch,

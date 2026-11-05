@@ -523,7 +523,7 @@ function firstGuide() {
 }
 const BOT = params.get('bot') || (AUTO ? 'human' : CAPTURE ? 'smart' : null);
 const AUTO_RESTART = AUTO && !CAPTURE && !params.has('once');
-const st = { state: (AUTO || CAPTURE) ? 'play' : 'title', L: START_LAYER, t: 0, stT: 0, playT: 0, layerT: 0, flipped: false, cycle: 0, pressure: 0, shake: 0,
+const st = { state: 'title', L: START_LAYER, t: 0, stT: 0, playT: 0, layerT: 0, flipped: false, cycle: 0, pressure: 0, shake: 0,
   cracks: [], crackX: 540, holes: {}, best: 0, depth: 0, breaks: 0, lastCrackStep: 0, bossSay: 2, sawLow: false,
   score: 0, strikes: 0, toasts: 0, perfects: 0, combo: 0, bestCombo: 0, hype: 0, bursts: 0, manualToasts: 0, round: null, tut: null, judge: null, freeze: 0, gain: null, stand: 0, perfect: false, perfT: 0, notPerfT: 1, hist: [], trick: 0, trickT: 0, over: null, gameT: 0,
   floorPlan: null, hiscore: 0, bestDifficulty: null, newRecord: false, botT: 0, coreBonus: false, warnT: 0, paused: false, bump: null, bossOff: 0, bossJ: 0, bossJT: 0, tdrT: 0 };
@@ -716,7 +716,7 @@ function returnToTitle() {
   parts.length = debris.length = puddles.length = bubbles.length = popups.length = fx.length = gaugeDrops.length = 0;
   window.ToastMusic.reset(); syncMusic();
 }
-function startFromTitle(forceTut) { debugMenuOpen = false; if (forceTut || st.tut || wantTutorial(true)) { startTutorial(); return; } restart(); }
+function startFromTitle(forceTut) { debugMenuOpen = false; if (forceTut || st.tut || wantTutorial()) { startTutorial(); return; } restart(); }
 addEventListener('keydown', e => {
   if (window.ToastSettings.isOpen()) return;
   gestured = true; window.ToastMusic.gesture(); syncMusic();
@@ -1603,8 +1603,8 @@ try {
   const saved = localStorage.getItem(TUTORIAL_ENABLED_KEY);
   if (saved === '0' || saved === '1') { tutorialEnabled = saved === '1'; tutorialPreferenceManual = true; }
 } catch (_) {}
-function wantTutorial(fromHome = false) {
-  if ((!fromHome || !tutorialPreferenceManual) && params.has('tut')) return params.get('tut') === '1';
+function wantTutorial() {
+  if (!tutorialPreferenceManual && params.has('tut')) return params.get('tut') === '1';
   return tutorialEnabled && !BOT && !AUTO && !CAPTURE && START_LAYER === 0;
 }
 function tutorialBeatStep() { return !!st.tut && (st.tut.step === 5 || st.tut.step === 6); }
@@ -3528,8 +3528,7 @@ function frame(now) {
   render();
   requestAnimationFrame(frame);
 }
-if (wantTutorial()) startTutorial();
-if (st.state === 'play' && !st.tut) newRound(true);
+// Opening the page always shows home. Only a home action starts a lesson or run.
 if (params.has('frame')) { const n = clamp(Number(params.get('frame')) || 0, 0, 36000); for (let i = 0; i < n; i++) step(DT); render(); }
 else if (CAPTURE) { render(); }
 else requestAnimationFrame(frame);

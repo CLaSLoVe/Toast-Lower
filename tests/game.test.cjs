@@ -243,7 +243,7 @@ if (!matrixOnly) {
   });
   test('first-run tutorial renders and can be deliberately skipped', () => {
     const g = game('?tut=1&seed=20261022', { storage: { toast_mute: '1' } });
-    assert.ok(g.api.tut()); g.tap('Enter'); g.advance(120, true);
+    assert.equal(g.api.state().state, 'title'); assert.equal(g.api.tut(), null); g.tap('Enter'); assert.ok(g.api.tut()); g.advance(120, true);
     g.tap('KeyS'); assert.equal(g.api.tut(), null); assert.equal(g.api.state().state, 'play');
     g.advance(60, true); finiteState(g);
   });
