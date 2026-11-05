@@ -124,3 +124,8 @@ and skip hit targets (including rotated portrait), real tutorial spills without
 a failure state, height-gated musical countdowns, whole-phrase retry behavior,
 and normal-input completion with each selected difficulty. Tutorial practice
 never changes real score/penalties, and exiting starts with fresh resources.
+
+`node tests/feedback.test.cjs` checks visible Mom contacts in free practice and
+height lessons, all tutorial toast animations, persistent phrase markers through
+preparation and retries, beat-synchronized pulses, and readable 2/3/4-note markers
+on desktop and rotated phones. Rendering must not mutate poses or scoring.

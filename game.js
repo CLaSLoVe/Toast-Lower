@@ -1296,12 +1296,13 @@ function juiceClink(kind, tut) {
   const r = st.round, partner = toastChar(), chain = r.chain || 0;
   const finish = chain > 0 && r.chainIndex === chain - 1 && r.chainHits === chain - 1 && kind !== 'bad';
   const m = { t: 0, layer: st.L, partner, kind, tut, chain, finish, fired: false, drops: [],
+    freePractice: !!(tut && st.tut && st.tut.step === 0),
     p: copyPose(player.P), b: copyPose(partner.P), contact: 0.07,
     hold: kind === 'perfect' ? 0.04 : finish ? 0.025 : 0,
     duration: chain ? 0.28 : 0.38 };
   m.x = (m.p.rim.x + m.b.rim.x) / 2; m.y = (m.p.rim.y + m.b.rim.y) / 2;
-  if (r.inputJudged) { st.toastMotion = m; player.reach = 1; player.reachV = 0; }
-  else emitToastImpact(m); // Automatic tutorial demonstrations have no input gesture.
+  // Tutorial demonstrations and free practice use the same visible contact as timed play.
+  st.toastMotion = m; player.reach = 1; player.reachV = 0;
 }
 function emitToastImpact(m) {
   m.fired = true;
@@ -1357,7 +1358,7 @@ function toastPose(c, base) {
   const move = (targetX - from.rim.x) * weight;
   for (const key of ['hand', 'rim', 'cupB']) {
     out[key].x = lerp(base[key].x, from[key].x, weight) + move;
-    out[key].y = lerp(base[key].y, from[key].y, weight);
+    out[key].y = lerp(base[key].y, from[key].y, weight) + (m.freePractice ? (m.y - from.rim.y) * weight : 0);
   }
   const direction = isP ? 1 : -1;
   const lean = direction * (bad ? (isP ? 10 : -3) * sc : Math.min(Math.abs(targetX - from.rim.x) * 0.32, 32 * sc)) * weight;
@@ -1550,6 +1551,7 @@ function stepToastCue() {
   const c = r.cue;
   const due = c.target - (2 - c.next) * c.gap;
   if (c.next < 3 && r.t + 1e-9 >= due) {
+    if (c.next === 2 && r.chain) r.beatPulse = { index: r.chainIndex, at: st.t };
     sfx(c.next === 2 ? 'countGo' : 'count');
     c.next++;
   }
@@ -1614,7 +1616,7 @@ function tutLevel(dy) { return st.stand + dy * SC / 1.45; }
 function tutHold(dy) { st.round = { phase: 'hold', t: 0, T: 99, target: tutLevel(dy), smash: false, n: 0, tut: true }; }
 function tutMsg(zh, keysArr) { st.tut.msg = mobileWords(zh); st.tut.keys = keysArr || []; }
 function tutNext() { st.tut.step++; st.tut.t = 0; st.tut.sub = 0; st.tut.acc = 0; st.tut.enter = true; st.judge = null; bubbles.length = 0; }
-function tutClink() { st.round.phase = 'clink'; st.round.t = 0; }
+function tutClink() { st.round.phase = 'clink'; st.round.t = 0; judgeClink(); }
 function startTutorial() {
   st.startingTutorial = true; st.tut = null; restart(); st.startingTutorial = false;
   st.tut = { step: 0, t: 0, sub: 0, acc: 0, enter: true, msg: '', keys: [], fade: 0 };
@@ -1644,7 +1646,7 @@ function tutHoldStep(dy, msg, keysArr, combined = false) {
   };
 }
 function beginTutorialBeat(chain) {
-  const target = st.round.target;
+  const target = st.round.target; st.tut.lastChainResults = null;
   st.round = { phase: 'aim', t: 0, T: 2 + (chain ? Math.min(REACH_TIME, CFG.chainReach, 60 / CFG.musicBpm * .38) : reachTime()) - .5,
     target, smash: false, n: 1, tut: true, mh: [] };
   if (chain) Object.assign(st.round, { chain: 2, chainIndex: 0, chainHits: 0, chainResults: [], chainBeat: 60 / CFG.musicBpm, scoredHits: 0 });
@@ -1655,15 +1657,14 @@ function tutorialBeatExercise(chain) {
   return {
     enter() {
       tutHold(115); st.tut.sway = true;
-      if (chain) say(boss, ['这回碰两下，别碰一下就跑！'], 1.5);
-      tutMsg('先对准高度，准备碰杯', ['O', 'P', 'Q', 'W']);
+      tutMsg(chain ? '先对准高度，准备连碰两下' : '先对准高度，准备碰杯', ['O', 'P', 'Q', 'W']);
     },
     step(T, dt) {
       const tu = st.tut, r = st.round;
       if (r.phase === 'hold') {
         const margin = player.P.rim.y - toastRimY();
         tu.acc = margin > 0 && margin < winSpan() ? tu.acc + dt : 0;
-        if (tu.acc >= .35 && (!chain || T >= 1)) beginTutorialBeat(chain);
+        if (tu.acc >= .35 && (!chain || T >= 1) && (!tu.lastChainResults || st.t - tu.retryAt >= .8)) beginTutorialBeat(chain);
       } else if (r.waitForBeat && toastInputLeft() <= 1e-9) finishToastAttempt();
       else if (r.phase === 'aim' && !r.result && toastInputLeft() < -timingWindow()) {
         r.result = 'strike'; r.timing = toastInputLeft();
@@ -1672,7 +1673,8 @@ function tutorialBeatExercise(chain) {
       } else if (r.phase === 'react' && r.t > .5) {
         if (roundSucceeded(r)) { player.reach = player.reachV = 0; tutNext(); }
         else {
-          const target = r.target; tutHold(115); st.round.target = target; tu.acc = 0; st.judge = null;
+          const target = r.target; tu.lastChainResults = chain ? r.chainResults.slice() : null; tu.retryAt = st.t;
+          tutHold(115); st.round.target = target; tu.acc = 0; st.judge = null;
           tutMsg(chain ? '漏了一拍，整组再来！' : '听第三声，再试一次', []);
         }
       }
@@ -1736,7 +1738,6 @@ function stepTutorial(dt) {
   if (r) {
     r.t += dt;
     if (tutorialBeatStep() && r.phase === 'aim') { syncToastClock(dt); stepToastCue(); }
-    if (r.phase === 'clink' && (Math.abs(boss.P.rim.x - (player.P.rim.x + 24 * SC)) < 14 || r.t > .45)) judgeClink();
   }
   if (st.tut === tu) S.step(tu.t, dt);
   if (player.wine < .25) { player.wine = .7; say(boss, ['妈给你满上'], 1.2); }
@@ -3165,6 +3166,54 @@ function drawToastButton() {
   ctx.restore();
 }
 
+// One shared phrase display, including the tutorial's untimed preparation and retries.
+function chainIndicator() {
+  const r = st.round, teaching = st.tut && st.tut.step === 6;
+  if (st.state !== 'play' || !r || r.smash || !(r.chain || teaching)) return null;
+  const results = r.chainResults || (teaching && st.tut.lastChainResults) || [];
+  const preparing = r.phase === 'hold', total = r.chain || 2;
+  const finished = r.phase === 'react' || preparing && results.length > 0;
+  const retry = finished && results.filter(Boolean).length < total;
+  const index = preparing ? -1 : r.chainIndex;
+  // Pulse on the audible beat, including the last note after the round timer resets.
+  const pulseAge = r.beatPulse ? st.t - r.beatPulse.at : Infinity;
+  const pulseIndex = !preparing && pulseAge < .16 ? r.beatPulse.index : -1;
+  const pulse = pulseIndex >= 0 ? 1 - pulseAge / .16 : 0;
+  return { total, results, preparing, index, finished, retry, pulseIndex, pulse,
+    pendingResult: !preparing && r.result != null && r.phase !== 'react' ? r.result === 'ok' : null };
+}
+function chainIndicatorRect() {
+  const mobile = TOUCH, unit = !mobile && LAY === 'port' ? 1.35 : 1;
+  const w = (mobile ? 800 : 440) * unit, h = (mobile ? 124 : 156) * unit;
+  return { x: W / 2 - w / 2, y: hudBottom() + (st.tut ? 12 : 68) * unit, w, h, unit };
+}
+function drawChainIndicator() {
+  const data = chainIndicator(); if (!data) return;
+  const { x, y, w, h, unit } = chainIndicatorRect(), mobile = TOUCH;
+  ctx.save();
+  ctx.fillStyle = 'rgba(38,23,29,.91)'; rr(x, y, w, h, 24 * unit); ctx.fill();
+  ctx.strokeStyle = '#e5b966'; ctx.lineWidth = 3 * unit; ctx.stroke();
+  const heading = mobile && data.retry ? '整组再来' : `连碰 ${data.total} 次`;
+  text(heading, mobile ? x + 130 : W / 2, y + (mobile ? h / 2 : 25 * unit), (mobile ? 40 : 30) * unit, data.retry ? '#ffb1a2' : '#ffe4a1', 'center', 900);
+  const center = mobile ? x + 520 : W / 2;
+  const spacing = (mobile ? 118 : 96) * unit, cy = y + (mobile ? 62 : 82) * unit, radius = (mobile ? 43 : 30) * unit;
+  ctx.strokeStyle = '#8e7869'; ctx.lineWidth = 5 * unit;
+  line({x: center - (data.total - 1) * spacing / 2, y: cy}, {x: center + (data.total - 1) * spacing / 2, y: cy});
+  for (let i = 0; i < data.total; i++) {
+    const cx = center + (i - (data.total - 1) / 2) * spacing;
+    const done = i < data.results.length || i === data.index && data.pendingResult !== null;
+    const hit = i < data.results.length ? data.results[i] : data.pendingResult;
+    const current = i === data.index && !data.finished;
+    const pulse = i === data.pulseIndex ? data.pulse : 0;
+    const color = done ? hit ? '#92dbb2' : '#ec786f' : current ? '#ffda6e' : '#f3e3c4';
+    circ(cx, cy, radius * (1 + .13 * pulse), color, current ? '#fff4c9' : '#724a39', (current ? 5 : 3) * unit);
+    text(done ? hit ? '✓' : '×' : String(i + 1), cx, cy, (mobile ? 50 : 36) * unit, '#39231e', 'center', 900);
+  }
+  const label = data.retry ? '整组再来' : data.finished ? '全中！' : data.preparing ? '先对准高度' : '高度稳住，跟拍碰';
+  if (!mobile) text(label, W / 2, y + h - 19 * unit, 22 * unit, data.retry ? '#ffb1a2' : '#f7e4bb', 'center', 800);
+  ctx.restore();
+}
+
 function drawTutorialControls() {
   const skip = tutorialSkipRect();
   comicPanel(skip.x, skip.y, skip.w, skip.h, '#f7e4bb', 16);
@@ -3291,17 +3340,6 @@ function render() {
       ctx.restore();
     }
   }
-  if (playing && rd && rd.chain && !rd.smash) {
-    const y = HB + 88 * UI, spacing = 62 * UI;
-    for (let i = 0; i < rd.chain; i++) {
-      const x = W / 2 + (i - (rd.chain - 1) / 2) * spacing;
-      const current = i === rd.chainIndex, done = i < rd.chainResults.length || current && rd.result != null;
-      const hit = i < rd.chainResults.length ? rd.chainResults[i] : rd.result === 'ok';
-      const col = done ? hit ? '#92dbb2' : '#ec786f' : current ? '#ffd34d' : '#6c5b4e';
-      circ(x, y, (current ? 21 : 17) * UI, col, '#292018', 3);
-      text(done ? hit ? '✓' : '×' : String(i + 1), x, y, 22 * UI, '#211a19', 'center', 900);
-    }
-  }
   // --- clink path + countdown ring around his cup
   if (playing && rd && (rd.phase === 'aim' || rd.phase === 'clink' || rd.phase === 'hold') && !rd.smash && !st.alien) {
     const tc = toastChar(), tRimY = toastRimY();
@@ -3361,7 +3399,7 @@ function render() {
   // --- judgment at contact: one big word + both rims highlighted
   if (st.judge && st.judge.compact) {
     const j = st.judge;
-    if (j.t < 0.4) text(j.word, W / 2, HB + 155 * UI, 28 * UI, j.col, 'center', 900, '#201820');
+    if (!chainIndicator() && j.t < 0.4) text(j.word, W / 2, HB + 155 * UI, 28 * UI, j.col, 'center', 900, '#201820');
   }
   if (st.judge && !st.judge.compact) {
     const j = st.judge, a = clamp(Math.min(j.t * 10, (1.7 - j.t) * 3), 0, 1), pp = S(j.px, j.py), bp = S(j.bx, j.by);
@@ -3386,6 +3424,7 @@ function render() {
     const fsz = 30 * UI; ctx.font = `900 ${fsz}px ${FONT}`; const w = ctx.measureText(b.zh).width + 36, h = fsz + 30;
     const gx = gaugeRect().x + gaugeRect().w + 12;
     let bx = clamp(p.x - w / 2, gx, W - w - 10), by = clamp(p.y - 150 * cam.z - h, HB + 12, H - 260);
+    if (chainIndicator()) { const panel = chainIndicatorRect(); if (bx < panel.x + panel.w && bx + w > panel.x && by < panel.y + panel.h && by + h > panel.y) by = panel.y + panel.h + 12; }
     ctx.fillStyle = '#fff'; rr(bx, by, w, h, 18); ctx.fill(); ctx.strokeStyle = OL; ctx.lineWidth = 4; ctx.stroke();
     const tx = clamp(p.x, bx + 20, bx + w - 20);
     ctx.beginPath(); ctx.moveTo(tx - 11, by + h - 2); ctx.lineTo(tx + 11, by + h - 2); ctx.lineTo(tx, by + h + 18); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -3506,6 +3545,7 @@ function render() {
     ctx.fillStyle = 'rgba(24,17,27,.9)'; rr(W / 2 - width / 2, y - 30, width, 60, 16); ctx.fill();
     text(st.guide.text, W / 2, y, size, '#ffe4a0', 'center', 800);
   }
+  drawChainIndicator();
   drawGameNavigation();
   if (st.tut) drawTutorialControls();
   if (st.state === 'title') {
